@@ -28,6 +28,17 @@ async function moveOut(pc, wid, from) {
       virtualX: mon.x + 24, virtualY: mon.y + 24 };
     // Register the return position in the helper before moving. No idle unpark timer.
     await pc.helper.request('winVirtualPlace', { wid, x: m.virtualX, y: m.virtualY, homeX: m.x, homeY: m.y });
+    // The helper posts relocation without blocking its input thread. Verify the
+    // actual frame asynchronously; a hung app must not freeze mouse crossing.
+    const deadline = Date.now() + 2000;
+    for (;;) {
+      if (!current() || !pc.macAccepts || !pc.settings.pcApps.moveWindows) break;
+      const placed = (await pc.helper.request('windows', {}, Math.max(1, deadline - Date.now()))).windows?.find(w => w.wid === wid);
+      if (placed && placed.x >= mon.x && placed.y >= mon.y
+          && placed.x + placed.w <= mon.x + mon.width && placed.y + placed.h <= mon.y + mon.height) break;
+      if (Date.now() >= deadline) throw new Error('Window did not fit or refused placement on the app display');
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
     console.log('[window-transfer] source placed wid=' + wid);
     if (!current() || !pc.macAccepts || !pc.settings.pcApps.moveWindows) {
       pc.helper.send('winVirtualReturn', { wid, x: m.x, y: m.y });

@@ -446,18 +446,9 @@ namespace MacShare
             if (!IsWindow(Handle(wid))) throw new Exception("Window closed before transfer");
             virtualHomes[wid] = new Point(homeX, homeY);
             EndMove(wid);
-            Place(wid, x, y);
-            RECT actual;
-            bool placed = false;
-            if (Frame(Handle(wid), out actual))
-                foreach (System.Windows.Forms.Screen screen in System.Windows.Forms.Screen.AllScreens)
-                    if (string.Equals(screen.DeviceName, Screens.AppDisplay, StringComparison.OrdinalIgnoreCase))
-                        placed = screen.Bounds.Contains(Rectangle.FromLTRB(actual.left, actual.top, actual.right, actual.bottom));
-            if (!placed)
-            {
-                VirtualReturn(wid, homeX, homeY);
-                throw new Exception("Window did not fit or refused placement on the app display");
-            }
+            // Never wait on another app's window thread from the input helper.
+            // The JS owner verifies the resulting bounds before advertising it.
+            QueuePlace(wid, x, y);
         }
         public static void VirtualReturn(double wid, int x, int y)
         {
@@ -471,7 +462,7 @@ namespace MacShare
             Frame(Handle(wid), out frame);
             x = Math.Max(target.Left, Math.Min(x, target.Right - Math.Min(target.Width, Math.Max(100, frame.right - frame.left))));
             y = Math.Max(target.Top, Math.Min(y, target.Bottom - Math.Min(target.Height, Math.Max(60, frame.bottom - frame.top))));
-            Place(wid, x, y);
+            QueuePlace(wid, x, y);
         }
         public static void ReturnVirtualWindows()
         {
@@ -495,6 +486,17 @@ namespace MacShare
         }
 
         // Back with its visible frame's top left at x, y (physical px, as List gives them), in front.
+        static void QueuePlace(double wid, int x, int y)
+        {
+            IntPtr h = Handle(wid);
+            RECT outer, vis;
+            GetWindowRect(h, out outer);
+            if (!Frame(h, out vis)) vis = outer;
+            if (!SetWindowPos(h, IntPtr.Zero, x - (vis.left - outer.left), y - (vis.top - outer.top), 0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS))
+                throw new Exception("Could not queue window placement");
+        }
+
         public static void Place(double wid, int x, int y)
         {
             IntPtr h = Handle(wid);

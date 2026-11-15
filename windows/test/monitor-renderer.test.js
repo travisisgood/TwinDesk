@@ -85,6 +85,29 @@ test('ICE arriving during answer processing is added instead of being discarded'
   assert.deepEqual(candidates, ['first', 'second']);
 });
 
+for (const cancel of [false, true]) test('early sender ICE waits for the offer; cancellation=' + cancel, async () => {
+  const f = rtcFixture('sender-renderer.js'), parameters = deferred();
+  const track = {stop() {}};
+  f.context.navigator.mediaDevices.getUserMedia = async () => ({ getVideoTracks: () => [track], getAudioTracks: () => [], getTracks: () => [track] });
+  f.context.window.TwinDeskScreenCodec = { RTPMAP: /^a=rtpmap:(\d+) /, order: c => c };
+  f.context.RTCRtpSender = { getCapabilities: () => ({ codecs: [] }) };
+  Object.assign(f.context.RTCPeerConnection.prototype, {
+    addTransceiver() { return { setCodecPreferences() {}, sender: { getParameters: () => ({}), setParameters: () => parameters.promise } }; },
+    createOffer: async () => ({sdp: ''}),
+    async setLocalDescription(d) {
+      this.localDescription = d;
+      this.onicecandidate({candidate: {toJSON: () => ({candidate: 'early'})}});
+    },
+  });
+  const started = vm.runInContext('start({session: 1, sourceId: "window:7:0", width: 500, height: 400, mbps: 10, offer: {kind: "window", wid: 7}})', f.context);
+  await tick();
+  assert.equal(f.sent.length, 0, 'early ICE must not be routed before the receiver has a session');
+  if (cancel) vm.runInContext('stop(1)', f.context);
+  parameters.resolve();
+  await started;
+  assert.deepEqual(f.sent.map(m => m.t), cancel ? [] : [P.T.RTC2_OFFER, P.T.RTC2_ICE]);
+});
+
 function frameGenFixture() {
   const f = rtcFixture('monitor.js'), generators = [];
   f.context.window.FrameGen = class {

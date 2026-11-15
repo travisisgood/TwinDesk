@@ -49,7 +49,7 @@ function withOpus(sdp) {
 // lowers quality, never the frame rate (dropped frames are what feels jagged and adds lag).
 async function start(m) {
   stop(m.session);
-  const me = { session: m.session, pending: [], mbps: m.mbps, codec: m.codec };
+  const me = { session: m.session, pending: [], localIce: [], offerSent: false, mbps: m.mbps, codec: m.codec };
   const fps = m.fps || 60;
   sessions.set(me.session, me);
   try {
@@ -71,7 +71,12 @@ async function start(m) {
     // H.265 when both have it (shared/screencodec.js), then H.264 High, Main, Baseline: better quality per
     // bit, in hardware. Everything else stays as a fallback.
     tr.setCodecPreferences(window.TwinDeskScreenCodec.order(RTCRtpSender.getCapabilities('video').codecs, m.codec)); // the Encoder setting
-    pc.onicecandidate = (e) => e.candidate && alive(me) && api.send({ t: T.RTC2_ICE, session: me.session, candidate: e.candidate.toJSON() });
+    pc.onicecandidate = (e) => {
+      if (!e.candidate || !alive(me)) return;
+      const message = { t: T.RTC2_ICE, session: me.session, candidate: e.candidate.toJSON() };
+      if (me.offerSent) api.send(message);
+      else me.localIce.push(message);
+    };
     pc.onconnectionstatechange = () => alive(me) && report(me, pc.connectionState === 'connected' ? 'live' : pc.connectionState);
 
     const offer = await pc.createOffer();
@@ -91,6 +96,8 @@ async function start(m) {
     // Playback › Steady: no "show it now" on the frames (shared/screencodec.js steady()).
     const sdp = m.steady ? window.TwinDeskScreenCodec.steady(pc.localDescription.sdp) : pc.localDescription.sdp;
     api.send({ ...m.offer, t: T.RTC2_OFFER, session: me.session, sdp, kind });
+    me.offerSent = true;
+    for (const candidate of me.localIce.splice(0)) api.send(candidate);
     report(me, 'connecting');
     me.statsTimer = setInterval(() => stats(me).catch(() => {}), 1000);
   } catch (e) {

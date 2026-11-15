@@ -7,7 +7,8 @@ const deferred = () => { let resolve; const promise = new Promise(r => { resolve
 function fixture() {
   const calls = [], mon = { name: 'virtual', x: 3000, y: 0, width: 1920, height: 1080 };
   const vdd = { state: { installed: true }, setOn: async on => { calls.push(['display', on]); return on ? mon : true; } };
-  const helper = { request: async (cmd, args) => { calls.push([cmd, args]); return { windows: [{ wid: 7, x: 50, y: 60, w: 350, h: 320, pid: 123 }] }; }, send: (cmd, args) => calls.push([cmd, args]) };
+  let position = { x: 50, y: 60 };
+  const helper = { request: async (cmd, args) => { calls.push([cmd, args]); if (cmd === 'winVirtualPlace') position = {x: args.x, y: args.y}; return { windows: [{ wid: 7, ...position, w: 350, h: 320, pid: 123 }] }; }, send: (cmd, args) => calls.push([cmd, args]) };
   const desktop = new AppDesktop({ vdd, helper, canStart: () => true, changed: mon => calls.push(['changed', mon]) });
   const pc = { helper, desktop, moved: new Map(), generation: 1, macAccepts: true, settings: { pcApps: { moveWindows: true } },
     link: { status: { state: 'connected' }, current: { transport: 'ip' } }, _mine: () => false, _current: n => n === pc.generation,
@@ -33,6 +34,25 @@ test('concurrent display acquisition starts one monitor', async () => {
   const off = f.calls.findIndex(c => c[0] === 'display' && c[1] === false);
   assert.ok(clear < off);
   assert.equal(f.vdd.appDisplay, false);
+});
+
+test('pending native relocation does not advertise and disconnect cancels before publication', async () => {
+  const f = fixture(), wait = deferred(), request = f.helper.request;
+  let relocating = false;
+  f.helper.request = async (cmd, args) => {
+    if (cmd === 'winVirtualPlace') { relocating = true; return {}; }
+    if (cmd === 'windows' && relocating) return wait.promise;
+    return request(cmd, args);
+  };
+  const transfer = moved.moveOut(f.pc, 7);
+  await new Promise(r => setImmediate(r));
+  assert.equal(f.pc.moved.size, 0);
+  f.pc.generation++;
+  wait.resolve({windows: [{wid: 7, x: 3024, y: 24, w: 350, h: 320}]});
+  assert.equal(await transfer, false);
+  assert.equal(f.pc.moved.size, 0);
+  assert.ok(f.calls.some(c => c[0] === 'winVirtualReturn'));
+  await f.desktop.release();
 });
 test('disconnect during display creation never relocates the window', async () => {
   const f = fixture(), wait = deferred();
