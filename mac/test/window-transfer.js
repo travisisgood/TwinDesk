@@ -69,11 +69,21 @@ test('disconnection during display creation cancels parking and ignores a late r
   assert.equal(appSend.moved.size, 0);
 });
 
-test('a window that escapes its backing display is withdrawn', async () => {
+test('stale geometry defers capture and a persistent mismatch returns the window', async () => {
   const { appSend, requests } = setup();
   await transfer.moveOut(appSend, 10, 42);
+  const physical = { wid: 10, pid: 42, x: 20, y: 60, w: 400, h: 400 };
   const owners = [];
-  transfer.list(appSend, [{ wid: 10, pid: 42, x: 20, y: 60, w: 400, h: 400 }], owners, []);
+  transfer.list(appSend, [physical], owners, []);
   assert.deepEqual(owners, []);
+  assert.equal(requests.length, 1);
+
+  const parked = { ...physical, x: -1200 };
+  transfer.list(appSend, [parked], owners, []);
+  assert.equal(owners[0].wid, 10);
+  assert.equal(appSend.moved.get(10).missingSince, 0);
+
+  appSend.moved.get(10).missingSince = Date.now() - 1300;
+  transfer.list(appSend, [physical], [], []);
   assert.equal(requests[1][0], 'appUnpark');
 });

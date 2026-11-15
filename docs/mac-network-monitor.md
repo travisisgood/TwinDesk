@@ -199,3 +199,15 @@ Scarlett dropdowns without changing audio settings, Explorer and REAPER FX
 popups, TCP versus UDP crossing, and disconnect/reconnect and emergency
 recovery. Use a reviewed integration commit and shared identifier for the
 paired candidates.
+
+## Signing Mac test builds
+
+Use the same Developer ID Application identity, bundle ID and app path across
+updates on the test Mac. Select the existing identity with
+`MAC_IDENTITY=<identity> npm run dist`, without `MAC_ADHOC_SIGN=1`. Check the
+bundle with `codesign --verify --deep --strict` and compare
+`codesign -d -r- <app>` across builds. Moving from ad-hoc to Developer ID
+signing requires granting permissions for the new identity once. Future builds
+with the same designated requirement should retain them. Verify each of
+Screen Recording, Accessibility and Input Monitoring on the test Mac before
+treating permission retention as confirmed.
