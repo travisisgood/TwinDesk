@@ -749,6 +749,11 @@ app.whenReady().then(() => {
   pairing.consumeQr = () => { qrPair = null; }; // a QR pairing that went through: the link is single-use
   // Overview's controls of the other device, and this Mac's for it (shared/devctl.js): the session
   // is peer.js here, its 'client' the start.
+  require('../shared/agent-messenger.js').install({ app, platform: 'mac', link: {
+    on: (ev, fn) => peer.on(ev === 'welcome' ? 'client' : ev === 'closed' ? 'closed' : 't:' + ev, fn),
+    send: m => peer.sendToClient(m),
+    get current() { return peer.current; },
+  } });
   const { DevCtl } = require('../shared/devctl.js');
   const { DevLocal } = require('../shared/devlocal.js');
   svc.devctl = new DevCtl({

@@ -261,6 +261,7 @@ function start() {
     resolveAddress: (macId) => discovery.get(macId),
   });
   link = new Peer(guest);
+  require('../shared/agent-messenger.js').install({ app, link, platform: 'windows' });
   link.setPlain(settings.files.plain === true); // Files › Encrypt file transfers
   if (settings.drive.on) loadDrive();
   // The files engine (shared/fx2.js) stays up while another TwinDesk computer is on the network: a

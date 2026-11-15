@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><title>TwinDesk temporary messenger</title>
+<style>body{font:16px system-ui;max-width:800px;margin:32px auto;padding:12px;background:#17191d;color:#eee}textarea{width:100%;height:90px}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:#282c34}button,input{padding:8px}input{width:75%}</style>
+<h1>TwinDesk messenger</h1><p>Messages go to your paired computer. Received text is never executed.</p>
+<label>Local token <input id="token" type="password" autocomplete="off"></label><button id="connect">Connect</button>
+<p id="status">Paste the token from your local agent-messenger.json file.</p><div id="messages"></div>
+<textarea id="text" maxlength="16000" aria-label="Message"></textarea><button id="send">Send</button>
+<script>
+const el=id=>document.getElementById(id);let cursor=0,running=false;const rows=new Map();
+async function call(route,body){const r=await fetch(route,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+el('token').value,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});const j=await r.json();if(!r.ok)throw Error(j.error);return j;}
+el('connect').onclick=async()=>{if(running)return;running=true;try{while(running){const s=await call('/messages?after='+cursor+'&wait=25000');cursor=s.cursor;el('status').textContent=s.ready?'Peer connected':'Peer disconnected or messenger disabled';for(const m of s.messages)rows.set(m.id,m);while(rows.size>200)rows.delete(rows.keys().next().value);el('messages').replaceChildren(...Array.from(rows.values()).map(m=>{const p=document.createElement('pre');p.textContent=(m.direction==='out'?'You':'Peer')+' · '+m.status+'\n'+m.text;return p;}));}}catch(e){el('status').textContent=e.message;}finally{running=false;}};
+el('send').onclick=async()=>{try{await call('/send',{text:el('text').value});el('text').value='';}catch(e){el('status').textContent=e.message;}};
+</script>

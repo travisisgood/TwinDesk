@@ -1,0 +1,47 @@
+name: Temporary messenger
+on:
+  push:
+    branches: [temporary-messenger]
+  pull_request:
+    paths:
+      - 'shared/agent-messenger*'
+      - 'shared/test/agent-messenger.js'
+      - 'tools/messenger.js'
+      - '.github/workflows/temporary-messenger.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-and-package:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test messenger and terminal API
+        run: node shared/test/agent-messenger.js
+      - name: Check application integration syntax
+        run: |
+          node --check windows/main.js
+          node --check mac/main.js
+          node --check shared/agent-messenger.js
+          node --check tools/messenger.js
+      - name: Record source commit
+        shell: bash
+        run: git rev-parse HEAD > MESSENGER-COMMIT.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: messenger-0.1.0-source-${{ matrix.os }}
+          path: |
+            MESSENGER-COMMIT.txt
+            shared/agent-messenger.js
+            shared/agent-messenger.html
+            shared/test/agent-messenger.js
+            tools/messenger.js
+            docs/temporary-messenger.md
+          retention-days: 7
