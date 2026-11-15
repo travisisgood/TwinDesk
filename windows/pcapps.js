@@ -9,6 +9,7 @@
 const { desktopCapturer, screen: displays } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
+const crypto = require('crypto');
 const P = require('../shared/protocol.js');
 const { script } = require('./ps');
 const RemoteInput = require('./remote-input');
@@ -49,6 +50,7 @@ class PcApps {
     this.macAccepts = false; // papp.policy
     this.apps = null; // [{id, name, exe}] from Get-StartApps (cached)
     this.icons = new Map(); // id → data URL
+    this.movedApps = new Map(); // opaque app id -> icon/name for crossed windows
     this.launched = new Map(); // id → {id, exe, pids: Set, since, before: Set(wid), had, lastSeen}
     this.windows = []; // the list last sent to the Mac
     this.moved = new Map(); // wid → {x, y, w, h, pid}: windows moved to the other computer (moveOut), and where they were
@@ -60,7 +62,7 @@ class PcApps {
     this.input = new RemoteInput(opts);
 
     const link = this.link;
-    link.on('welcome', () => { this.generation++; this.macAccepts = false; this.sentKey = ''; });
+    link.on('welcome', () => { this.generation++; this.macAccepts = false; this.sentKey = ''; this.movedApps.clear(); });
     link.on('closed', () => { this.generation++; clearTimeout(this.timer); this.timer = null; this.macAccepts = false; this.launched.clear(); this.bringBack(); this._sync([]); });
     link.on(T.PAPP_POLICY, (m) => {
       this.macAccepts = m.accept === true;
@@ -227,7 +229,7 @@ class PcApps {
       const apps = await this._build();
       if (!this._current(generation)) return;
       this.message = '';
-      this.link.send({ t: T.PAPPS_RESULT, apps });
+      this.link.send({ t: T.PAPPS_RESULT, apps: apps.concat([...this.movedApps.values()]) });
     } catch (e) {
       if (!this._current(generation)) return;
       this.message = 'Couldn’t list this PC’s apps: ' + e.message;
@@ -313,7 +315,10 @@ class PcApps {
     const out = [];
     const pops = [];
     const taken = new Set();
-    if (this.moved.size) require('../shared/movewin.js').list(this, all, taken, out, pops); // moved windows (Move windows)
+    if (this.moved.size) {
+      require('../shared/movewin.js').list(this, all, taken, out, pops);
+      this._identifyMoved(all, out, pops);
+    }
     for (const a of this.launched.values()) {
       const id = a.id.toLowerCase();
       const mine = all.filter((w) => !taken.has(w.wid) && !(a.skip && a.skip.has(w.wid)) && ((w.aumid && w.aumid.toLowerCase() === id)
@@ -345,6 +350,41 @@ class PcApps {
       if ((a.had && now - a.lastSeen > 3000) || (!a.had && now - a.since > 30000)) this.launched.delete(a.id);
     }
     this._sync(out.concat(pops)).catch(() => {}); // owners before their pop-ups
+  }
+
+  _sendMovedCatalog() {
+    if (!this._current(this.generation)) return;
+    const apps = (this.apps || []).map(a => ({ id: a.id, name: a.name, icon: this.icons.get(a.id) || '' }));
+    this.link.send({ t: T.PAPPS_RESULT, apps: apps.concat([...this.movedApps.values()]) });
+  }
+
+  // Keep transport window ids unchanged, but give every originating application
+  // a stable identity in the existing app catalog. Do not transmit executable paths.
+  _identifyMoved(all, out, pops) {
+    let changed = false;
+    for (const w of out) {
+      if (!w.moved) continue;
+      const source = all.find(x => x.wid === w.wid);
+      if (!source) continue;
+      const exe = String(source.exe || '');
+      const identity = String(source.aumid || exe || 'window:' + w.wid).toLowerCase();
+      const id = 'moved-app:' + crypto.createHash('sha256').update(identity).digest('hex').slice(0, 24);
+      w.id = id;
+      for (const p of pops) if (p.owner === w.wid) p.id = id;
+      if (this.movedApps.has(id)) continue;
+      const entry = { id, name: exe ? path.win32.basename(exe, path.win32.extname(exe)) : 'Remote app', icon: '' };
+      this.movedApps.set(id, entry);
+      changed = true;
+      const generation = this.generation;
+      if (exe) this.helper.request('icons', { size: ICON_PX, paths: [exe] }).then(r => {
+        if (!this._current(generation) || this.movedApps.get(id) !== entry) return;
+        const icon = r && r.icons && r.icons[0];
+        if (typeof icon !== 'string' || !icon.startsWith('data:image/png;base64,')) return;
+        entry.icon = icon;
+        this._sendMovedCatalog();
+      }).catch(() => {});
+    }
+    if (changed) this._sendMovedCatalog();
   }
 
   // Send the window list on change; start/stop one stream per window.

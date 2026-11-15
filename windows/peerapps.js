@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const { app, BrowserWindow, ipcMain, nativeImage, screen: displays } = require('electron');
 const P = require('../shared/protocol.js');
 const I18n = require('../shared/i18n.js');
+const Apps = require('./apps');
 
 const T = P.T;
 const POINTER = new Set([T.IN_MOVE, T.IN_DOWN, T.IN_UP, T.IN_WHEEL]);
@@ -23,6 +24,7 @@ class PeerApps {
     this.loading = false;
     this.message = '';
     this.wins = new Map(); // wid → {info, win, session, ready, queue, keys, closing, sizedAt}
+    this.iconDir = path.join(app.getPath('userData'), 'app-icons');
 
     const link = this.link;
     link.on('welcome', () => {
@@ -41,6 +43,18 @@ class PeerApps {
       const str = (v, n) => String(v == null ? '' : v).slice(0, n);
       this.list = (Array.isArray(m.apps) ? m.apps : []).filter((a) => a && a.id != null)
         .map((a) => ({ id: str(a.id, 1024), name: str(a.name, 200), icon: /^data:image\/png;base64,/.test(a.icon) ? a.icon : '' }));
+      this._refreshDetails();
+      this.onChange();
+    });
+    // A crossed Mac window uses the same app id and icon list as Apps. The list
+    // can arrive after the window; update its taskbar identity without reopening it.
+    link.on(T.APPS_RESULT, (m) => {
+      if (!this.active || !this.fromMac) return;
+      this.list = (Array.isArray(m.apps) ? m.apps : [])
+        .filter(a => a && typeof a.id === 'string' && typeof a.name === 'string')
+        .map(a => ({ id: a.id.slice(0, 1024), name: a.name.slice(0, 200),
+          icon: typeof a.icon === 'string' && a.icon.length <= 2 * 1024 * 1024 && /^data:image\/png;base64,/.test(a.icon) ? a.icon : '' }));
+      this._refreshDetails();
       this.onChange();
     });
     link.on(T.PAPP_LAUNCHED, (m) => {
@@ -253,6 +267,8 @@ class PeerApps {
       useContentSize: true,
       backgroundColor: '#000000',
       fullscreenable: false, // full screen stretched the picture; maximize resizes it over there
+      minimizable: true,
+      skipTaskbar: false,
       autoHideMenuBar: true,
       webPreferences: this._webPrefs(),
     });
@@ -299,7 +315,19 @@ class PeerApps {
     const a = this._app(w.info.id);
     const img = a && a.icon ? nativeImage.createFromDataURL(a.icon) : null;
     if (img && !img.isEmpty()) w.win.setIcon(img);
-    if (w.win.setAppDetails) w.win.setAppDetails({ appId: 'org.macshare.pcapp.' + crypto.createHash('sha1').update(w.info.id).digest('hex').slice(0, 10) });
+    // Older peers use "moved" for every app. Keep those windows separate rather
+    // than incorrectly grouping Finder, Settings, etc. under one taskbar button.
+    const id = w.info.id === 'moved' ? 'moved:' + w.info.wid : w.info.id;
+    const key = crypto.createHash('sha1').update(id).digest('hex');
+    const ico = img && !img.isEmpty() ? Apps.prototype._ico.call(this, key, img) : '';
+    if (w.win.setAppDetails) w.win.setAppDetails({
+      appId: 'org.macshare.pcapp.' + key.slice(0, 10),
+      ...(ico ? { appIconPath: ico, appIconIndex: 0 } : {}),
+    });
+  }
+
+  _refreshDetails() {
+    for (const w of this.wins.values()) if (!w.info.popup && !w.win.isDestroyed()) this._dress(w);
   }
 
   // Never bigger than the other PC's work area (1:1 pixels, nothing upscaled) nor this monitor's.

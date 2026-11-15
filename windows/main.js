@@ -106,7 +106,7 @@ if (!app.requestSingleInstanceLock()) {
   // A pinned Mac app starts "TwinDesk.exe --mac-app=<id>": open it, else show the window.
   // twindesk: links (a toast's Copy, Explorer's TwinDesk menu) come to this copy of TwinDesk.
   // The Store's MSIX declares twindesk: in its manifest; an NSIS install registers itself.
-  if (Store.STORE) { /* the manifest's */ } else if (app.isPackaged) app.setAsDefaultProtocolClient('twindesk');
+  if (Store.STORE || app.commandLine.hasSwitch('network-monitor-test')) { /* manifest or isolated test build */ } else if (app.isPackaged) app.setAsDefaultProtocolClient('twindesk');
   else app.setAsDefaultProtocolClient('twindesk', process.execPath, [path.resolve(process.argv[1] || '.')]);
   app.on('second-instance', (_e, argv) => {
     if (openLink(argv)) return;

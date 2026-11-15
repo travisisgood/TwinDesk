@@ -56,3 +56,53 @@ status; then test Windows-to-Mac Extend with the three physical monitors intact.
 Use the REAPER checks in `docs/network-monitor.md`, including unplug/reconnect
 and modal dialog recovery. Validate inverse-direction viewer input with the Mac
 branch before claiming the bidirectional workflow is ready.
+
+## Built test app and destination taskbar support
+
+Build with `npm ci` in `windows`, then `node node_modules/electron/install.js`
+if the runtime was not downloaded by npm. Run
+`node installer/build-network-monitor.js <new output directory>`.
+This produces an unpacked Windows x64 test application with native C# helpers,
+an isolated settings folder, upstream update checks disabled and audio streaming
+off initially. It does not install drivers, create signing certificates or change
+the firewall. Optional phone, camera, gamepad and Rust input binaries are omitted;
+the existing Node input lane remains available.
+
+The app was launched and its first-run UI verified on Windows. The user installed
+the virtual display driver and ran Fix. Read-back confirmed the driver is present
+with problem code 22 (disabled while Extend is off), both Extend scheduled tasks
+are present, Wi-Fi is Private and the application listens on TCP 47800.
+Pairing, active Extend and hardware window movement have not yet been validated.
+
+First paired tests: Scarlett 2i2 (3rd Gen) Device Settings, then File Explorer
+from Windows; Finder from Mac. Preserve Scarlett's supplied baseline: 48000 Hz,
+64-sample buffer, USB Internal clock and Safe Mode enabled. Do not change driver
+settings merely to test remote clicks: open a dropdown and dismiss it unchanged.
+
+### Existing-message identity contract for the Mac agent
+
+Destination-side minimize/restore and original logos are required. Whole-display
+Extend by itself does not create separate native taskbar/Dock buttons; test this
+requirement through crossed-window proxies separately from monitor extension.
+
+- Windows sender now gives moved windows stable opaque `id` values rather than
+  the shared generic `moved` value, retaining `wid` and `moved: true`.
+- Windows sends names and PNG data-URL icons in existing `PAPPS_RESULT` entries
+  `{id, name, icon}`. Icons can arrive after `PAPP_WINDOWS`; refresh existing Dock
+  proxies when the catalog changes. Popups inherit the owner's application id.
+- For Mac-to-Windows, send the real bundle id (e.g. `com.apple.finder`) in each
+  moved `PAPP_WINDOWS` entry's `id`, and matching `{id, name, icon}` entries in the
+  existing `APPS_RESULT` catalog. Windows now consumes that catalog for moved
+  Mac windows as well as launched Mac apps. No shared protocol file was changed.
+- Windows receiver explicitly enables taskbar/minimize for remote main windows,
+  supplies a cached ICO path and per-app AppUserModelID, and refreshes icons if
+  the catalog arrives late. Generic legacy `moved` entries get distinct fallback
+  identities, but cannot show the original logo without source metadata.
+- Minimizing is local to the receiving proxy; restoring focuses the source
+  window. It must not send Close or Return. Popups remain owned windows.
+
+59 targeted tests pass (screen lifecycle, monitor renderer/input, app sender and
+destination taskbar identity). These include mock-based Finder icon/minimize
+tests and Windows sender identity/icon tests. Actual Finder-logo appearance in
+the Windows taskbar and Windows-logo appearance in the Mac Dock remain paired
+acceptance tests, not verified outcomes.

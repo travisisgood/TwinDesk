@@ -28,6 +28,35 @@ function fixture(t) {
   t.after(() => apps.shutdown());
   return { apps, link, helper, settings, sent, started, stopped };
 }
+
+test('crossed Windows windows preserve app identity and publish icons without executable paths', async t => {
+  const f = fixture(t);
+  f.helper.request = async () => ({ icons: ['data:image/png;base64,dGVzdA=='] });
+  const source = [{ wid: 1, exe: 'C:\\Windows\\explorer.exe' }, { wid: 2, exe: 'C:\\Windows\\explorer.exe' },
+    { wid: 3, exe: 'C:\\Program Files\\Focusrite\\Scarlett.exe' }];
+  const out = source.map(w => ({ wid: w.wid, id: 'moved', moved: true }));
+  const pops = [{ owner: 1, id: 'moved' }];
+  f.apps._identifyMoved(source, out, pops);
+  await new Promise(r => setImmediate(r));
+  assert.equal(out[0].id, out[1].id);
+  assert.notEqual(out[0].id, out[2].id);
+  assert.equal(pops[0].id, out[0].id);
+  const catalog = f.sent.filter(m => m.t === P.T.PAPPS_RESULT).at(-1);
+  assert.equal(catalog.apps.length, 2);
+  assert.ok(catalog.apps.every(a => a.icon.startsWith('data:image/png;base64,')));
+  assert.equal(JSON.stringify(catalog).includes('C:'), false);
+});
+
+test('late crossed-window icon lookup is discarded after disconnect', async t => {
+  const f = fixture(t), wait = deferred();
+  f.helper.request = () => wait.promise;
+  f.apps._identifyMoved([{ wid: 1, exe: 'C:\\Windows\\explorer.exe' }], [{ wid: 1, moved: true }], []);
+  f.link.emit('closed');
+  f.sent.length = 0;
+  wait.resolve({ icons: ['data:image/png;base64,dGVzdA=='] });
+  await new Promise(r => setImmediate(r));
+  assert.equal(f.sent.some(m => m.t === P.T.PAPPS_RESULT), false);
+});
 for (const action of ['policy', 'disconnect', 'disable', 'shutdown']) {
   test('pending capture cannot restart after ' + action, async t => {
     const f = fixture(t), wait = deferred(); capture = () => wait.promise;
