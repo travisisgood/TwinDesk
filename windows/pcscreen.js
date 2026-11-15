@@ -44,7 +44,15 @@ class PcScreen {
       }, 1500);
       this.apply();
     });
-    link.on('closed', () => { ++this.modeRequest; clearTimeout(this.policyTimer); this.mac.accept = false; this.stateKey = ''; this.apply(); });
+    link.on('closed', () => {
+      ++this.modeRequest;
+      clearTimeout(this.policyTimer);
+      this.mac.accept = false;
+      this.stateKey = '';
+      // A network monitor must not leave windows on an unreachable display.
+      // setMode also cancels an Extend setup that is still waiting for the driver.
+      this.setMode('off');
+    });
     // The session moved (Bluetooth -> a Wi-Fi Direct link, or back): a session offered on the old path
     // never connects on the new one; the transport is part of the key, so apply() starts again.
     link.on('transport', () => this.apply());
@@ -113,7 +121,15 @@ class PcScreen {
       }
       return;
     }
-    if (mode === 'extend' && !this.vdd.state.installed) mode = 'mirror'; // no virtual display driver
+    if (mode === 'extend' && !this.vdd.state.installed) {
+      await this.setMode('off');
+      this.status.error = this.vdd.state.checked
+        ? 'Extend needs the virtual display driver. Install it on this PC in Share screen, then try Extend again'
+        : 'The virtual display driver is not ready. Wait for its check to finish, then try Extend again';
+      if (this.vdd.state.checked && this.needDriver) this.needDriver();
+      this.onChange();
+      return;
+    }
     const was = this.mode;
     if (mode !== 'off') this.lastMode = mode;
     this.mode = mode;
@@ -128,7 +144,10 @@ class PcScreen {
         this.vdd.addMode(w, h);
         const mon = await this.vdd.setOn(true);
         if (this.mode === 'extend' && mon && mon.name) await this.vdd.setMode(mon, w, h);
-        if (!mon && this.mode === 'extend') this.mode = 'off';
+        if (!mon && this.mode === 'extend') {
+          this.mode = 'off';
+          this.status.error = this.vdd.state.message || 'The virtual monitor did not appear. Check the display driver on this PC and try Extend again';
+        }
       } catch (e) {
         this.mode = 'off';
         this.status.error = 'Starting Extend: ' + e.message;
@@ -277,13 +296,9 @@ class PcScreen {
   }
 
   // What we offer the viewer: Extend only with the virtual display driver.
-  // Extend from a menu or the viewer. Without the display driver: Mirror for now, and the Share
-  // screen tab here, where Install is (needDriver; never an administrator prompt from afar).
+  // Extend never falls back to capturing a physical screen. Installation stays local
+  // (needDriver opens the setup page; never an administrator prompt from afar).
   extend() {
-    if (this.vdd.state.checked && !this.vdd.state.installed) {
-      if (this.needDriver) this.needDriver();
-      return this.setMode('mirror');
-    }
     return this.setMode('extend');
   }
 
@@ -326,6 +341,8 @@ class PcScreen {
   }
 
   _stopSend(tellMac) {
+    clearTimeout(this.retryTimer);
+    this.retryTimer = null;
     this.input.release();
     if (!this.sending) return;
     const { session } = this.sending;

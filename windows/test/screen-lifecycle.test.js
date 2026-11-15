@@ -7,6 +7,7 @@ const P = require('../../shared/protocol');
 const ipcMain = new EventEmitter();
 const powerMonitor = new EventEmitter(); // unlock-screen / resume (#81)
 const display = { id: 1, bounds: { x: 0, y: 0, width: 1920, height: 1080 } };
+const screenEvents = Object.assign(new EventEmitter(), { getAllDisplays: () => [display], getPrimaryDisplay: () => display, dipToScreenRect: (_, r) => r });
 let sources;
 class BrowserWindow extends EventEmitter {
   constructor() { super(); this.webContents = Object.assign(new EventEmitter(), { send() {} }); this.visible = false; }
@@ -21,7 +22,7 @@ class BrowserWindow extends EventEmitter {
 }
 const load = Module._load;
 Module._load = function (id, ...args) {
-  if (id === 'electron') return { app: { getLocale: () => 'en' }, powerMonitor, ipcMain, BrowserWindow, desktopCapturer: { getSources: () => sources() }, screen: Object.assign(new EventEmitter(), { getAllDisplays: () => [display], getPrimaryDisplay: () => display, dipToScreenRect: (_, r) => r }) };
+  if (id === 'electron') return { app: { getLocale: () => 'en' }, powerMonitor, ipcMain, BrowserWindow, desktopCapturer: { getSources: () => sources() }, screen: screenEvents };
   return load.call(this, id, ...args);
 };
 const PcScreen = require('../pcscreen');
@@ -34,6 +35,7 @@ const tick = () => new Promise(r => setImmediate(r));
 function fixture() {
   ipcMain.removeAllListeners();
   powerMonitor.removeAllListeners();
+  screenEvents.removeAllListeners();
   const sent = [], starts = [], stops = [];
   const link = Object.assign(new EventEmitter(), { status: { state: 'connected' }, current: { transport: 'ip' }, send: m => { sent.push(m); return true; }, snapshot: () => ({ link: {} }) });
   const sender = Object.assign(new EventEmitter(), { start: o => { starts.push(o); return starts.length; }, stop: s => stops.push(s) });
@@ -65,6 +67,69 @@ test('Extend setup failures settle and restore Off without leaving busy set', as
   f.vdd.setOn = async on => { if (on) throw new Error('driver unavailable'); return true; };
   await assert.doesNotReject(pc.setMode('extend'));
   assert.equal(pc.mode, 'off'); assert.equal(pc.busy, false); assert.match(pc.status.error, /driver unavailable/);
+});
+
+test('Extend without a driver stops an existing mirror and never captures a physical screen', async () => {
+  const f = fixture(), pc = new PcScreen(f.opts); pc.mac.accept = true;
+  await pc.setMode('mirror'); await tick();
+  let setup = 0; pc.needDriver = () => setup++;
+  f.vdd.state = { checked: true, installed: false };
+  await pc.extend(); await tick();
+  assert.equal(pc.mode, 'off'); assert.equal(pc.sending, null);
+  assert.equal(f.starts.length, 1); assert.equal(setup, 1);
+  assert.match(pc.status.error, /Install it on this PC/);
+});
+
+test('Extend during driver discovery stays off without opening installation', async () => {
+  const f = fixture(), pc = new PcScreen(f.opts); pc.mac.accept = true;
+  f.vdd.state = { checked: false, installed: false };
+  pc.needDriver = () => assert.fail('driver discovery has not finished');
+  await pc.setMode('extend'); await tick();
+  assert.equal(pc.mode, 'off'); assert.equal(f.starts.length, 0);
+  assert.match(pc.status.error, /check to finish/);
+});
+
+test('a driver timeout reports failure and removes the attempted virtual display', async () => {
+  const f = fixture(), pc = new PcScreen(f.opts), calls = [];
+  f.vdd.state.message = 'The virtual monitor did not appear';
+  f.vdd.setOn = async on => { calls.push(on); return false; };
+  await pc.extend();
+  assert.equal(pc.mode, 'off'); assert.equal(pc.busy, false);
+  assert.deepEqual(calls, [true, false]);
+  assert.match(pc.status.error, /did not appear/);
+});
+
+test('disconnect removes an extended monitor and releases held input', async () => {
+  const f = fixture(), calls = [], pc = new PcScreen(f.opts);
+  f.vdd.setOn = async on => { calls.push(on); return true; };
+  let releases = 0; pc.input.release = () => releases++;
+  pc.mode = 'extend'; pc.sending = { session: 1 };
+  f.link.status.state = 'idle'; f.link.emit('closed'); await tick();
+  assert.equal(pc.mode, 'off'); assert.equal(pc.sending, null);
+  assert.deepEqual(calls, [false]); assert.ok(releases > 0);
+});
+
+test('disconnect during Extend creation tears down the display once creation finishes', async () => {
+  const f = fixture(), wait = deferred(), calls = [], pc = new PcScreen(f.opts);
+  f.vdd.setOn = on => { calls.push(on); return on ? wait.promise : Promise.resolve(true); };
+  const setting = pc.extend(); await tick();
+  f.link.status.state = 'idle'; f.link.emit('closed');
+  wait.resolve({ name: 'virtual' }); await setting;
+  assert.equal(pc.mode, 'off'); assert.equal(pc.busy, false);
+  assert.deepEqual(calls, [true, false]); assert.equal(f.starts.length, 0);
+});
+
+test('network monitor input uses physical bounds including negative display coordinates', () => {
+  const f = fixture(), commands = [];
+  f.opts.helper.send = (name, value) => commands.push({ name, value });
+  const pc = new PcScreen(f.opts);
+  pc.sending = { rect: { x: -2560, y: -200, width: 2560, height: 1600 } };
+  pc._input({ t: P.T.IN_MOVE, x: 0, y: 0 });
+  pc._input({ t: P.T.IN_MOVE, x: 1, y: 1 });
+  assert.deepEqual(commands, [
+    { name: 'moveTo', value: { x: -2560, y: -200 } },
+    { name: 'moveTo', value: { x: -1, y: 1399 } },
+  ]);
 });
 test('disconnect during source enumeration never starts capture', async () => {
   const f = fixture(), wait = deferred(); sources = () => wait.promise;
