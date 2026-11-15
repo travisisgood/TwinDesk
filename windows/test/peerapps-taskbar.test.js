@@ -15,6 +15,10 @@ class BrowserWindow extends EventEmitter {
   getBounds() { return { x: 0, y: 0, width: 800, height: 600 }; }
   getSize() { return [800, 600]; } getContentSize() { return [800, 600]; }
   isDestroyed() { return false; }
+  isFocused() { return true; }
+  getContentBounds() { return this.getBounds(); }
+  hide() { this.hidden = true; }
+  showInactive() { this.hidden = false; }
   setIcon(icon) { this.icon = icon; }
   setAppDetails(details) { this.details = details; }
   minimize() { this.minimized = true; this.emit('minimize'); this.emit('blur'); }
@@ -71,4 +75,38 @@ test('legacy generic moved windows do not share an incorrect app identity', t =>
   const f = fixture(t);
   f.link.emit(P.T.PAPP_WINDOWS, { windows: [f.window(10, 'moved'), f.window(11, 'moved')] });
   assert.notEqual(f.apps.wins.get(10).win.details.appId, f.apps.wins.get(11).win.details.appId);
+});
+
+test('stale renderer input is rejected and local session tags never reach the peer', t => {
+  const f = fixture(t);
+  f.link.emit(P.T.PAPP_WINDOWS, { windows: [f.window(10, 'com.apple.finder')] });
+  const w = f.apps.wins.get(10);
+  w.session = 2;
+  const event = { sender: w.win.webContents };
+  ipcMain.emit('appview:out', event, { t: P.T.IN_DOWN, session: 1, b: 0, x: 0.5, y: 0.5 });
+  assert.equal(f.sent.length, 0);
+  ipcMain.emit('appview:out', event, { t: P.T.IN_DOWN, session: 2, b: 0, x: 0.5, y: 0.5 });
+  assert.deepEqual(f.sent, [{ t: P.T.IN_DOWN, b: 0, x: 0.5, y: 0.5, wid: 10 }]);
+});
+
+test('minimized Finder hides owned popups and restore brings them back locally', t => {
+  const f = fixture(t), owner = f.window(10, 'com.apple.finder');
+  f.link.emit(P.T.PAPP_WINDOWS, { windows: [owner, { ...f.window(11, owner.id), popup: true, owner: 10 }] });
+  const w = f.apps.wins.get(10), child = f.apps.wins.get(11);
+  w.win.minimize();
+  assert.equal(child.win.hidden, true);
+  assert.equal(f.sent.some(m => [P.T.PAPP_CLOSE, P.T.PAPP_RETURN].includes(m.t)), false);
+  w.win.restore();
+  assert.equal(child.win.hidden, false);
+});
+
+test('renderer diagnostics require the current session and never send peer messages', t => {
+  const f = fixture(t);
+  f.link.emit(P.T.PAPP_WINDOWS, { windows: [f.window(10, 'com.apple.finder')] });
+  const w = f.apps.wins.get(10); w.session = 2;
+  ipcMain.emit('appview:state', { sender: w.win.webContents }, { session: 1, stage: 'playing' });
+  assert.equal(w.stage, undefined);
+  ipcMain.emit('appview:state', { sender: w.win.webContents }, { session: 2, stage: 'playing' });
+  assert.equal(w.stage, 'playing');
+  assert.equal(f.sent.length, 0);
 });

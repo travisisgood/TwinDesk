@@ -43,8 +43,8 @@ function rtcFixture(file) {
   }
   const api = { send: m => sent.push(m), stats: s => sent.push(s), state: s => states.push(s), ready() {} };
   for (const name of ['onRtc', 'onRemote', 'onPacing', 'onAudio', 'onToggleStats', 'on']) api[name] = fn => { callbacks[name] = fn; };
-  const context = vm.createContext({ window: { PlayerI18n: require('./support/player-i18n.js'), MacShareProtocol: P, monitor: api, sender: api }, document: { getElementById: n => elements.get(n), body: { classList: { toggle() {} } } },
-    navigator: { mediaDevices: {} }, RTCPeerConnection: Peer, MediaStream: class { constructor(tracks) { this.tracks = tracks; } },
+  const context = vm.createContext({ window: { PlayerI18n: require('./support/player-i18n.js'), MacShareProtocol: P, monitor: api, sender: api, appview: api, addEventListener() {} }, document: { querySelector: () => element(), getElementById: n => elements.get(n), body: { classList: { toggle() {} } } },
+    navigator: { mediaDevices: {} }, RTCPeerConnection: Peer, MediaStream: class { constructor(tracks) { this.tracks = tracks || []; } addTrack(track) { this.tracks.push(track); } },
     location: { search: '' }, URLSearchParams, console, performance, setInterval: fn => { timers.push(fn); return timers.length; }, clearInterval() {} });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../' + file), 'utf8'), context);
   return { context, callbacks, sent, states, connections, elements, timers };
@@ -109,4 +109,30 @@ test('turning frame generation off prevents a later picture from restarting it',
   const f = frameGenFixture(); f.elements.get('video').srcObject = {};
   f.callbacks.onPacing({ framegen: true }); f.callbacks.onPacing({ framegen: false });
   f.elements.get('video').events.playing(); assert.equal(f.generators[0].on, false); assert.equal(f.generators[0].starts, 1);
+});
+
+
+test('old app-window video tracks cannot replace a new receive session', async () => {
+  const f = rtcFixture('appview-renderer.js');
+  f.callbacks.on({ t: 'offer', session: 1, sdp: '' });
+  const old = f.connections[0];
+  f.callbacks.on({ t: 'offer', session: 2, sdp: '' });
+  old.ontrack({ track: { kind: 'video' }, receiver: {} });
+  assert.equal(f.elements.get('video').srcObject, null);
+  f.connections[1].ontrack({ track: { kind: 'video' }, receiver: {} });
+  assert.ok(f.elements.get('video').srcObject);
+});
+
+test('app-window failures report only the current receive session', async () => {
+  const f = rtcFixture('appview-renderer.js');
+  f.callbacks.on({ t: 'offer', session: 1, sdp: '' });
+  f.callbacks.on({ t: 'offer', session: 2, sdp: '' });
+  f.connections[0].remote.reject(new Error('old session'));
+  await tick();
+  assert.equal(f.states.length, 0);
+  f.connections[1].remote.reject(new Error('current session'));
+  await tick();
+  assert.equal(f.states.length, 1);
+  assert.equal(f.states[0].session, 2);
+  assert.equal(f.states[0].stage, 'failed');
 });

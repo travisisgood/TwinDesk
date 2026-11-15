@@ -43,6 +43,7 @@ function closePc() {
 }
 
 async function onOffer(m) {
+  releaseButtons();
   closePc();
   session = m.session;
   pacing = ['smooth', 'steady'].includes(m.pacing) ? m.pacing : 'fast'; // steady: as monitor.js
@@ -52,6 +53,7 @@ async function onOffer(m) {
   setOverlay('Connecting…');
 
   my.ontrack = (e) => {
+    if (my !== pc) return;
     const r = e.receiver;
     if ('jitterBufferTarget' in r) r.jitterBufferTarget = pacing === 'fast' ? 0 : pacing === 'steady' ? null : 16;
     if ('playoutDelayHint' in r) r.playoutDelayHint = pacing === 'fast' ? 0 : null;
@@ -61,6 +63,7 @@ async function onOffer(m) {
   };
   my.onicecandidate = (e) => e.candidate && my === pc && api.send({ t: T.RTC2_ICE, session: m.session, candidate: e.candidate.toJSON() });
   my.onconnectionstatechange = () => {
+    if (my === pc) api.state({ session: m.session, stage: my.connectionState });
     if (my === pc && (my.connectionState === 'failed' || my.connectionState === 'disconnected')) setOverlay('Reconnecting…');
   };
 
@@ -79,7 +82,10 @@ async function onOffer(m) {
     for (const c of queue) await my.addIceCandidate(c).catch(() => {});
     if (my === pc) pending = null;
   } catch (e) {
-    if (my === pc) setOverlay('Could not show the window: {error}', { error: e.message });
+    if (my === pc) {
+      api.state({ session: m.session, stage: 'failed' });
+      setOverlay('Could not show the window: {error}', { error: e.message });
+    }
   }
 }
 
@@ -89,7 +95,10 @@ function onIce(m) {
   else pc.addIceCandidate(m.candidate).catch(() => {});
 }
 
-video.addEventListener('playing', () => setOverlay(''));
+video.addEventListener('playing', () => {
+  setOverlay('');
+  if (session !== null) api.state({ session, stage: 'playing' });
+});
 
 // ---- mouse over the drawn picture (object-fit: contain letterboxes it) ----
 
@@ -113,7 +122,7 @@ function norm(e, clamp) {
   return { x, y };
 }
 
-const send = (m) => session !== null && api.send(m);
+const send = (m) => session !== null && api.send({ ...m, session });
 
 // pointerrawupdate fires as soon as the OS delivers the move (not aligned to frames): lowest latency.
 function onMove(e) {

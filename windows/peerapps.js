@@ -84,7 +84,21 @@ class PeerApps {
       const w = mine(e);
       if (!w || !m || !this.active) return;
       if ((m.t === T.RTC2_ANSWER || m.t === T.RTC2_ICE) && m.session === w.session) this.link.send({ ...m, win: 'view' });
-      else if (POINTER.has(m.t) && (m.t === T.IN_UP || w.info.popup || w.win.isFocused())) this.link.send({ ...m, wid: w.info.wid });
+      else if (POINTER.has(m.t) && w.session !== null && m.session === w.session
+          && (m.t === T.IN_UP || (!w.minimized && (w.info.popup || w.win.isFocused())))) {
+        const { session, ...input } = m;
+        this.link.send({ ...input, wid: w.info.wid });
+      }
+    });
+    ipcMain.on('appview:state', (e, m) => {
+      const w = mine(e);
+      if (!w || !m || w.session === null || m.session !== w.session
+          || !['new', 'connecting', 'connected', 'disconnected', 'failed', 'closed', 'playing'].includes(m.stage)) return;
+      if (w.stage === m.stage) return;
+      w.stage = m.stage;
+      console.log(`[peerapps] window ${w.info.wid}: ${m.stage}`);
+      if (m.stage === 'failed') this.message = 'A remote window failed to connect';
+      this.onChange();
     });
     ipcMain.on('appview:ready', (e) => {
       const w = mine(e);
@@ -209,7 +223,7 @@ class PeerApps {
 
   _title(info) {
     // Moved here from the other computer: its name says so (it goes back when closed or dragged back).
-    if (info.moved) return this._i18n().t('{title} (from {name})', { title: info.title || this._i18n().t('App'), name: this.peerName() });
+    if (info.moved) return info.title || this._i18n().t('App');
     const a = this._app(info.id);
     const name = a ? a.name : '';
     return info.title && name && !info.title.includes(name) ? info.title + ' · ' + name : info.title || name || this._i18n().t('App');
@@ -241,10 +255,11 @@ class PeerApps {
       minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, show: false, hasShadow: true,
       backgroundColor: '#000000', webPreferences: this._webPrefs(),
     });
-    const w = { info, win, session: null, ready: false, queue: [], closing: true, sizedAt: 0, keys: { release() {} } };
-    win.once('ready-to-show', () => !win.isDestroyed() && win.showInactive());
+    const w = { info, win, session: null, ready: false, queue: [], closing: true, sizedAt: 0, minimized: !!owner.minimized, keys: { release() {} } };
+    win.once('ready-to-show', () => !win.isDestroyed() && !owner.minimized && win.showInactive());
     win.on('closed', () => { if (this.wins.get(w.info.wid) === w) this.wins.delete(w.info.wid); });
     this.wins.set(info.wid, w);
+    console.log(`[peerapps] window ${info.wid}: popup created`);
     win.loadFile(path.join(__dirname, 'appview.html'), { query: { language: this._i18n().locale, ...this._playerTitle(info) } });
   }
 
@@ -289,6 +304,27 @@ class PeerApps {
       w.keys.release();
       this._toWin(w, { t: 'blur' });
     });
+    win.on('minimize', () => {
+      w.minimized = true;
+      w.keys.release();
+      this._toWin(w, { t: 'blur' });
+      for (const child of this.wins.values()) {
+        if (child.info.popup && child.info.owner === w.info.wid && !child.win.isDestroyed()) {
+          child.minimized = true;
+          child.win.hide();
+          this._toWin(child, { t: 'blur' });
+        }
+      }
+    });
+    win.on('restore', () => {
+      w.minimized = false;
+      for (const child of this.wins.values()) {
+        if (child.info.popup && child.info.owner === w.info.wid && !child.win.isDestroyed()) {
+          child.minimized = false;
+          child.win.showInactive();
+        }
+      }
+    });
     // Resized here: resize the window over there to match (its capture follows).
     win.on('resized', () => {
       const [cw, ch] = win.getContentSize();
@@ -307,6 +343,7 @@ class PeerApps {
       this.onChange();
     });
     this.wins.set(info.wid, w);
+    console.log(`[peerapps] window ${info.wid}: receiver created, moved=${info.moved}`);
     win.loadFile(path.join(__dirname, 'appview.html'), { query: { language: this._i18n().locale, ...this._playerTitle(info) } });
   }
 
@@ -368,8 +405,13 @@ class PeerApps {
   _onOffer(m) {
     if (m.kind !== 'window' || typeof m.sdp !== 'string' || !this.accepting || !this.active) return;
     const w = this.wins.get(Number(m.wid));
-    if (!w || w.win.isDestroyed()) return; // not listed yet: the sender lists before it offers
+    if (!w || w.win.isDestroyed()) {
+      console.warn(`[peerapps] offer for unlisted window ${Number(m.wid)} ignored`);
+      return; // the sender must list before offering
+    }
+    w.keys.release();
     w.session = m.session;
+    console.log(`[peerapps] window ${w.info.wid}: offer received`);
     this._toWin(w, { t: 'offer', session: m.session, sdp: m.sdp, pacing: this.settings.monitor.pacing || 'fast' });
   }
 
