@@ -39,6 +39,7 @@ let pacing = 'fast';
 let receivers = [];
 let fg = null; // FrameGen while frame generation is on
 const bar = document.getElementById('bar');
+const windowOnly = query.get('windowOnly') === '1';
 const btn = (id) => document.getElementById(id);
 
 // steady: no hints, and the answer leaves out the playout-delay extension (steadySdp), so the PC's
@@ -76,6 +77,7 @@ function setFrameGen(on) {
 // Toolbar: the other computer's screen.state decides what it shows.
 let remote = null;
 function showRemote(r) {
+  if (windowOnly) return;
   remote = r;
   // An older computer says nothing: the bar keeps only this window's own (Frame generation, Keep
   // on top, Full screen).
@@ -103,7 +105,7 @@ btn('b-pin').onclick = () => api.ctl({ pin: true });
 showRemote(null); // until the other computer says what it can do
 let barTimer = null;
 function pokeBar(y) {
-  if (y > 48 && !bar.matches(':hover')) return;
+  if (windowOnly || y > 48 && !bar.matches(':hover')) return;
   bar.classList.add('show');
   clearTimeout(barTimer);
   barTimer = setTimeout(() => !bar.matches(':hover') && bar.classList.remove('show'), 2000);

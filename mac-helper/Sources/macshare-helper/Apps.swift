@@ -106,7 +106,7 @@ enum Apps {
     return ws
   }
 
-  private static func frame(_ w: AXUIElement) -> CGRect? {
+  static func frame(_ w: AXUIElement) -> CGRect? {
     var pv: CFTypeRef?, sv: CFTypeRef?
     guard AXUIElementCopyAttributeValue(w, kAXPositionAttribute as CFString, &pv) == .success,
           AXUIElementCopyAttributeValue(w, kAXSizeAttribute as CFString, &sv) == .success else { return nil }
@@ -117,7 +117,7 @@ enum Apps {
   }
 
   /// The AX window matching a CG window (by pid + frame).
-  private static func ax(for wid: Int) -> (AXUIElement, Int)? {
+  static func ax(for wid: Int) -> (AXUIElement, Int)? {
     guard let cg = windows(pids: Set(NSWorkspace.shared.runningApplications.map { Int($0.processIdentifier) }))
       .first(where: { ($0["wid"] as? Int) == wid }), let pid = cg["pid"] as? Int else { return nil }
     let r = CGRect(x: cg["x"] as! Double, y: cg["y"] as! Double, width: cg["w"] as! Double, height: cg["h"] as! Double)
@@ -138,12 +138,22 @@ enum Apps {
   /// One window's top-left to x, y (points), raised: a moved window back (shared/movewin.js).
   static func place(wid: Int, x: Double, y: Double) -> Bool {
     guard let (w, pid) = ax(for: wid) else { return false }
-    var p = CGPoint(x: x, y: y)
-    guard let v = AXValueCreate(.cgPoint, &p) else { return false }
-    let ok = AXUIElementSetAttributeValue(w, kAXPositionAttribute as CFString, v) == .success
+    let ok = move(w, to: CGPoint(x: x, y: y))
     AXUIElementPerformAction(w, kAXRaiseAction as CFString)
     NSRunningApplication(processIdentifier: pid_t(pid))?.activate()
     return ok
+  }
+
+  static func move(_ window: AXUIElement, to point: CGPoint) -> Bool {
+    var p = point
+    guard let value = AXValueCreate(.cgPoint, &p) else { return false }
+    return AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value) == .success
+  }
+
+  static func identity(pid: Int) -> [String: String]? {
+    guard let app = NSRunningApplication(processIdentifier: pid_t(pid)),
+          let id = app.bundleIdentifier, let url = app.bundleURL else { return nil }
+    return ["id": id, "name": app.localizedName ?? id, "icon": icon(url)]
   }
 
   /// Move every window of `pid` that isn't on `bounds` onto it (cascaded from its top-left).

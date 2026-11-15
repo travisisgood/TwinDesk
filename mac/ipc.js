@@ -48,7 +48,7 @@ const SCHEMA = {
   files: { acceptDrops: bool, reveal: bool, dragEdge: bool, plain: bool, shortcuts: bool, copyKeys: accel('Control+Alt+C'), pasteKeys: accel('Control+Alt+V') },
   notifs: { send: bool, receive: bool, hideText: bool },
   smb: { connectPc: bool },
-  apps: { offer: bool, onVirtual: bool, moveWindows: bool, moveKey: oneOf(['ControlRight', 'ControlLeft', 'ShiftRight', 'ShiftLeft', 'AltRight', 'AltLeft', 'MetaRight', 'MetaLeft'], 'MetaRight') }, // moveWindows: Apps › Move windows (movewin.js)
+  apps: { offer: bool, onVirtual: bool, moveWindows: bool, moveKey: oneOf(['auto', 'ControlRight', 'ControlLeft', 'ShiftRight', 'ShiftLeft', 'AltRight', 'AltLeft', 'MetaRight', 'MetaLeft'], 'auto') }, // moveWindows: Apps › Move windows (movewin.js)
   receive: { on: bool, fullScreen: bool, displayId: (v) => Number.isInteger(v) && v > 0 ? v : null, input: bool, framegen: bool },
   sharing: { remote: bool, pace: oneOf(['fast', 'smooth', 'steady'], 'fast'), codec: oneOf(['h264', 'h265'], 'h264'), fps: oneOf([0, 30, 60], 0) },
   papps: { on: bool },
@@ -260,6 +260,7 @@ function setupIpc(ctx) {
       if (by !== 'apps' && ctx.apps) ctx.apps.autoShare = false;
       if (on) ctx.displays.virtualError = null;
       settings.sharing.on = !!on;
+      ctx.appSend?.applySettings();
       save();
       // Through Bluetooth the picture needs Wi-Fi first (netlink.js); it starts once the session is on it.
       if (on) ctx.net.need('share').then(() => settings.sharing.on && ctx.displays.applyVirtual().then(() => ctx.stream.restart('sharing on')));
@@ -312,6 +313,7 @@ function setupIpc(ctx) {
         settings.sharing.displayId = null;
         settings.virtual.enabled = true;
       }
+      ctx.appSend?.applySettings();
       save();
       ctx.displays.applyVirtual().then(() => ctx.stream.restart(`mode ${mode}`));
     },

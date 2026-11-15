@@ -27,7 +27,70 @@ final class WindowGrab {
   private var lastWhy = ""
   private var keyName: String?
 
+  private var titleCandidate: (wid: Int, pid: Int)?
+  private var press = 0
+
   var grabbing: Bool { win != nil }
+  var automatic: Bool { keyName == "auto" }
+
+  // Inspect outside the event tap. A press on an app control or resize edge
+  // remains an ordinary native gesture.
+  func titleDown(at point: CGPoint) {
+    clearTitle()
+    guard automatic else { return }
+    let current = press
+    queue.async {
+      let root = AXUIElementCreateSystemWide()
+      AXUIElementSetMessagingTimeout(root, 0.12)
+      var hit: AXUIElement?
+      let status = AXUIElementCopyElementAtPosition(root, Float(point.x), Float(point.y), &hit)
+      guard status == .success, let hit else { return }
+      var role: CFTypeRef?
+      guard AXUIElementCopyAttributeValue(hit, kAXRoleAttribute as CFString, &role) == .success else { return }
+      // Finder's unoccupied unified title-bar area can be the toolbar itself.
+      // Its buttons and editable controls report their own roles.
+      let window: AXUIElement
+      if (role as? String) == (kAXWindowRole as String) {
+        window = hit
+      } else if (role as? String) == (kAXToolbarRole as String) {
+        var ancestor: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(hit, kAXWindowAttribute as CFString, &ancestor) == .success,
+              let ancestor, CFGetTypeID(ancestor) == AXUIElementGetTypeID() else { return }
+        window = ancestor as! AXUIElement
+      } else { return }
+      guard let frame = Apps.frame(window),
+            point.y >= frame.minY + 4, point.y < frame.minY + 36,
+            point.x >= frame.minX + 72, point.x < frame.maxX - 8 else { return }
+      var owner: pid_t = 0
+      guard AXUIElementGetPid(window, &owner) == .success else { return }
+      let list = Apps.windows(pids: [Int(owner)])
+      guard let match = list.first(where: { candidate in
+        guard let x = candidate["x"] as? Double, let y = candidate["y"] as? Double,
+              let width = candidate["w"] as? Double, let height = candidate["h"] as? Double else { return false }
+        // The native drag may have moved since the AX hit.
+        return abs(x - frame.minX) < 4 && abs(y - frame.minY) < 4 &&
+               abs(width - frame.width) < 4 && abs(height - frame.height) < 4
+      }), let wid = match["wid"] as? Int else { return }
+      DispatchQueue.main.async {
+        guard self.press == current, self.automatic else { return }
+        self.titleCandidate = (wid, Int(owner))
+      }
+    }
+  }
+
+  func clearTitle() {
+    press += 1
+    titleCandidate = nil
+  }
+
+  var titleDragging: Bool { titleCandidate != nil }
+
+  func takeTitle() -> (wid: Int, pid: Int)? {
+    let result = titleCandidate
+    if result != nil { upPending = true }
+    clearTitle()
+    return result
+  }
 
   // The key's partner under Ctrl/Cmd swapping: the other computer's Right Ctrl arrives here as Right
   // Command (or not), and a Mac's Right Command arrives on a PC as Right Ctrl (or the Windows key).
@@ -37,12 +100,13 @@ final class WindowGrab {
   func setKey(_ name: String) {
     if name == keyName { return }
     keyName = name
+    clearTitle()
     keys = [name, WindowGrab.partner[name] ?? ""].compactMap { n in
       guard let c = WindowGrab.codes[n], let m = KeyCodes.modifiers[n] else { return nil }
       return (c, m.device)
     }
     if keys.isEmpty { win = nil; upPending = false }
-    log("move windows: \(keys.isEmpty ? "off" : "hold \(name)")")
+    log("move windows: \(automatic ? "title-bar drag" : keys.isEmpty ? "off" : "hold \(name)")")
   }
 
   // Held, by the click's own flags (they carry each side's bit; a key TwinDesk injected is only

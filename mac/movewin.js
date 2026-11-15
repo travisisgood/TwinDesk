@@ -1,72 +1,84 @@
 // TwinDesk — Copyright (C) 2026 inukaasith. GPL-3.0, see LICENSE.
-// Apps › Move windows on the Mac (#18), appsend.js's side of shared/movewin.js: a window
-// grabbed with the move key (the helper's Grab.swift) crossed to the other computer with the pointer.
-// It is streamed there as one of this Mac's app windows (papp.windows, `moved: true`) and kept out of
-// the way here (the virtual display, else past the screens' right edge), so it is in one place at a
-// time; it comes back when its copy there is closed or dragged back, from the menu bar, at a
-// disconnect or at quit. Loaded only once a window is moved: with the switch off none of this is in memory.
-// as: the AppSend (helper, server, moved Map, _poll, _park bounds, getSettings).
+// Transfers one source window through the existing per-window stream.
 'use strict';
 
-const { screen } = require('electron');
-
+const { T } = require('../shared/protocol');
 const MAX_POPUPS = 6;
 
-// False: it stays (off, the other side doesn't take windows, Bluetooth, already there, gone).
 async function moveOut(as, wid, pid) {
-  if (!wid || !pid || !as.getSettings().apps.moveWindows || !as.accepts || !as.server.current) return false;
-  if (as.moved.has(wid) || as._mine(wid) || as.server.current.transport === 'ble') return false;
-  const r = await as.helper.request('appWindows', { pids: [pid] }).catch(() => null);
-  const w = r && Array.isArray(r.windows) && r.windows.find((x) => x.wid === wid && !x.popup);
-  if (!w) return false;
-  as.moved.set(wid, { pid, x: w.x, y: w.y, w: w.w, h: w.h });
-  as._poll();
-  as.emit('change');
-  // Out of the way once the grab let go: on the virtual display (clicks from there reach it; it is
-  // made now if it wasn't there, so wait for it a moment), else past the right edge, where the
-  // pointer can't reach it.
-  const made = Promise.resolve(as._holdDisplay && as._holdDisplay()).catch(() => {});
-  await Promise.all([new Promise((r) => setTimeout(r, 60)), Promise.race([made, new Promise((r) => setTimeout(r, 4000))])]);
-  if (!as.moved.has(wid)) return true;
-  const vb = (as.displays && as.displays.virtualBounds()) || as._edge();
-  as.helper.request('appPlace', { wid, x: vb.x + 40, y: vb.y + 60 }).catch(() => {});
-  return true;
-}
-
-// Moved windows (one, or all of them) back where they were, in front. home: dragged back past the
-// edge, so it shows where the pointer comes in, its title bar under it.
-function bringBack(as, wid, home = false) {
-  let any = false;
-  for (const [id, m] of [...as.moved]) {
-    if (wid !== undefined && id !== wid) continue;
-    as.moved.delete(id);
-    any = true;
-    let at = { x: m.x, y: m.y };
-    if (home) {
-      const p = screen.getCursorScreenPoint();
-      at = { x: Math.round(p.x - m.w / 2), y: Math.max(0, Math.round(p.y - 12)) };
+  const peer = as.server.current;
+  if (!wid || !pid || !as.getSettings().apps.moveWindows || !as.accepts || !peer || peer.transport === 'ble') return false;
+  if (as.moved.has(wid) || as._mine(wid)) return false;
+  const pending = { pid, app: null };
+  as.moved.set(wid, pending);
+  try {
+    const parked = await as.helper.request('appPark', { wid, pid });
+    if (as.moved.get(wid) !== pending) return false;
+    if (as.server.current !== peer || !as.accepts || !as.getSettings().apps.moveWindows || !parked.app?.id) {
+      bringBack(as, wid);
+      return false;
     }
-    as.helper.request('appPlace', { wid: id, x: at.x, y: at.y }).catch(() => {});
+    pending.app = parked.app;
+    pending.displayId = parked.displayId;
+    as.server.sendToClient({ t: T.APPS_RESULT, apps: as.movedCatalog() });
+    as._poll();
+    as.emit('change');
+    return true;
+  } catch (error) {
+    if (as.moved.get(wid) === pending) bringBack(as, wid);
+    console.log(`[appsend] transfer ${wid}: ${error.message}`);
+    return false;
   }
-  if (!any) return;
-  as._poll();
+}
+
+function bringBack(as, wid, home = false) {
+  let changed = false;
+  for (const id of as.moved.keys()) {
+    if (wid !== undefined && wid !== id) continue;
+    as.moved.delete(id);
+    as.helper.send('appUnpark', { wid: id, home });
+    changed = true;
+  }
+  if (!changed) return;
+  as.helper.send('releaseAll');
+  // Stop accepting input and stop the proxy immediately. New polling may still describe other windows.
+  const list = as.windows.filter((w) => w.moved ? as.moved.has(w.wid) : !w.popup || as.moved.has(w.owner) || !as.windows.some((owner) => owner.moved && owner.wid === w.owner));
+  as._sync(list);
   as.emit('change');
 }
 
-// The moved windows in the helper's list: that one window with its process's pop-ups over it.
 function list(as, all, out, pops) {
   for (const [wid, m] of as.moved) {
+    if (!m.app) continue; // only advertise after the helper verified placement
     const w = all.find((x) => x.wid === wid && !x.popup);
-    if (!w) { as.moved.delete(wid); continue; } // closed here
-    const e = as._entry(w, 'moved');
-    out.push({ ...e, moved: true });
-    const popups = all.filter((p) => p.popup && p.pid === m.pid && p.x >= w.x && p.y >= w.y && p.x < w.x + w.w && p.y < w.y + w.h)
-      .sort((a, b) => b.w * b.h - a.w * a.h).slice(0, MAX_POPUPS);
+    const display = as.parkingDisplay(m.displayId);
+    if (w && display && !inside(w, display.bounds)) {
+      as.bringBack(wid);
+      continue;
+    }
+    if (!w || !display) {
+      // WindowServer and Electron can take a short time to publish a new display.
+      m.missingSince ||= Date.now();
+      if (Date.now() - m.missingSince > 1200) as.bringBack(wid);
+      continue;
+    }
+    m.missingSince = 0;
+    const entry = as._entry(w, m.app.id);
+    out.push({
+      ...entry, moved: true,
+      maxW: Math.floor((display.bounds.x + display.bounds.width - w.x) * entry.scale),
+      maxH: Math.floor((display.bounds.y + display.bounds.height - w.y) * entry.scale),
+    });
+    const popups = all.filter((p) => p.popup && p.pid === m.pid && inside(p, display.bounds)).slice(0, MAX_POPUPS);
     for (const p of popups) {
-      const pe = as._entry(p, 'moved');
+      const pe = as._entry(p, m.app.id);
       pops.push({ ...pe, popup: true, owner: wid, x: Math.round((p.x - w.x) * pe.scale), y: Math.round((p.y - w.y) * pe.scale) });
     }
   }
+}
+
+function inside(w, bounds) {
+  return w.x >= bounds.x && w.y >= bounds.y && w.x + w.w <= bounds.x + bounds.width && w.y + w.h <= bounds.y + bounds.height;
 }
 
 module.exports = { moveOut, bringBack, list };

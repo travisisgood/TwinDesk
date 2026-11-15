@@ -131,7 +131,7 @@ class PcView extends EventEmitter {
   }
 
   get monitors() {
-    return screen.getAllDisplays().filter((d) => d.id !== this.virtualDisplayId());
+    return screen.getAllDisplays().filter((d) => d.id !== this.virtualDisplayId() && !d.label?.startsWith('TwinDesk Window '));
   }
 
   _display() {

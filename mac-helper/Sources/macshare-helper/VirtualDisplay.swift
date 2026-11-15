@@ -11,7 +11,7 @@ final class VirtualDisplay {
 
   var displayID: CGDirectDisplayID? { display?.displayID }
 
-  func create(width: Int, height: Int, hiDPI: Bool, hz: Double, name: String,
+  func create(width: Int, height: Int, hiDPI: Bool, hz: Double, name: String, product: UInt32 = 0x4d53, serial: UInt32 = 1,
               done: @escaping (Result<[String: Any], HelperError>) -> Void) {
     destroy()
     generation += 1
@@ -31,15 +31,18 @@ final class VirtualDisplay {
     d.maxPixelsHigh = UInt32(even(Double(ph) * factors[0]))
     // ~ a 27" panel; only affects the reported DPI.
     d.sizeInMillimeters = CGSize(width: 600, height: 600.0 * Double(height) / Double(width))
-    d.productID = 0x4d53
+    d.productID = product
     d.vendorID = 0x4d53
-    d.serialNum = 1 // stable: macOS remembers the arrangement
+    d.serialNum = serial
     d.terminationHandler = { [weak self] _, _ in
       DispatchQueue.main.async {
         guard let self = self, gen == self.generation, self.display != nil else { return }
+        let id = self.display!.displayID
         self.display = nil
+        Screens.invalidate()
         log("virtual display terminated")
-        emit(["event": "displayTerminated"])
+        if product == 0x4d54 { emit(["event": "parkingDisplayTerminated", "displayId": id]) }
+        else { emit(["event": "displayTerminated"]) }
       }
     }
 
@@ -63,6 +66,7 @@ final class VirtualDisplay {
       return
     }
     display = vd
+    Screens.invalidate()
     let id = vd.displayID
     log("created display \(id) \(width)x\(height) pt, \(pw)x\(ph) px")
     selectMode(id: id, size: CGSize(width: width, height: height), pixels: CGSize(width: pw, height: ph), attempt: 0, gen: gen) { [weak self] in
@@ -115,6 +119,7 @@ final class VirtualDisplay {
       log("destroying display \(display!.displayID)")
       generation += 1
       display = nil // releasing the object removes the display
+      Screens.invalidate()
     }
   }
 }

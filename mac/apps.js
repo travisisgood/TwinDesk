@@ -48,7 +48,7 @@ class Apps extends EventEmitter {
   }
 
   async _list() {
-    if (!this.enabled) return this.server.sendToClient({ t: P.T.APPS_RESULT, apps: [], why: 'off' });
+    if (!this.enabled) return this.server.sendToClient({ t: P.T.APPS_RESULT, apps: this.movedCatalog?.() || [], why: 'off' });
     try {
       const r = await this.helper.request('appsList', {}, 20000);
       this.server.sendToClient({ t: P.T.APPS_RESULT, apps: r.apps });

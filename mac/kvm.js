@@ -85,8 +85,14 @@ class Kvm extends EventEmitter {
     this.drivenMouse = false; // driven with the mouse too (not keyboard only): the way back is watched
     this.drivenModifierState = false; // the driver can report physical modifier state
     // The crossing map: both computers' monitors, where they touch (shared/kvm-map.js).
+    const electron = require('electron');
+    const screen = electron.screen;
     this.map = new KvmMap({
-      electron: require('electron'),
+      electron: { BrowserWindow: electron.BrowserWindow, screen: {
+        on: screen.on.bind(screen),
+        getPrimaryDisplay: screen.getPrimaryDisplay.bind(screen),
+        getAllDisplays: () => screen.getAllDisplays().filter((d) => !d.label?.startsWith('TwinDesk Window ')),
+      } },
       send: (m) => server.current && server.sendToClient(m),
       side: () => this.cfg.pcSide,
       getAlong: () => (typeof this.cfg.along === 'number' ? this.cfg.along : null),

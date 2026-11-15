@@ -5,26 +5,45 @@
 import CoreGraphics
 
 enum Screens {
-  private static var cache: (at: Double, rects: [CGRect]) = (0, [])
+  private static var cache: (at: Double, physical: [CGRect], parking: [CGRect]) = (0, [], [])
 
   /// Bounds of every active, non-mirrored display (cached for 0.5 s: this runs on every move).
   static func displays() -> [CGRect] {
     let now = CFAbsoluteTimeGetCurrent()
-    if now - cache.at < 0.5 { return cache.rects }
-    cache = (now, readDisplays())
-    return cache.rects
+    if now - cache.at >= 0.5 {
+      let displays = readDisplays()
+      cache = (now, displays.physical, displays.parking)
+    }
+    return cache.physical
   }
 
   static func invalidate() { cache.at = 0 }
 
-  private static func readDisplays() -> [CGRect] {
+  private static func readDisplays() -> (physical: [CGRect], parking: [CGRect]) {
     var count: UInt32 = 0
     CGGetActiveDisplayList(0, nil, &count)
     var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
     CGGetActiveDisplayList(count, &ids, &count)
-    return ids.prefix(Int(count))
-      .filter { CGDisplayMirrorsDisplay($0) == kCGNullDirectDisplay }
-      .map { CGDisplayBounds($0) }
+    var physical: [CGRect] = []
+    var parking: [CGRect] = []
+    for id in ids.prefix(Int(count)) where CGDisplayMirrorsDisplay(id) == kCGNullDirectDisplay {
+      if CGDisplayModelNumber(id) == 0x4d54 { parking.append(CGDisplayBounds(id)) }
+      else { physical.append(CGDisplayBounds(id)) }
+    }
+    return (physical, parking)
+  }
+
+  /// Only ordinary local events use this. Remote app input bypasses the capture tap.
+  static func keepPhysical(_ point: CGPoint, from previous: CGPoint?) -> CGPoint? {
+    let physical = displays()
+    guard cache.parking.contains(where: { $0.contains(point) }), !physical.isEmpty else { return nil }
+    if let previous, containing(previous, physical) != nil { return clamp(point, from: previous) }
+    return physical.map { display in
+      CGPoint(x: min(max(point.x, display.minX), display.maxX - 1),
+              y: min(max(point.y, display.minY), display.maxY - 1))
+    }.min { a, b in
+      hypot(a.x - point.x, a.y - point.y) < hypot(b.x - point.x, b.y - point.y)
+    }
   }
 
   static func union(_ ds: [CGRect] = displays()) -> CGRect {

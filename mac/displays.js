@@ -135,7 +135,7 @@ class Displays extends EventEmitter {
 
   list() {
     const primary = screen.getPrimaryDisplay().id;
-    return screen.getAllDisplays().map((d) => ({
+    return screen.getAllDisplays().filter((d) => !d.label?.startsWith('TwinDesk Window ')).map((d) => ({
       id: d.id,
       label: d.id === this.virtualId ? 'TwinDesk (virtual)' : d.label || (d.internal ? 'Built-in display' : `Display ${d.id}`),
       width: d.size.width,
