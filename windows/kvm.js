@@ -76,7 +76,11 @@ class Kvm {
     // The crossing map: both computers' monitors, where they touch (shared/kvm-map.js). Our `along`
     // is where the other computer is along our crossing side.
     this.map = new KvmMap({
-      electron: require('electron'),
+      electron: { ...require('electron'), screen: new Proxy(require('electron').screen, {
+        get: (target, key) => key === 'getAllDisplays'
+          ? () => target.getAllDisplays().filter(d => !this.isAppDisplay(d, target))
+          : typeof target[key] === 'function' ? target[key].bind(target) : target[key],
+      }) },
       send: (m) => this.connected && this.link.send(m),
       side: () => this.crossingSide,
       getAlong: () => (typeof this.cfg.along === 'number' ? this.cfg.along : null),
@@ -198,6 +202,21 @@ class Kvm {
 
   _along() {
     return typeof this.cfg.along === 'number' ? this.cfg.along : null;
+  }
+
+  isAppDisplay(display, screen) {
+    const m = this.appDisplayMon;
+    if (!m) return false;
+    const p = screen.dipToScreenPoint({ x: Math.round(display.bounds.x + display.bounds.width / 2),
+      y: Math.round(display.bounds.y + display.bounds.height / 2) });
+    return p.x >= m.x && p.x < m.x + m.width && p.y >= m.y && p.y < m.y + m.height;
+  }
+
+  setAppDisplay(mon) {
+    this.appDisplayMon = mon;
+    this.map.mine = this.map._read();
+    this.map.sendDisplays();
+    this.map.emit('change');
   }
 
   // armReturn while driven: the way back, only where the monitors touch.

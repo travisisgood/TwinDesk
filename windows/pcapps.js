@@ -63,9 +63,10 @@ class PcApps {
 
     const link = this.link;
     link.on('welcome', () => { this.generation++; this.macAccepts = false; this.sentKey = ''; this.movedApps.clear(); });
-    link.on('closed', () => { this.generation++; clearTimeout(this.timer); this.timer = null; this.macAccepts = false; this.launched.clear(); this.bringBack(); this._sync([]); });
+    link.on('closed', () => { this.generation++; clearTimeout(this.timer); this.timer = null; this.macAccepts = false; this.launched.clear(); this.bringBack(); if (this.desktop) this.desktop.release(); this._sync([]); });
     link.on(T.PAPP_POLICY, (m) => {
       this.macAccepts = m.accept === true;
+      if (!this.macAccepts) { this.bringBack(); if (this.desktop) this.desktop.release(); }
       if (this.macAccepts && this.allowed) this._build().catch(() => {}); // icons ready before the Mac asks
       this._sync(this.windows);
       this.onChange();
@@ -82,7 +83,7 @@ class PcApps {
     });
     for (const t of RemoteInput.TYPES) link.on(t, (m) => this._input(m));
     // A top-level window appeared or went (a menu opened?): look right away instead of at the next tick.
-    this.helper.on('event', (name) => name === 'winShown' && this.launched.size && this._poll(true));
+    this.helper.on('event', (name) => name === 'winShown' && (this.launched.size || this.moved.size) && this._poll(true));
     this.helper.on('ready', () => this._moveKey()); // a restarted helper is told the move key again
     this.sender.on('state', (session, s) => {
       if (s.status !== 'ended' && s.status !== 'failed') return;
@@ -91,6 +92,10 @@ class PcApps {
         this.streams.delete(wid);
         this.failed.add(wid);
         this.sender.stop(session);
+        if (this.moved.has(wid)) {
+          this.message = 'The window stream stopped; its source was returned to Windows';
+          this.bringBack(wid);
+        }
       }
     });
   }
@@ -109,7 +114,7 @@ class PcApps {
   // what ReZume sent.
   apply() {
     this.generation++;
-    if (!this.settings.pcApps.moveWindows) this.bringBack(); // moving is its own switch, apart from letting the other open apps
+    if (!this.settings.pcApps.moveWindows) { this.bringBack(); if (this.desktop) this.desktop.release(); } // moving is its own switch, apart from letting the other open apps
     this._moveKey();
     if (!this.allowed) {
       for (const [id, a] of this.launched) if (!a.rz) this.launched.delete(id);
@@ -176,11 +181,11 @@ class PcApps {
   // pointer goes over there; bringBack returns one or all of them.
   moveOut(wid, from) {
     if (!this.settings.pcApps.moveWindows) return Promise.resolve(false);
-    return require('../shared/movewin.js').moveOut(this, wid, from);
+    return require('./moved-windows').moveOut(this, wid, from);
   }
 
   bringBack(wid, home = false) {
-    if (this.moved.size) require('../shared/movewin.js').bringBack(this, wid, home);
+    if (this.moved.size) require('./moved-windows').bringBack(this, wid, home);
   }
 
   _cursorPx() {
@@ -316,7 +321,7 @@ class PcApps {
     const pops = [];
     const taken = new Set();
     if (this.moved.size) {
-      require('../shared/movewin.js').list(this, all, taken, out, pops);
+      require('./moved-windows').list(this, all, taken, out, pops);
       this._identifyMoved(all, out, pops);
     }
     for (const a of this.launched.values()) {
@@ -430,10 +435,10 @@ class PcApps {
   _input(m) {
     if (m.wid == null || !this.streams.has(m.wid)) return;
     const wid = m.wid;
-    // A moved window (or its pop-up): back on a screen while it's used there, so the pointer reaches it.
+    // Moved windows receive real input on their dedicated virtual display.
     const pop = this.windows.find((w) => w.wid === wid && w.popup);
     const moved = this.moved.has(wid) ? wid : pop && this.moved.has(pop.owner) ? pop.owner : 0;
-    if (moved) require('../shared/movewin.js').touch(this, moved);
+    // Source stays on the app virtual display, including during input.
     // A pop-up is never raised (that would close a menu); its owner is already in front.
     this.input.handle(m, (x, y) => this.helper.send('winMove', { wid, x, y }), this._popup(wid) ? null : () => this._raise(wid), undefined, !!moved);
   }
@@ -449,6 +454,7 @@ class PcApps {
     this.input.release();
     this.launched.clear();
     this.bringBack(); // quitting: every moved window back here
+    if (this.desktop) this.desktop.release();
     for (const session of this.streams.values()) this.sender.stop(session);
     this.streams.clear();
   }

@@ -111,6 +111,11 @@ class PcScreen {
     // 'last': this side's own Share switch, in the mode last picked here (the viewer's start is Mirror: _onCtl).
     if (mode === 'last') return this.lastMode === 'extend' ? this.extend() : this.setMode('mirror', prepare);
     if (!['off', 'mirror', 'extend'].includes(mode)) return;
+    if (mode === 'extend' && this.vdd.appDisplay) {
+      this.status.error = 'The virtual display is in use by crossed windows. Turn off Move windows before starting whole-screen Extend';
+      this.onChange();
+      return;
+    }
     const request = ++this.modeRequest;
     if (prepare && (!(await prepare()) || request !== this.modeRequest)) return;
     if (this.busy) {

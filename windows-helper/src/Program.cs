@@ -161,6 +161,7 @@ namespace MacShare
             {
                 capture.Shutdown();
                 injector.ReleaseAll();
+                AppWindows.ReturnVirtualWindows();
                 Application.Exit();
             });
         }
@@ -435,6 +436,17 @@ namespace MacShare
                             if (partner.Length > 0) mv.UnionWith(HotkeyVks(partner));
                             AppWindows.MoveVks = new List<uint>(mv).ToArray();
                         }
+                        break;
+                    case "appDisplay":
+                        string appDisplay = Json.Str(c, "name", "");
+                        if (appDisplay.Length == 0) AppWindows.ReturnVirtualWindows();
+                        Screens.AppDisplay = appDisplay;
+                        break;
+                    case "winVirtualPlace":
+                        AppWindows.VirtualPlace(Json.Num(c, "wid", 0), (int)Json.Num(c, "x", 0), (int)Json.Num(c, "y", 0), (int)Json.Num(c, "homeX", 0), (int)Json.Num(c, "homeY", 0));
+                        break;
+                    case "winVirtualReturn":
+                        AppWindows.VirtualReturn(Json.Num(c, "wid", 0), (int)Json.Num(c, "x", 0), (int)Json.Num(c, "y", 0));
                         break;
                     case "winEndMove": AppWindows.EndMove(Json.Num(c, "wid", 0)); break;
                     case "winPark": AppWindows.Park(Json.Num(c, "wid", 0)); break;

@@ -45,6 +45,17 @@ function fixture() {
   const opts = { link, sender, settings, vdd, helper: { send() {} }, inputAllowed: () => true, onChange() {}, saveSettings() {}, isQuitting: () => false, clip: {} };
   return { link, sender, settings, vdd, opts, sent, starts, stops };
 }
+test('whole-screen Extend cannot take the crossed-window backing display', async () => {
+  const f = fixture();
+  f.vdd.appDisplay = true;
+  const screen = new PcScreen(f.opts);
+  await screen.setMode('extend');
+  assert.equal(screen.mode, 'off');
+  assert.match(screen.status.error, /crossed windows/);
+  assert.equal(f.starts.length, 0);
+  screen.shutdown();
+});
+
 test('turning sharing off during source enumeration never starts capture', async () => {
   const f = fixture(), wait = deferred();
   sources = () => wait.promise;

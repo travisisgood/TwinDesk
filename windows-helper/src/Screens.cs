@@ -9,12 +9,15 @@ namespace MacShare
 {
     static class Screens
     {
+        public static string AppDisplay = "";
         public static Rectangle[] All()
         {
             Screen[] s = Screen.AllScreens;
-            Rectangle[] r = new Rectangle[s.Length];
-            for (int i = 0; i < s.Length; i++) r[i] = s[i].Bounds;
-            return r;
+            var r = new System.Collections.Generic.List<Rectangle>();
+            foreach (Screen screen in s)
+                if (!string.Equals(screen.DeviceName, AppDisplay, StringComparison.OrdinalIgnoreCase)) r.Add(screen.Bounds);
+            if (r.Count == 0) foreach (Screen screen in s) r.Add(screen.Bounds);
+            return r.ToArray();
         }
 
         public static Rectangle Box()

@@ -29,6 +29,16 @@ function fixture(t) {
   return { apps, link, helper, settings, sent, started, stopped };
 }
 
+test('remote input to a crossed window never restores it onto a physical screen', t => {
+  const f = fixture(t), commands = [];
+  f.helper.send = (cmd, args) => commands.push({ cmd, ...args });
+  f.apps.moved.set(7, { x: 100, y: 200 });
+  f.apps.streams.set(7, 'session');
+  f.apps.windows = [{ wid: 7, moved: true }];
+  f.apps._input({ t: P.T.IN_MOVE, wid: 7, x: 0.5, y: 0.5 });
+  assert.deepEqual(commands, [{ cmd: 'winMove', wid: 7, x: 0.5, y: 0.5 }]);
+});
+
 test('automatic and keyed move gestures reach the helper; disabling clears the gesture', t => {
   const f = fixture(t), commands = [];
   f.helper.send = (cmd, args) => commands.push({ cmd, ...args });

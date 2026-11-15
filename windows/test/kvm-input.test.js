@@ -6,13 +6,20 @@ const Module = require('node:module');
 const P = require('../../shared/protocol');
 const load = Module._load;
 const mockLoad = function(id, ...args) {
-  if (id === 'electron') return {};
+  if (id === 'electron') return { screen: {} };
   if (id === '../shared/kvm-map.js') return { KvmMap: class extends EventEmitter { zones() { return null; } } };
   return load.call(this, id, ...args);
 };
 Module._load = mockLoad;
 const Kvm = require('../kvm');
 Module._load = load;
+test('backing display is filtered using physical coordinates without hiding physical monitors', () => {
+  const kvm = { appDisplayMon: { x: 3000, y: -1000, width: 1440, height: 900 } };
+  const screen = { dipToScreenPoint: p => ({ x: p.x * 2, y: p.y * 2 }) };
+  assert.equal(Kvm.prototype.isAppDisplay.call(kvm, { bounds: { x: 1500, y: -500, width: 720, height: 450 } }, screen), true);
+  assert.equal(Kvm.prototype.isAppDisplay.call(kvm, { bounds: { x: 0, y: 0, width: 1500, height: 1000 } }, screen), false);
+});
+
 function fixture(t) {
   const sent = [], injected = [];
   const link = Object.assign(new EventEmitter(), { status: { state: 'connected' }, peerOs: P.OS.MAC, lastRx: Date.now(), send: m => sent.push(m) });

@@ -425,7 +425,17 @@ function start() {
   sender.on('stats', (_, s) => { screenStats = { codec: s.codec, encoder: s.encoder, at: Date.now() }; }); // Engines in use
   sender.codec = () => settings.pcScreen.codec; // Share screen › Encoder
   pcScreen = new PcScreen({ link, helper, sender, vdd, settings, inputAllowed: () => kvm.mode === 'home', onChange: pushState, needDriver: () => goTab('pc-mac') });
-  pcApps = new PcApps({ link, helper, sender, settings, inputAllowed: () => kvm.mode === 'home', onChange: pushState });
+  const appDesktop = new (require('./app-desktop'))({ vdd, helper,
+    canStart: () => pcScreen.mode !== 'extend' && !pcScreen.busy,
+    changed: mon => { kvm.setAppDisplay(mon); pushState(); } });
+  pcApps = new PcApps({ link, helper, sender, settings, desktop: appDesktop, inputAllowed: () => kvm.mode === 'home', onChange: pushState });
+  require('electron').screen.on('display-removed', () => {
+    if (!appDesktop.mon) return;
+    vdd.find().then(mon => { if (!mon) { pcApps.bringBack(); appDesktop.release(); } }).catch(() => {});
+  });
+  helper.on('ready', () => {
+    if (appDesktop.mon) { pcApps.bringBack(); appDesktop.release(); }
+  });
   peerApps = new PeerApps({ link, settings, popup: (kind, text) => hud.show(kind, text), peerName, onChange: pushState });
   // Apps › Move windows: a window grabbed with the move key crossed with the pointer. A
   // copy of the other computer's window goes home there (peerapps.js); one of this PC's goes over (pcapps.js).

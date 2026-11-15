@@ -439,6 +439,35 @@ namespace MacShare
             PostMessage(Handle(wid), WM_CANCELMODE, IntPtr.Zero, IntPtr.Zero);
         }
 
+        static readonly Dictionary<double, Point> virtualHomes = new Dictionary<double, Point>();
+        public static void VirtualPlace(double wid, int x, int y, int homeX, int homeY)
+        {
+            if (string.IsNullOrEmpty(Screens.AppDisplay)) throw new Exception("No app display is active");
+            if (!IsWindow(Handle(wid))) throw new Exception("Window closed before transfer");
+            virtualHomes[wid] = new Point(homeX, homeY);
+            EndMove(wid);
+            Place(wid, x, y);
+        }
+        public static void VirtualReturn(double wid, int x, int y)
+        {
+            virtualHomes.Remove(wid);
+            if (!IsWindow(Handle(wid))) return;
+            // The saved physical monitor may have been unplugged in the meantime.
+            Rectangle[] screens = Screens.All();
+            Rectangle target = screens[0];
+            foreach (Rectangle r in screens) if (r.Contains(x, y)) { target = r; break; }
+            RECT frame;
+            Frame(Handle(wid), out frame);
+            x = Math.Max(target.Left, Math.Min(x, target.Right - Math.Min(target.Width, Math.Max(100, frame.right - frame.left))));
+            y = Math.Max(target.Top, Math.Min(y, target.Bottom - Math.Min(target.Height, Math.Max(60, frame.bottom - frame.top))));
+            Place(wid, x, y);
+        }
+        public static void ReturnVirtualWindows()
+        {
+            foreach (var entry in new Dictionary<double, Point>(virtualHomes))
+                VirtualReturn(entry.Key, entry.Value.X, entry.Value.Y);
+        }
+
         // Out of sight past every screen, still shown: a minimized window has no picture to send.
         public static void Park(double wid)
         {

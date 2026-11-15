@@ -129,3 +129,31 @@ Mac handoff: implement normal title-bar dragging independently on the Mac side.
 Investigate the extra Mac display in the mouse-layout map: it may be an Extend
 or app-parking virtual display. Identify its role before excluding it from the
 physical mouse-crossing layout. Windows cannot identify it from the screenshot.
+
+### Build 04: virtual desktop for source windows
+
+`windows/app-desktop.js` owns the backing display while individual windows are
+crossed. It starts the existing installed VDD on first transfer without creating
+a screen stream. Whole-screen Extend is mutually exclusive. The display keeps
+its driver-selected resolution; automatic matching of receiver size is not yet
+implemented. The first transfer may wait for driver activation.
+
+`windows/moved-windows.js` replaces legacy park/touch for Windows. Source windows
+remain on the display during input. The helper records home coordinates before
+relocation, restores on EOF, and clamps returns to surviving physical displays.
+Disconnect, policy disable, transfer disable, quit, and stream failure return
+windows. Driver removal is detected through display removal events. Hard killing
+the helper is not covered by the EOF recovery path; startup VDD cleanup remains.
+
+The backing display is excluded from Windows KVM geometry and the outgoing
+physical display map. No shared or Mac files or wire schemas were changed.
+Existing per-window streams, popup ownership, app identities and destination
+minimize behavior remain. Scarlett and Explorer are the first paired tests;
+non-captioned REAPER child/editor windows are not yet validated.
+
+Test: quit Build 03, launch Build 04, keep Share screen Off, drag Scarlett by its
+title bar over the shared edge, interact without changing audio settings, then
+leave it idle for over 3 seconds. It must never reappear on a physical Windows
+display. Test Dock minimize/restore, return drag, and disconnection. Repeat with
+Explorer and a dropdown. Native compilation and mock-based JS lifecycle/input
+tests pass; end-to-end paired behavior remains unverified until that test.
