@@ -255,6 +255,20 @@ func handle(_ line: String) {
   case "appWindows":
     let pids = Set(((msg["pids"] as? [NSNumber]) ?? []).map { $0.intValue })
     reply(id, ["windows": Apps.windows(pids: pids, popups: (msg["popups"] as? Bool) ?? false)])
+  case "appPark":
+    let wid = (msg["wid"] as? NSNumber)?.intValue ?? 0
+    let pid = (msg["pid"] as? NSNumber)?.intValue ?? 0
+    ParkedWindows.shared.park(wid: wid, pid: pid) { result in
+      switch result {
+      case .success(let info): reply(id, info)
+      case .failure(let err): replyError(id, err.message)
+      }
+    }
+  case "appUnpark":
+    let wid = (msg["wid"] as? NSNumber)?.intValue ?? 0
+    let home = (msg["home"] as? Bool) == true
+    ParkedWindows.shared.restore(wid: wid, atCursor: home)
+    reply(id)
   case "appResize":
     reply(id, ["done": Apps.resize(wid: (msg["wid"] as? NSNumber)?.intValue ?? 0,
                                    w: (msg["w"] as? NSNumber)?.doubleValue ?? 0, h: (msg["h"] as? NSNumber)?.doubleValue ?? 0)])
@@ -270,6 +284,9 @@ func handle(_ line: String) {
                                   x: (msg["x"] as? NSNumber)?.doubleValue ?? 0, y: (msg["y"] as? NSNumber)?.doubleValue ?? 0)])
   case "moveWin": // Apps › Move windows: the key held to grab a window, "" = off
     WindowGrab.shared.setKey((msg["key"] as? String) ?? "")
+    reply(id)
+  case "proxyMoveWindows":
+    WindowGrab.shared.proxyWindows = Set(((msg["ids"] as? [NSNumber]) ?? []).map { $0.intValue })
     reply(id)
   case "appFocus":
     reply(id, ["done": Apps.focus(wid: (msg["wid"] as? NSNumber)?.intValue ?? 0)])
@@ -335,6 +352,7 @@ DispatchQueue.global().async {
   DispatchQueue.main.async {
     Capture.shared.stopCapture(side: nil, offset: nil) // also shows the pointer again
     injector.releaseAll()
+    ParkedWindows.shared.restoreAll()
     virtualDisplay.destroy()
     exit(0)
   }

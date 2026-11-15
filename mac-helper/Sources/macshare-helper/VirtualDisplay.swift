@@ -11,7 +11,7 @@ final class VirtualDisplay {
 
   var displayID: CGDirectDisplayID? { display?.displayID }
 
-  func create(width: Int, height: Int, hiDPI: Bool, hz: Double, name: String,
+  func create(width: Int, height: Int, hiDPI: Bool, hz: Double, name: String, product: UInt32 = 0x4d53, serial: UInt32 = 1,
               done: @escaping (Result<[String: Any], HelperError>) -> Void) {
     destroy()
     generation += 1
@@ -31,15 +31,18 @@ final class VirtualDisplay {
     d.maxPixelsHigh = UInt32(even(Double(ph) * factors[0]))
     // ~ a 27" panel; only affects the reported DPI.
     d.sizeInMillimeters = CGSize(width: 600, height: 600.0 * Double(height) / Double(width))
-    d.productID = 0x4d53
+    d.productID = product
     d.vendorID = 0x4d53
-    d.serialNum = 1 // stable: macOS remembers the arrangement
+    d.serialNum = serial
     d.terminationHandler = { [weak self] _, _ in
       DispatchQueue.main.async {
         guard let self = self, gen == self.generation, self.display != nil else { return }
+        let id = self.display!.displayID
         self.display = nil
+        Screens.invalidate()
         log("virtual display terminated")
-        emit(["event": "displayTerminated"])
+        if product == 0x4d54 { emit(["event": "parkingDisplayTerminated", "displayId": id]) }
+        else { emit(["event": "displayTerminated"]) }
       }
     }
 
@@ -63,11 +66,17 @@ final class VirtualDisplay {
       return
     }
     display = vd
+    Screens.invalidate()
     let id = vd.displayID
     log("created display \(id) \(width)x\(height) pt, \(pw)x\(ph) px")
-    selectMode(id: id, width: width, pixels: pw, attempt: 0, gen: gen) { [weak self] in
+    selectMode(id: id, size: CGSize(width: width, height: height), pixels: CGSize(width: pw, height: ph), attempt: 0, gen: gen) { [weak self] in
       guard let self = self, gen == self.generation else {
         done(.failure(HelperError(message: "replaced")))
+        return
+      }
+      guard CGDisplayIsOnline(id) != 0, CGDisplayIsInMirrorSet(id) == 0 else {
+        self.destroy()
+        done(.failure(HelperError(message: "The TwinDesk display is unavailable as an independent display")))
         return
       }
       let b = CGDisplayBounds(id)
@@ -81,13 +90,13 @@ final class VirtualDisplay {
     }
   }
 
-  // Wait until the mode list contains (width points, pixels wide) and switch to it.
-  private func selectMode(id: CGDirectDisplayID, width: Int, pixels: Int, attempt: Int, gen: Int,
+  // Wait for a mode that matches both dimensions at the requested scale.
+  private func selectMode(id: CGDirectDisplayID, size: CGSize, pixels: CGSize, attempt: Int, gen: Int,
                           then: @escaping () -> Void) {
     guard gen == generation else { return then() }
     let opts = [kCGDisplayShowDuplicateLowResolutionModes: true] as CFDictionary
     let modes = (CGDisplayCopyAllDisplayModes(id, opts) as? [CGDisplayMode]) ?? []
-    if let mode = modes.first(where: { $0.width == width && $0.pixelWidth == pixels }) {
+    if let mode = modes.first(where: { CGSize(width: $0.width, height: $0.height) == size && CGSize(width: $0.pixelWidth, height: $0.pixelHeight) == pixels }) {
       var cfg: CGDisplayConfigRef?
       if CGBeginDisplayConfiguration(&cfg) == .success, let cfg = cfg {
         CGConfigureDisplayWithDisplayMode(cfg, id, mode, nil)
@@ -97,11 +106,11 @@ final class VirtualDisplay {
       return then()
     }
     if attempt >= 10 {
-      log("mode \(width) pt / \(pixels) px not found; keeping default")
+      log("mode \(size) pt / \(pixels) px not found; keeping default")
       return then()
     }
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-      self.selectMode(id: id, width: width, pixels: pixels, attempt: attempt + 1, gen: gen, then: then)
+      self.selectMode(id: id, size: size, pixels: pixels, attempt: attempt + 1, gen: gen, then: then)
     }
   }
 
@@ -110,6 +119,7 @@ final class VirtualDisplay {
       log("destroying display \(display!.displayID)")
       generation += 1
       display = nil // releasing the object removes the display
+      Screens.invalidate()
     }
   }
 }

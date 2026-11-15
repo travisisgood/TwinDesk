@@ -124,6 +124,7 @@ final class Capture {
   var dwell = 0.15
   private var lastCross = 0.0
   private var arrival: (side: String, at: Double, inward: Double)?
+  private var lastPhysicalMouse: CGPoint?
   private var dragPbCount = -1             // drag pasteboard changeCount when the left button went down
   // hotkey: a right-hand modifier, double-tapped (kvmConfig `hotkey`; default Right Option, kVK 0x3D, device flag 0x40)
   private var hkStage = 0, hkAt = 0.0
@@ -366,9 +367,16 @@ final class Capture {
     lastCross = now()
     Flash.shared.leave(at: p, side: side)
     var out: [String: Any] = ["event": "return", "offset": off]
-    if let d = returnDrag(at: p) { out["drag"] = d }
-    let moving = WindowGrab.shared.take(keepUp: false)
-    if moving != 0 { out["moving"] = moving; out["movingPid"] = WindowGrab.shared.pid } // a grabbed window goes along
+    if injector.heldButtons.contains(0), let window = WindowGrab.shared.takeTitle(swallowRelease: false) {
+      injector.button(0, down: false, at: p)
+      out["moving"] = window.wid
+      out["movingPid"] = window.pid
+      log("move windows: forwarded title bar crossed, window \(window.wid)")
+    } else {
+      if let d = returnDrag(at: p) { out["drag"] = d }
+      let moving = WindowGrab.shared.take(keepUp: false)
+      if moving != 0 { out["moving"] = moving; out["movingPid"] = WindowGrab.shared.pid }
+    }
     emit(out)
   }
 #endif
@@ -669,11 +677,22 @@ final class Capture {
 
   private func onMouse(_ type: CGEventType, _ e: CGEvent) -> Bool {
     var type = type
+#if !MULTI
+    if !capturing, type == .mouseMoved || type == .leftMouseDragged || type == .rightMouseDragged || type == .otherMouseDragged {
+      if let edge = Screens.keepPhysical(e.location, from: lastPhysicalMouse) {
+        CGWarpMouseCursorPosition(edge)
+        e.location = edge
+      }
+      lastPhysicalMouse = e.location
+    }
+#endif
     let dx = e.getDoubleValueField(.mouseEventDeltaX), dy = e.getDoubleValueField(.mouseEventDeltaY)
     // Move windows (Grab.swift): the move key and a click grab a window, never while capturing.
     let grab = WindowGrab.shared
+    if type == .leftMouseUp { grab.clearTitle() }
     if type == .leftMouseUp && grab.upPending { _ = grab.up(); return true }
     if !capturing {
+      if type == .leftMouseDown { grab.titleDown(at: e.location) }
       if type == .leftMouseDown && grab.tryGrab(at: e.location, flags: e.flags.rawValue) { return true }
       if grab.grabbing && type == .leftMouseDragged { e.type = .mouseMoved; type = .mouseMoved } // the system never saw the press
       if grab.grabbing && type == .mouseMoved { grab.move(to: e.location) }
@@ -719,9 +738,23 @@ final class Capture {
     if noteLocal(type, dx, dy) { return false } // ours again: the event goes on here as it is
     let allowed = !capturing && edgeEnabled ? crossingAllowed(e.flags) : true
     if type == .leftMouseDown { dragPbCount = NSPasteboard(name: .drag).changeCount }
+#if !MULTI
+    if type == .leftMouseDragged, !capturing, edgeEnabled, allowed, grab.titleDragging,
+       let off = push(&edge, e.location, dx, dy, side, resistance, edgeZones),
+       let window = grab.takeTitle() {
+      // End the source's ordinary title-bar drag before the helper parks it.
+      injector.mouse(.leftMouseUp, at: e.location, button: 0, clickState: 1)
+      startCapture(mouse: true, keyboard: cfgKeyboard)
+      Flash.shared.leave(at: e.location, side: side)
+      log("move windows: local title bar crossed, window \(window.wid)")
+      emit(["event": "edge", "offset": off, "crossingFlags": crossingBits(e.flags),
+            "moving": window.wid, "movingPid": window.pid])
+      return true
+    }
+#endif
     // A file drag pushed through the crossing edge carries the files over.
 #if MULTI
-    if type == .leftMouseDragged, !capturing, edgeEnabled, dragFiles, allowed,
+    if type == .leftMouseDragged, !capturing, edgeEnabled, dragFiles, allowed, !grab.titleDragging,
        let hit = edgeCrossing(e.location, dx: dx, dy: dy) {
       let paths = draggedFiles()
       log("edge: drag through the edge, \(paths.count) file(s) on the drag pasteboard")
@@ -734,7 +767,7 @@ final class Capture {
       }
     }
 #else
-    if type == .leftMouseDragged, !capturing, edgeEnabled, dragFiles, allowed,
+    if type == .leftMouseDragged, !capturing, edgeEnabled, dragFiles, allowed, !grab.titleDragging,
        let off = push(&edge, e.location, dx, dy, side, resistance, edgeZones) {
       let paths = draggedFiles()
       log("edge: drag through the edge, \(paths.count) file(s) on the drag pasteboard")

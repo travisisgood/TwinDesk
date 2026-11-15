@@ -39,6 +39,8 @@ let pacing = 'fast';
 let receivers = [];
 let fg = null; // FrameGen while frame generation is on
 const bar = document.getElementById('bar');
+const windowOnly = query.get('windowOnly') === '1';
+document.getElementById('caption').hidden = query.get('caption') !== '1';
 const btn = (id) => document.getElementById(id);
 
 // steady: no hints, and the answer leaves out the playout-delay extension (steadySdp), so the PC's
@@ -76,6 +78,7 @@ function setFrameGen(on) {
 // Toolbar: the other computer's screen.state decides what it shows.
 let remote = null;
 function showRemote(r) {
+  if (windowOnly) return;
   remote = r;
   // An older computer says nothing: the bar keeps only this window's own (Frame generation, Keep
   // on top, Full screen).
@@ -84,7 +87,7 @@ function showRemote(r) {
     for (const id of ['b-extend', 'b-mirror', 'b-stop']) btn(id).hidden = true;
     return;
   }
-  const can = r.remote && r.on;
+  const can = r.remote;
   for (const m of ['extend', 'mirror']) {
     const b = btn(`b-${m}`);
     b.hidden = !(r.modes || []).includes(m);
@@ -94,8 +97,8 @@ function showRemote(r) {
   btn('b-stop').disabled = !can;
   btn('b-stop').hidden = !r.on;
 }
-btn('b-extend').onclick = () => api.ctl({ mode: 'extend' });
-btn('b-mirror').onclick = () => api.ctl({ mode: 'mirror' });
+btn('b-extend').onclick = () => api.ctl({ share: true, mode: 'extend' });
+btn('b-mirror').onclick = () => api.ctl({ share: true, mode: 'mirror' });
 btn('b-stop').onclick = () => api.ctl({ share: false });
 btn('b-fg').onclick = () => api.ctl({ framegen: !btn('b-fg').classList.contains('on') });
 btn('b-full').onclick = () => api.ctl({ fullScreen: true });
@@ -103,14 +106,14 @@ btn('b-pin').onclick = () => api.ctl({ pin: true });
 showRemote(null); // until the other computer says what it can do
 let barTimer = null;
 function pokeBar(y) {
-  if (y > 48 && !bar.matches(':hover')) return;
+  if (windowOnly || y > 48 && !bar.matches(':hover')) return;
   bar.classList.add('show');
   clearTimeout(barTimer);
   barTimer = setTimeout(() => !bar.matches(':hover') && bar.classList.remove('show'), 2000);
 }
 bar.addEventListener('mouseleave', () => pokeBar(0));
 // Clicks on the toolbar stay here (never sent to the other computer).
-for (const ev of ['mousedown', 'mouseup', 'wheel']) bar.addEventListener(ev, (e) => e.stopPropagation());
+for (const ev of ['mousedown', 'wheel']) bar.addEventListener(ev, (e) => e.stopPropagation());
 
 function setOverlay(key, vars) {
   I.text(overlay, key, vars);
@@ -131,6 +134,7 @@ function closePc() {
 }
 
 async function onOffer(m) {
+  heldButtons.clear();
   closePc();
   session = m.session;
   inputOn = m.input;
@@ -157,8 +161,11 @@ async function onOffer(m) {
     if (my !== pc) return;
     const st = my.connectionState;
     report(st === 'connected' ? 'live' : st);
-    if (st === 'failed') setOverlay('Reconnecting…');
-    else if (st === 'disconnected') setOverlay('Reconnecting…');
+    if (st === 'failed' || st === 'disconnected') {
+      releaseButtons();
+      api.ctl({ disconnected: m.session });
+      setOverlay('Reconnecting…');
+    }
   };
 
   try {
@@ -175,6 +182,7 @@ async function onOffer(m) {
     api.send({ t: T.RTC2_ANSWER, session: m.session, sdp: my.localDescription.sdp });
     for (const c of queue) await my.addIceCandidate(c).catch(() => {});
     if (my === pc) pending = null;
+    if (my !== pc) return;
     statsTimer = setInterval(() => stats(my).catch(() => {}), 1000);
   } catch (e) {
     if (my === pc) {
@@ -246,12 +254,12 @@ function norm(e, clamp) {
   return { x, y };
 }
 
-const send = (m) => inputOn && session !== null && api.send(m);
+const send = (m) => inputOn && session !== null && api.send({ ...m, session });
 
 // pointerrawupdate fires as soon as the OS delivers the move (not aligned to frames): lowest latency.
 function onMove(e) {
   pokeBar(e.clientY);
-  if (e.target && bar.contains(e.target)) return;
+  if (!heldButtons.size && e.target && bar.contains(e.target)) return;
   if (!inputOn || e.pointerType === 'pen' || window.TDViewerPen.recent()) return; // a pen's mouse: viewer-pen.js sent it
   const p = norm(e, heldButtons.size > 0);
   if (!p) return;
@@ -264,7 +272,7 @@ window.addEventListener('mousedown', (e) => {
   e.preventDefault();
   const b = BUTTONS[e.button];
   const p = norm(e, false);
-  if (!inputOn || b === undefined || !p || window.TDViewerPen.recent()) return;
+  if (!inputOn || pc?.connectionState !== 'connected' || b === undefined || !p || window.TDViewerPen.recent()) return;
   heldButtons.add(b);
   lastPos = p;
   send({ t: T.IN_DOWN, x: p.x, y: p.y, b });
@@ -288,10 +296,16 @@ window.addEventListener('auxclick', (e) => e.preventDefault());
 
 window.addEventListener('wheel', (e) => {
   e.preventDefault();
-  if (!inputOn || !norm(e, false)) return;
+  const p = norm(e, false);
+  if (!inputOn || !p) return;
   const k = e.deltaMode === 1 ? LINE_PX : e.deltaMode === 2 ? window.innerHeight : 1;
   const dx = e.deltaX * k, dy = e.deltaY * k;
-  if (dx || dy) send({ t: T.IN_WHEEL, dx, dy });
+  if (dx || dy) {
+    lastPos = p;
+    // Wheel has no coordinates on the wire. Place the remote pointer first.
+    send({ t: T.IN_MOVE, ...p });
+    send({ t: T.IN_WHEEL, dx, dy });
+  }
 }, { passive: false });
 
 function releaseButtons() {

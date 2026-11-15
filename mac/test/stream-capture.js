@@ -47,5 +47,37 @@ test('refuses a capture source for a different selected display', async () => {
   const displays = new EventEmitter();
   displays.target = () => ({ id: 3 });
   const stream = new Stream(server, displays, () => ({}), { release() {}, loopback() {} });
-  await assert.rejects(stream._source(), /no screens/);
+  await assert.rejects(stream._source(3), /no screens/);
+});
+
+
+test('a source lookup completing after stop cannot start capture or announce a stream', async () => {
+  const server = new EventEmitter();
+  server.current = { os: 'win', transport: 'ip' };
+  const sent = [];
+  server.sendToClient = (msg) => sent.push(msg);
+  const displays = new EventEmitter();
+  displays.target = () => ({ id: 2, label: 'Virtual display', pixelWidth: 1920, pixelHeight: 1080 });
+  displays.extending = true;
+  const stream = new Stream(server, displays, () => ({ sharing: { on: true } }), { release() {}, loopback() {} });
+  const capture = [];
+  stream._toWindow = (channel) => capture.push(channel);
+  stream._ensureWindow = async () => {};
+  let finish;
+  let lookup;
+  const started = new Promise((resolve) => { lookup = resolve; });
+  stream._source = () => new Promise((resolve) => { finish = resolve; lookup(); });
+
+  let releases = 0;
+  stream.on('release-input', () => releases++);
+  const running = stream.restart('test');
+  await started;
+  stream.stop();
+  finish({ id: 'screen:2:0' });
+  await running;
+
+  assert.equal(releases, 2);
+  assert.deepEqual(capture, ['stop']);
+  assert.deepEqual(sent.map((m) => m.t), ['stream.stop']);
+  assert.equal(stream.active, null);
 });

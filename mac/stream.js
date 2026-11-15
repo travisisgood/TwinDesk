@@ -38,7 +38,11 @@ class Stream extends EventEmitter {
     session.defaultSession.setDisplayMediaRequestHandler(async (_req, cb) => {
       try {
         // The sound, when asked for: Chromium's loopback (audiohub.js loopback()).
-        cb({ video: await this._source(), ...(_req.audioRequested ? { audio: 'loopback' } : {}) });
+        const active = this.active;
+        if (!active || !_req.frame || _req.frame !== this.win?.webContents.mainFrame) return cb({});
+        const video = await this._source(active.displayId);
+        if (this.active !== active) return cb({});
+        cb({ video, ...(_req.audioRequested ? { audio: 'loopback' } : {}) });
       } catch (e) {
         console.error(`[stream] no capture source: ${e.message}`);
         cb({});
@@ -129,17 +133,16 @@ class Stream extends EventEmitter {
     return this.win && !this.win.isDestroyed() && e.sender === this.win.webContents;
   }
 
-  async _source() {
-    const target = this.displays.target();
+  async _source(displayId) {
     const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } });
-    const src = target ? sources.find((s) => s.display_id === String(target.id)) : sources[0];
+    const src = sources.find((s) => s.display_id === String(displayId));
     if (!src) throw new Error('no screens (Screen Recording permission?)');
     return src;
   }
 
   _ensureWindow() {
     clearTimeout(this.dropTimer);
-    if (this.win && !this.win.isDestroyed()) return Promise.resolve();
+    if (this.win && !this.win.isDestroyed()) return this.windowReady;
     const w = this.win = new BrowserWindow({
       show: false,
       webPreferences: {
@@ -156,7 +159,12 @@ class Stream extends EventEmitter {
       this._scheduleRetry();
     });
     this.win.webContents.on('console-message', (e) => console.log(`[capture] ${e.message}`));
-    return this.win.loadFile(path.join(__dirname, 'capture.html'));
+    this.windowReady = w.loadFile(path.join(__dirname, 'capture.html')).catch((error) => {
+      if (this.win === w) this.win = null;
+      if (!w.isDestroyed()) w.destroy();
+      throw error;
+    });
+    return this.windowReady;
   }
 
   _toWindow(channel, msg) {
@@ -177,6 +185,10 @@ class Stream extends EventEmitter {
   async restart(reason) {
     clearTimeout(this.retryTimer);
     if (!this.getSettings().sharing.on) return this.stop('off');
+    if (this.displays.extending && this.displays.virtualError) {
+      this.emit('extend-failed', this.displays.virtualError);
+      return;
+    }
     if (!this.server.current) return this._stopWindow('nothing connected');
     if (this.viewer === false || this.waitingPolicy) return this._stopWindow('no viewer');
     // Bluetooth can't carry the picture: it starts once the session is on Wi-Fi (netlink.js, 'transport').
@@ -184,7 +196,20 @@ class Stream extends EventEmitter {
     const target = this.displays.target();
     if (!target) return this._stopWindow('no display to share');
 
+    this.emit('release-input');
     const s = ++this.session;
+    try {
+      await this._start(s, target, reason);
+    } catch (e) {
+      if (this.session !== s) return;
+      const why = (e && e.message) || util.inspect(e);
+      console.error(`[stream] start failed: ${why} (Screen Recording: ${systemPreferences.getMediaAccessStatus('screen')})`);
+      this._stopWindow(`error: ${why}`);
+      this._scheduleRetry();
+    }
+  }
+
+  async _start(s, target, reason) {
     const { width, height } = this._outSize(target);
     // Sound goes with the screen only when "Share sound with the screen" is on (else: none, for latency):
     // 'loopback' (Chromium captures it; the helper's if it can't), else the helper's capture.
@@ -196,38 +221,32 @@ class Stream extends EventEmitter {
       audio = 'loopback';
     } else if (this.getSettings().sharing.audio) {
       await this._ensureWindow();
+      if (this.session !== s) return;
       audio = await this.hub.acquire('screen', this.win.webContents);
       this.audio.error = audio ? null : this.hub.error;
     } else {
       this._releaseAudio();
     }
-    this.audio.on = !!audio;
     if (this.session !== s) return;
+    this.audio.on = !!audio;
     this.active = { session: s, displayId: target.id, width: target.pixelWidth, height: target.pixelHeight, transport: this.server.current.transport };
     Object.assign(this.view, { display: target.label, width, height, fps: 0, mbps: 0 });
     this._setStatus('starting');
     console.log(`[stream] session ${s} (${reason}): ${target.label} ${target.pixelWidth}x${target.pixelHeight} -> ${width}x${height}`);
+    await this._ensureWindow();
+    if (this.session !== s) return;
+    const src = await this._source(target.id);
+    if (this.session !== s) return;
     this.server.sendToClient({ t: P.T.STREAM_INFO, name: target.label, width, height, audio: !!audio });
-    try {
-      await this._ensureWindow();
-      if (!this.active || this.active.session !== s) return;
-      const src = await this._source();
-      const set = this.getSettings();
-      this._toWindow('start', {
-        session: s, bitrateMbps: set.bitrateMbps, // Share screen › Quality, for phones too
-        sourceId: src.id, width, height, audio,
-        ice: (this.server.current && this.server.current.ice) || null, // a phone on the USB cable: through the relay
-        fps: ScreenCodec.fps(target.hz, set.sharing && set.sharing.fps), // Share screen › Frame rate
-        steady: !!(set.sharing && set.sharing.pace === 'steady'), // Playback › Steady (shared/screencodec.js)
-        codec: ScreenCodec.mode(set.sharing && set.sharing.codec), // Share screen › Encoder
-      });
-    } catch (e) {
-      // The rejection isn't always an Error (Screen Recording not allowed): say what it was.
-      const why = (e && e.message) || util.inspect(e);
-      console.error(`[stream] start failed: ${why} (Screen Recording: ${systemPreferences.getMediaAccessStatus('screen')})`);
-      this._setStatus(`error: ${why}`);
-      this._scheduleRetry();
-    }
+    const set = this.getSettings();
+    this._toWindow('start', {
+      session: s, bitrateMbps: set.bitrateMbps,
+      sourceId: src.id, width, height, audio,
+      ice: this.server.current?.ice || null,
+      fps: ScreenCodec.fps(target.hz, set.sharing.fps),
+      steady: set.sharing.pace === 'steady',
+      codec: ScreenCodec.mode(set.sharing.codec),
+    });
   }
 
   // Capture size: the display's pixels, scaled down to settings.streamMaxHeight if that is smaller.
@@ -245,14 +264,21 @@ class Stream extends EventEmitter {
   }
 
   _displaysChanged() {
-    if (!this.active) return;
     const t = this.displays.target();
+    if (!this.active) return;
+    if (!t && this.displays.extending) {
+      if (this.displays.applying) return;
+      this.emit('extend-failed', 'The TwinDesk virtual display was disconnected.');
+      return;
+    }
     if (!t || t.id !== this.active.displayId || t.pixelWidth !== this.active.width || t.pixelHeight !== this.active.height) {
       this.restart('display changed');
     }
   }
 
   _stopWindow(status) {
+    ++this.session;
+    this.emit('release-input');
     clearTimeout(this.retryTimer);
     this._releaseAudio();
     this.audio.on = false;

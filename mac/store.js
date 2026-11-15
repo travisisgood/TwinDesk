@@ -94,7 +94,7 @@ const DEFAULT_SETTINGS = {
     plain: false, // Encrypt file transfers off: plain HTTP for file bytes where both allow it (shared/fastfile.js fxPlain)
     shortcuts: false, copyKeys: 'Control+Alt+C', pasteKeys: 'Control+Alt+V' }, // Copy/paste files
   notifs: { send: false, receive: false, hideText: false, muted: [], style: '', otpCopy: false, quiet: { on: false, from: '22:00', to: '07:00' }, phoneApps: {} }, // style…phoneApps: how a phone's show here (shared/notifrules.js)
-  apps: { offer: false, onVirtual: false, moveWindows: false, moveKey: 'MetaRight' }, // The PC can list and open this Mac's apps; onVirtual: they open on the virtual display, in Mirror mode too (off: on the shared display, as always); moveWindows: a window dragged past the edge with moveKey held moves there (movewin.js)
+  apps: { offer: false, onVirtual: false, moveWindows: false, moveKey: 'auto' }, // The PC can list and open this Mac's apps; onVirtual: they open on the virtual display, in Mirror mode too (off: on the shared display, as always); moveWindows: a window dragged past the edge with moveKey held moves there (movewin.js)
   papps: { on: false }, // PC apps on this Mac, each window here with its own Dock icon
   // A phone as the peer: its screen window, apps and setup.
   phone: { sound: false, bitrateMbps: 8, maxSize: 0, wallpaper: true, input: 'adb', inputPicked: false, mirror: 'auto', soundVia: 'auto', enterSends: true, arrowSwipe: false, uhid: false, direct: false, lowLatency: false }, // mirror, soundVia: 'auto' | 'adb' | 'native' (shared/phonemodes.js) // input: 'adb' | 'phone' (phone-bridge.js ctl), automatic until picked (inputMode)
@@ -108,7 +108,7 @@ const DEFAULT_SETTINGS = {
   net: { ble: true, blePc: false, bleWifiOff: true, hotspots: {}, tailscale: true, bleInput: false }, // ble: with phones, blePc: with computers; bleWifiOff: none on the same Wi-Fi (blepolicy.js wifiQuiet); tailscale: shared/tailnet.js; bleInput: mouse and keyboard over Bluetooth beside Wi-Fi (shared/bleinput.js)
 
   // The other computer's screen in a window here; framegen: shared/framegen.js.
-  receive: { on: false, fullScreen: false, input: true, framegen: false },
+  receive: { on: false, fullScreen: false, displayId: null, input: true, framegen: false },
   wake: { peers: {} }, // {deviceId: {name, macs, address, at}} from wol.info, for Wake
   pairSync: {}, // {deviceId: {feature: {out, in}}} two-way switches per pair (pairsync.js)
   smb: { connectPc: false, sharing: false, folder: '', secret: '' }, // secret = safeStorage

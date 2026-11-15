@@ -38,9 +38,12 @@ function startServices({ server, getSettings, pushState, onHelperReady }) {
   let kvm = null;
   // Stream input only when "Receive input" is on and shared input is home.
   const input = new Input(server, helper, displays, {
-    enabled: () => s().streamInput !== false && (!kvm || kvm.mode === 'home'),
+    enabled: () => !!stream.active && stream.active.session === stream.session
+      && stream.active.displayId === displays.target()?.id
+      && s().streamInput !== false && (!kvm || kvm.mode === 'home'),
     swapKeys: () => server.keySwap(s()), // never between two Macs
   });
+  stream.on('release-input', () => input.releaseAll());
   const clipboard = new Clipboard(server, helper, s);
   const drop = new Drop({ server, helper, displays, getSettings: s });
   const fileSend = new FileSend(server, s);
@@ -52,15 +55,27 @@ function startServices({ server, getSettings, pushState, onHelperReady }) {
   const apps = new Apps({ server, helper, displays, stream, getSettings: s });
   const sshClient = new SshClient(server, s);
   const audio = new Audio({ server, hub, stream, getSettings: s });
-  const pcView = new PcView({ server, getSettings: s, saveSettings: () => store.saveSettings(s()) });
+  const pcView = new PcView({ server, getSettings: s, virtualDisplayId: () => displays.virtualId, saveSettings: () => store.saveSettings(s()) });
   const pcApps = new PcApps({ server, getSettings: s });
+  let proxyKey = '';
+  const syncProxyCaptions = () => {
+    const ids = pcApps.proxyIds();
+    const key = ids.join(',');
+    if (proxyKey !== key) {
+      proxyKey = key;
+      helper.send('proxyMoveWindows', { ids });
+    }
+  };
+  pcApps.on('change', syncProxyCaptions);
+  helper.on('ready', () => { proxyKey = null; syncProxyCaptions(); });
   const notifs = new Notifs({ server, helper, getSettings: s, saveSettings: () => store.saveSettings(s()) });
   // History › Keep history: the clipboard's and notifications' history kept, encrypted (shared/histkeeper.js).
   const history = new (require('../shared/histkeeper.js').HistoryKeeper)({ dir: require('electron').app.getPath('userData'), clip: clipboard, notifs, changed: pushState });
   const fileClip = new FileClip({ server, helper, fileSend, drop, getSettings: s });
   kvm.fileClip = fileClip;
   fileClip.kvm = kvm; // the shortcut while the pointer is over there (keyboard not shared)
-  const appSend = new AppSend({ server, helper, displays, getSettings: s }); // This Mac's apps on another computer
+  const appSend = new AppSend({ server, helper, getSettings: s, extending: () => displays.extending && s().sharing.on }); // This Mac's apps on another computer
+  apps.movedCatalog = () => appSend.movedCatalog();
   const wake = new Wake({ server, getSettings: s, saveSettings: () => store.saveSettings(s()) });
   kvm.blockEdge = () => pcView.focused || pcApps.focused; // moving inside the PC window never crosses to the PC
 

@@ -14,7 +14,16 @@ extension Injector {
       moveRel(num("dx"), num("dy"))
     case "k.md", "k.mu":
       if t == "k.mu", num("b") == 0, DragIn.shared.buttonUp() { return } // drop before the drag began
-      if t == "k.md", num("b") == 0 { Capture.shared.injectedLeftDown() }
+      if num("b") == 0 {
+        if t == "k.md" {
+          Capture.shared.injectedLeftDown()
+#if !MULTI
+          WindowGrab.shared.titleDown(at: here())
+#endif
+        } else {
+          WindowGrab.shared.clearTitle()
+        }
+      }
       button(Int(num("b")), down: t == "k.md", at: here())
     case "k.wh":
       scroll(dx: num("dx"), dy: num("dy"), lines: (ev["mode"] as? String) == "line")

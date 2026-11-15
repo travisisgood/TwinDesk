@@ -27,6 +27,7 @@ class PcApps extends EventEmitter {
     this.launch = {}; // id -> '' (opening) | 'ok' | why
     this.wins = new Map(); // wid -> {info, win, session, ready, queue, keys, closing, focusedAt}
     this.stubs = new Map(); // app id -> DockStub
+    this.stubIdentity = new Map();
 
     this.pendingLink = null; // {id, at}: a kept Dock icon was clicked before the PC was connected
     server.on('client', () => {
@@ -47,8 +48,14 @@ class PcApps extends EventEmitter {
     server.on(`t:${T.PAPPS_RESULT}`, (m) => {
       this.listing = false;
       const str = (v, n) => String(v == null ? '' : v).slice(0, n);
-      this.apps = (Array.isArray(m.apps) ? m.apps : []).filter((a) => a && a.id != null)
+      const listed = (Array.isArray(m.apps) ? m.apps : []).filter((a) => a && a.id != null)
         .map((a) => ({ id: str(a.id, 1024), name: str(a.name, 200), icon: /^data:image\/png;base64,/.test(a.icon) ? a.icon : '' }));
+      // Windows may answer a regular catalogue request with an empty list
+      // when remote launching is off. Keep identities used by live proxies.
+      const activeIds = new Set([...this.wins.values()].filter((w) => w.info.moved).map((w) => w.info.id));
+      const seen = new Set(listed.map((a) => a.id));
+      this.apps = listed.concat(this.apps.filter((a) => activeIds.has(a.id) && !seen.has(a.id)));
+      this._stubs();
       this.emit('change');
     });
     server.on(`t:${T.PAPP_LAUNCHED}`, (m) => {
@@ -77,7 +84,10 @@ class PcApps extends EventEmitter {
       const w = mine(e);
       if (!w || !m || !this.server.current) return;
       if ((m.t === T.RTC2_ANSWER || m.t === T.RTC2_ICE) && m.session === w.session) this.server.sendToClient({ ...m, win: 'view' });
-      else if (POINTER.has(m.t) && (m.t === T.IN_UP || w.info.popup || w.win.isFocused())) this.server.sendToClient({ ...m, wid: w.info.wid });
+      else if (POINTER.has(m.t) && w.session !== null && m.session === w.session && (m.t === T.IN_UP || w.info.popup || w.win.isFocused())) {
+        const { session, ...input } = m;
+        this.server.sendToClient({ ...input, wid: w.info.wid });
+      }
     });
     ipcMain.on('pcview:state', () => {}); // stats of app windows aren't shown
     ipcMain.on('pcview:ready', (e) => {
@@ -201,13 +211,13 @@ class PcApps extends EventEmitter {
     });
     const w = { info, win, session: null, ready: false, queue: [], closing: true, focusedAt: 0, sizedAt: 0, keys: { release() {} } };
     win.webContents.on('console-message', (e) => e.level === 'error' && console.log(`[pcapps] ${e.message}`));
-    win.once('ready-to-show', () => !win.isDestroyed() && win.showInactive());
+    win.once('ready-to-show', () => !win.isDestroyed() && !owner.minimized && win.showInactive());
     win.on('closed', () => {
       if (this.wins.get(w.info.wid) === w) this.wins.delete(w.info.wid);
       this.emit('change');
     });
     this.wins.set(info.wid, w);
-    win.loadFile(path.join(__dirname, 'pcview.html'), { query: { language: this._i18n().locale, ...this._playerTitle(info) } });
+    win.loadFile(path.join(__dirname, 'pcview.html'), { query: { language: this._i18n().locale, ...this._playerTitle(info), windowOnly: '1' } });
   }
 
   _create(info) {
@@ -223,6 +233,7 @@ class PcApps extends EventEmitter {
     } : {};
     const win = new BrowserWindow({
       title: this._title(info),
+      frame: !info.moved,
       width,
       height,
       ...where,
@@ -247,11 +258,24 @@ class PcApps extends EventEmitter {
     w.keys = attachKeys(win, {
       send: (m) => this.server.current && this.server.sendToClient({ ...m, wid: w.info.wid }),
       enabled: () => !!(w.session !== null && this.server.current),
+      local: (input) => {
+        if (!w.info.moved || !input.meta || input.code !== 'KeyM') return false;
+        if (input.type === 'keyDown' && !input.isAutoRepeat) win.minimize();
+        return true;
+      },
     });
     win.webContents.on('console-message', (e) => e.level === 'error' && console.log(`[pcapps] ${e.message}`));
     win.on('focus', () => {
       w.focusedAt = Date.now();
       if (this.server.current) this.server.sendToClient({ t: T.PAPP_FOCUS, wid: w.info.wid });
+    });
+    win.on('minimize', () => {
+      w.minimized = true;
+      win.restore();
+      win.hide();
+      for (const child of this.wins.values()) {
+        if (child.info.popup && child.info.owner === info.wid && !child.win.isDestroyed()) child.win.hide();
+      }
     });
     win.on('blur', () => {
       w.keys.release();
@@ -276,7 +300,7 @@ class PcApps extends EventEmitter {
       this.emit('change');
     });
     this.wins.set(info.wid, w);
-    win.loadFile(path.join(__dirname, 'pcview.html'), { query: { language: this._i18n().locale, ...this._playerTitle(info) } });
+    win.loadFile(path.join(__dirname, 'pcview.html'), { query: { language: this._i18n().locale, ...this._playerTitle(info), windowOnly: '1', caption: info.moved ? '1' : '' } });
   }
 
   // Never bigger than the PC's screen (1:1 pixels, nothing upscaled) nor this Mac's work area.
@@ -295,8 +319,7 @@ class PcApps extends EventEmitter {
   }
 
   _title(info) {
-    // Moved here from the other computer: its name says so (it goes back when closed or dragged back).
-    if (info.moved) return this._i18n().t('{title} (from {name})', { title: info.title || this._i18n().t('PC app'), name: (this.server.current && this.server.current.name) || this._i18n().t('the PC') });
+    if (info.moved && info.title) return info.title;
     const app = this._appName(info.id);
     return info.title && app && !info.title.includes(app) ? `${info.title} · ${app}` : info.title || app || this._i18n().t('PC app');
   }
@@ -314,7 +337,7 @@ class PcApps extends EventEmitter {
       return;
     }
     w.win.setTitle(this._title(info));
-    this._toWin(w, { t: 'title', ...this._playerTitle(info) });
+    this._toWin(w, { t: 'title', ...this._playerTitle(info), windowOnly: '1' });
     if (old.maxW !== info.maxW || old.maxH !== info.maxH || old.scale !== info.scale) this._limit(w);
     // Resized on the PC (not by us a moment ago): follow it.
     if ((old.w !== info.w || old.h !== info.h) && Date.now() - w.sizedAt > 1500) {
@@ -355,14 +378,18 @@ class PcApps extends EventEmitter {
       if (!byApp.has(id)) {
         stub.stop();
         this.stubs.delete(id);
+        this.stubIdentity.delete(id);
       }
     }
     for (const [id, ws] of byApp) {
       let stub = this.stubs.get(id);
-      if (!stub) {
-        const a = this.apps.find((x) => x.id === id) || { id, name: this._appName(id) || ws[0].info.title, icon: '' };
+      const a = this.apps.find((x) => x.id === id) || { id, name: ws[0].info.title || 'PC app', icon: '' };
+      const identity = JSON.stringify(a);
+      if (identity !== this.stubIdentity.get(id)) {
+        if (stub) stub.stop();
         stub = new DockStub(a, (ev, i) => this._onStub(id, ev, i));
         this.stubs.set(id, stub);
+        this.stubIdentity.set(id, identity);
       }
       stub.menu(ws.map((w) => w.info.title));
     }
@@ -375,8 +402,11 @@ class PcApps extends EventEmitter {
       return;
     }
     const pick = ev === 'focus' ? ws[i] : ws.sort((a, b) => b.focusedAt - a.focusedAt)[0];
-    if (ev === 'activate') for (const w of ws) w.win.showInactive();
     if (pick) {
+      pick.minimized = false;
+      for (const child of this.wins.values()) {
+        if (child.info.popup && child.info.owner === pick.info.wid && !child.win.isDestroyed()) child.win.showInactive();
+      }
       app.focus({ steal: true }); // TwinDesk has no Dock icon of its own
       pick.win.show();
       pick.win.focus();
@@ -414,6 +444,11 @@ class PcApps extends EventEmitter {
 
   // A window grabbed with the move key crossed back (kvm.js, the helper's `moving` CGWindowID): if
   // it's the copy of a window moved here, that window goes home (shared/movewin.js).
+  proxyIds() {
+    return [...this.wins.values()].filter((w) => w.info.moved && !w.info.popup && !w.win.isDestroyed())
+      .map((w) => Number(/^window:(\d+):/.exec(w.win.getMediaSourceId() || '')?.[1])).filter(Boolean);
+  }
+
   returnWindow(cgId) {
     if (!cgId) return false;
     for (const w of this.wins.values()) {
@@ -437,6 +472,7 @@ class PcApps extends EventEmitter {
     for (const w of [...this.wins.values()]) this._close(w);
     for (const s of this.stubs.values()) s.stop();
     this.stubs.clear();
+    this.stubIdentity.clear();
   }
 
   get view() {

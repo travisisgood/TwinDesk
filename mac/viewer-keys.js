@@ -30,7 +30,10 @@ function attachKeys(win, { send, enabled, local }) {
       if (input.code === 'MetaLeft' || input.code === 'MetaRight') for (const c of [...held]) if (!MODIFIERS.has(c)) up(c);
     }
   });
-  return { release: () => { for (const c of [...held]) up(c); } };
+  return { release: (sendReleases = true) => {
+    if (sendReleases) for (const c of [...held]) up(c);
+    else held.clear();
+  } };
 }
 
 module.exports = { attachKeys };
