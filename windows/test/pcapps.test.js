@@ -29,6 +29,20 @@ function fixture(t) {
   return { apps, link, helper, settings, sent, started, stopped };
 }
 
+test('failed crossed-window stream restores source and releases KVM ownership', t => {
+  const f = fixture(t), commands = [];
+  let recovered = 0;
+  f.helper.send = (cmd, args) => commands.push({ cmd, ...args });
+  f.apps.onTransferFailure = () => recovered++;
+  f.apps.moved.set(7, { x: 100, y: 200 });
+  f.apps.streams.set(7, 'session');
+  f.apps.sender.emit('state', 'session', { status: 'failed', error: 'capture failed' });
+  assert.equal(f.apps.moved.size, 0);
+  assert.equal(recovered, 1);
+  assert.ok(commands.some(c => c.cmd === 'winVirtualReturn' && c.wid === 7));
+  assert.match(f.apps.message, /capture failed/);
+});
+
 test('remote input to a crossed window never restores it onto a physical screen', t => {
   const f = fixture(t), commands = [];
   f.helper.send = (cmd, args) => commands.push({ cmd, ...args });

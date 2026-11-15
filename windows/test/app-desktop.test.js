@@ -58,8 +58,10 @@ test('whole-screen Extend and absent driver fail without transferring', async ()
   }
 });
 
-test('rejected native placement is returned and never advertised', async () => {
+test('rejected native placement returns input and retains acquired display without advertising', async () => {
   const f = fixture(), request = f.helper.request;
+  let failures = 0;
+  f.pc.onTransferFailure = () => failures++;
   f.helper.request = async (cmd, args) => {
     if (cmd === 'winVirtualPlace') throw new Error('Window refused placement');
     return request(cmd, args);
@@ -67,11 +69,12 @@ test('rejected native placement is returned and never advertised', async () => {
   assert.equal(await moved.moveOut(f.pc, 7), false);
   assert.equal(f.pc.moved.size, 0);
   await f.desktop.queue;
-  assert.equal(f.vdd.appDisplay, false);
+  assert.equal(f.vdd.appDisplay, true);
+  assert.equal(failures, 1);
   assert.ok(f.calls.some(c => c[0] === 'winVirtualReturn'));
 });
 
-test('returning one window retains display; returning last releases it', async () => {
+test('returning the last window retains display until sharing is disabled', async () => {
   const f = fixture();
   await moved.moveOut(f.pc, 7);
   f.pc.moved.set(8, { x: 60, y: 70 });
@@ -79,6 +82,12 @@ test('returning one window retains display; returning last releases it', async (
   await f.desktop.queue;
   assert.equal(f.vdd.appDisplay, true);
   moved.bringBack(f.pc, 8);
+  await f.desktop.queue;
+  assert.equal(f.vdd.appDisplay, true);
+  await moved.moveOut(f.pc, 7);
+  assert.equal(f.calls.filter(c => c[0] === 'display' && c[1]).length, 1);
+  f.pc.settings.pcApps.moveWindows = false;
+  moved.bringBack(f.pc);
   await f.desktop.queue;
   assert.equal(f.vdd.appDisplay, false);
 });
