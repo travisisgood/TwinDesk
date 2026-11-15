@@ -429,7 +429,7 @@ function start() {
   const appDesktop = new (require('./app-desktop'))({ vdd, helper,
     canStart: () => pcScreen.mode !== 'extend' && !pcScreen.busy,
     changed: mon => { kvm.setAppDisplay(mon); pushState(); } });
-  pcApps = new PcApps({ link, helper, sender, settings, desktop: appDesktop, inputAllowed: () => kvm.mode === 'home', onChange: pushState });
+  pcApps = new PcApps({ link, helper, sender, settings, desktop: appDesktop, inputAllowed: () => kvm.mode === 'home', onTransferFailure: () => kvm.home(), onChange: pushState });
   require('electron').screen.on('display-removed', () => {
     if (!appDesktop.mon) return;
     vdd.find().then(mon => { if (!mon) { pcApps.bringBack(); appDesktop.release(); } }).catch(() => {});

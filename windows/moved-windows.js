@@ -2,7 +2,11 @@
 const legacy = require('../shared/movewin');
 
 function releaseIdle(pc) {
-  if (!pc.moved.size && !pc.pendingMoves?.size && pc.desktop) pc.desktop.release();
+  // Retain an acquired backing display for the sharing session. Removing it
+  // on every return/failure hot-plugs the desktop in the middle of KVM input.
+  const sharing = !pc.stopped && pc.settings.pcApps.moveWindows && pc.macAccepts
+    && pc.link.status.state === 'connected';
+  if (!sharing && !pc.moved.size && !pc.pendingMoves?.size && pc.desktop) pc.desktop.release();
 }
 
 async function moveOut(pc, wid, from) {
@@ -24,6 +28,7 @@ async function moveOut(pc, wid, from) {
       virtualX: mon.x + 24, virtualY: mon.y + 24 };
     // Register the return position in the helper before moving. No idle unpark timer.
     await pc.helper.request('winVirtualPlace', { wid, x: m.virtualX, y: m.virtualY, homeX: m.x, homeY: m.y });
+    console.log('[window-transfer] source placed wid=' + wid);
     if (!current() || !pc.macAccepts || !pc.settings.pcApps.moveWindows) {
       pc.helper.send('winVirtualReturn', { wid, x: m.x, y: m.y });
       return false;
@@ -34,9 +39,11 @@ async function moveOut(pc, wid, from) {
     pc.onChange();
     return true;
   } catch (e) {
+    console.warn('[window-transfer] placement failed wid=' + wid + ': ' + e.message);
     pc.message = 'Moving window: ' + e.message;
     if (original) pc.helper.send('winVirtualReturn', { wid, x: from?.x ?? original.x, y: from?.y ?? original.y });
     pc.onChange();
+    if (current()) pc.onTransferFailure?.();
     return false;
   } finally {
     pc.pendingMoves.delete(wid);
@@ -70,7 +77,9 @@ function list(pc, all, taken, out, pops) {
     const w = all.find(w => w.wid === wid);
     if (w && (w.x < mon.x || w.y < mon.y || w.x + w.w > mon.x + mon.width || w.y + w.h > mon.y + mon.height)) {
       pc.message = 'The source left its backing display and was returned to Windows';
+      console.warn('[window-transfer] source escaped backing display wid=' + wid);
       bringBack(pc, wid);
+      pc.onTransferFailure?.();
     }
   }
   legacy.list(pc, all, taken, out, pops);

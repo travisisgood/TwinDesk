@@ -86,6 +86,7 @@ class PcApps {
     this.helper.on('event', (name) => name === 'winShown' && (this.launched.size || this.moved.size) && this._poll(true));
     this.helper.on('ready', () => this._moveKey()); // a restarted helper is told the move key again
     this.sender.on('state', (session, s) => {
+      if ([...this.streams.values()].includes(session)) console.log('[window-transfer] sender session=' + session + ' state=' + s.status + (s.error ? ' error=' + s.error : ''));
       if (s.status !== 'ended' && s.status !== 'failed') return;
       for (const [wid, ses] of this.streams) {
         if (ses !== session) continue;
@@ -93,8 +94,9 @@ class PcApps {
         this.failed.add(wid);
         this.sender.stop(session);
         if (this.moved.has(wid)) {
-          this.message = 'The window stream stopped; its source was returned to Windows';
+          this.message = 'The window stream stopped; its source was returned to Windows' + (s.error ? ': ' + s.error : '');
           this.bringBack(wid);
+          this.onTransferFailure?.();
         }
       }
     });
@@ -420,6 +422,7 @@ class PcApps {
       for (const wid of start) {
         if (this.streams.has(wid) || !this.windows.some((w) => w.wid === wid)) continue;
         const src = sources.find((s) => s.id.startsWith('window:' + wid + ':'));
+        console.log('[window-transfer] capture start wid=' + wid + ' enumerated=' + !!src);
         const session = this.sender.start({
           sourceId: src ? src.id : 'window:' + wid + ':0', width: MAX_W, height: MAX_H, follow: true,
           mbps: this.settings.pcScreen.mbps, fps: PcScreen.fps(displays.getPrimaryDisplay(), this.settings.pcScreen.fps),
