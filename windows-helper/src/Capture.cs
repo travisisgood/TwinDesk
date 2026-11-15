@@ -463,7 +463,7 @@ namespace MacShare
             // Moving a window (AppWindows.TryGrab): the move key and a click grab it, here or injected
             // from the other computer, never while this PC's input goes elsewhere.
             int gmsg = wParam.ToInt32();
-            if (gmsg == Native.WM_LBUTTONUP && AppWindows.GrabUpPending) { AppWindows.GrabUp(); return (IntPtr)1; }
+            if (gmsg == Native.WM_LBUTTONUP && AppWindows.GrabUp()) return (IntPtr)1;
             if (!capturing)
             {
                 if (gmsg == Native.WM_LBUTTONDOWN && AppWindows.TryGrab(m.pt.x, m.pt.y)) return (IntPtr)1;

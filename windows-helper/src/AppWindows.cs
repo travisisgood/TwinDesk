@@ -100,6 +100,7 @@ namespace MacShare
         delegate void WinEventProc(IntPtr hook, uint ev, IntPtr h, int obj, int child, uint thread, uint time);
         [DllImport("user32.dll")] static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr mod, WinEventProc fn, uint pid, uint thread, uint flags);
         static WinEventProc winEvent; // kept alive (the GC would collect it otherwise)
+        static WinEventProc moveEvent;
         static Action shown;
         static DateTime lastShown = DateTime.MinValue;
 
@@ -115,6 +116,19 @@ namespace MacShare
                 shown();
             };
             SetWinEventHook(0x8002, 0x8003, IntPtr.Zero, winEvent, 0, 0, 0); // WINEVENT_OUTOFCONTEXT
+            moveEvent = delegate (IntPtr hook, uint ev, IntPtr h, int obj, int child, uint thread, uint time)
+            {
+                if (ev == 0x000A && MoveKeyName == "auto" && h == nativeCandidate && h != IntPtr.Zero
+                    && (Native.GetAsyncKeyState(1) & 0x8000) != 0)
+                {
+                    Native.POINT p;
+                    if (!Native.GetCursorPos(out p) || !IsCaption(h, p.x, p.y)) return;
+                    grab = h;
+                    nativeGrab = true;
+                }
+                else if (ev == 0x000B && nativeGrab && h == grab) GrabUp();
+            };
+            SetWinEventHook(0x000A, 0x000B, IntPtr.Zero, moveEvent, 0, 0, 0);
         }
 
         static string Text(IntPtr h, bool cls)
@@ -292,6 +306,18 @@ namespace MacShare
         static int grabDx, grabDy; // the pointer's place in it
         static int fromX, fromY; // its visible frame's top left when it was grabbed (where it goes back to)
         static bool grabUp; // the left button's release is swallowed (its press was)
+        static IntPtr nativeCandidate = IntPtr.Zero;
+        static bool nativeGrab;
+        [DllImport("user32.dll")] static extern IntPtr SendMessageTimeout(IntPtr h, uint msg, IntPtr wp, IntPtr lp, uint flags, uint timeout, out IntPtr result);
+        static bool IsCaption(IntPtr target, int x, int y)
+        {
+            IntPtr hit;
+            int point = unchecked((int)(((uint)y & 0xffff) << 16 | ((uint)x & 0xffff)));
+            // Run on the WinEvent callback, never in the low-level mouse hook:
+            // the target UI thread may be waiting for that hook to return.
+            return SendMessageTimeout(target, 0x84, IntPtr.Zero, new IntPtr(point), 2, 20, out hit) != IntPtr.Zero
+                && hit.ToInt64() == 2; // HTCAPTION; exclude resize borders
+        }
         static readonly uint ownPid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
 
         public static bool Grabbing { get { return grab != IntPtr.Zero; } }
@@ -306,6 +332,21 @@ namespace MacShare
         // The left button went down at x, y. True: a window was grabbed and the click is swallowed.
         public static bool TryGrab(int x, int y)
         {
+            if (MoveKeyName == "auto")
+            {
+                nativeCandidate = IntPtr.Zero;
+                if (grab != IntPtr.Zero) return false;
+                IntPtr target = GetAncestor(WindowFromPoint(new Native.POINT(x, y)), GA_ROOT);
+                if (target == IntPtr.Zero || target == GetShellWindow() || !IsWindowVisible(target)) return false;
+                // Record only a candidate. The WinEvent callback confirms a real
+                // title-bar move, excluding resizing and in-app/file drags.
+                RECT frame;
+                if (!Frame(target, out frame)) return false;
+                nativeCandidate = target;
+                fromX = frame.left;
+                fromY = frame.top;
+                return false; // native non-client mouse down must reach the app
+            }
             if (MoveVks.Length == 0 || grab != IntPtr.Zero || !MoveKeyHeld()) return false;
             IntPtr h = WindowFromPoint(new Native.POINT(x, y));
             if (h == IntPtr.Zero) return false;
@@ -355,6 +396,7 @@ namespace MacShare
         // The pointer moved to x, y: the grabbed window follows (asynchronously: the hook never waits on the app).
         public static void GrabMove(int x, int y)
         {
+            if (nativeGrab) return; // Windows owns the local move loop
             if (grab == IntPtr.Zero) return;
             if (!IsWindow(grab)) { grab = IntPtr.Zero; return; }
             SetWindowPos(grab, IntPtr.Zero, x - grabDx, y - grabDy, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
@@ -366,6 +408,8 @@ namespace MacShare
             bool was = grabUp;
             grab = IntPtr.Zero;
             grabUp = false;
+            nativeCandidate = IntPtr.Zero;
+            nativeGrab = false;
             return was;
         }
 
@@ -378,7 +422,14 @@ namespace MacShare
             d["moving"] = grab.ToInt64();
             d["fromX"] = fromX; // where it was grabbed: it comes back there, not to the edge it crossed at
             d["fromY"] = fromY;
+            if (nativeGrab)
+            {
+                PostMessage(grab, WM_CANCELMODE, IntPtr.Zero, IntPtr.Zero);
+                grabUp = keepUp;
+            }
             grab = IntPtr.Zero;
+            nativeCandidate = IntPtr.Zero;
+            nativeGrab = false;
             if (!keepUp) grabUp = false;
         }
 

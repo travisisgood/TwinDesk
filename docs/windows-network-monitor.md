@@ -106,3 +106,26 @@ destination taskbar identity). These include mock-based Finder icon/minimize
 tests and Windows sender identity/icon tests. Actual Finder-logo appearance in
 the Windows taskbar and Windows-logo appearance in the Mac Dock remain paired
 acceptance tests, not verified outcomes.
+
+### Automatic title-bar drag test
+
+Windows supports `pcApps.moveKey: "auto"`: a native move-start event confirms a
+title-bar drag, then existing edge crossing transfers the window. Native local
+movement remains owned by Windows. Resize borders and client-area drags are
+excluded by a bounded non-client hit test outside the low-level mouse hook.
+Saved modifier choices are preserved; select Apps > Move gesture > Automatic
+(title-bar drag) once on an existing profile. No shared wire format changes.
+
+Keep Share screen Off for the seamless-window test. Test Scarlett first: drag
+its title bar across the configured shared edge, open and dismiss a dropdown
+without changing audio settings, minimize/restore on Mac, then return it. Test
+Explorer next; verify resizing and file dragging do not transfer its window.
+Compilation and JS tests do not establish native gesture or paired Mac success.
+
+Mouse edge resistance also enables a 150 ms dwell; setting resistance to None
+removes both the outward-distance requirement and dwell on Windows.
+
+Mac handoff: implement normal title-bar dragging independently on the Mac side.
+Investigate the extra Mac display in the mouse-layout map: it may be an Extend
+or app-parking virtual display. Identify its role before excluding it from the
+physical mouse-crossing layout. Windows cannot identify it from the screenshot.

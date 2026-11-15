@@ -423,13 +423,14 @@ namespace MacShare
                         break;
                     case "winRaise": AppWindows.Raise(Json.Num(c, "wid", 0)); break;
                     case "winClose": AppWindows.Close(Json.Num(c, "wid", 0)); break;
-                    case "moveWin": // Apps › Move windows: the key held to grab a window, "" = off
+                    case "moveWin": // "auto" = native title-bar drag; "" = off
                         {
                             string mk = Json.Str(c, "key", "");
+                            if (AppWindows.MoveKeyName != mk) AppWindows.GrabUp();
                             AppWindows.MoveKeyName = mk;
                             // The key and its Ctrl/Win partner: a Mac's Right Command arrives as Right Ctrl with
                             // Ctrl/Cmd swapping on, else as the Windows key (Grab.swift does the same the other way).
-                            HashSet<uint> mv = string.IsNullOrEmpty(mk) ? new HashSet<uint>() : HotkeyVks(mk);
+                            HashSet<uint> mv = string.IsNullOrEmpty(mk) || mk == "auto" ? new HashSet<uint>() : HotkeyVks(mk);
                             string partner = mk == "ControlRight" ? "MetaRight" : mk == "MetaRight" ? "ControlRight" : mk == "ControlLeft" ? "MetaLeft" : mk == "MetaLeft" ? "ControlLeft" : "";
                             if (partner.Length > 0) mv.UnionWith(HotkeyVks(partner));
                             AppWindows.MoveVks = new List<uint>(mv).ToArray();

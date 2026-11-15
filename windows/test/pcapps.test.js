@@ -29,6 +29,19 @@ function fixture(t) {
   return { apps, link, helper, settings, sent, started, stopped };
 }
 
+test('automatic and keyed move gestures reach the helper; disabling clears the gesture', t => {
+  const f = fixture(t), commands = [];
+  f.helper.send = (cmd, args) => commands.push({ cmd, ...args });
+  for (const key of ['auto', 'ControlRight']) {
+    f.settings.pcApps = { allow: true, moveWindows: true, moveKey: key };
+    f.apps._moveKey();
+    assert.deepEqual(commands.at(-1), { cmd: 'moveWin', key });
+  }
+  f.settings.pcApps.moveWindows = false;
+  f.apps._moveKey();
+  assert.deepEqual(commands.at(-1), { cmd: 'moveWin', key: '' });
+});
+
 test('crossed Windows windows preserve app identity and publish icons without executable paths', async t => {
   const f = fixture(t);
   f.helper.request = async () => ({ icons: ['data:image/png;base64,dGVzdA=='] });
