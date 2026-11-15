@@ -67,6 +67,7 @@ class PcApps {
     link.on(T.PAPP_POLICY, (m) => {
       this.macAccepts = m.accept === true;
       if (!this.macAccepts) { this.bringBack(); if (this.desktop) this.desktop.release(); }
+      this.prepareTransfer();
       if (this.macAccepts && this.allowed) this._build().catch(() => {}); // icons ready before the Mac asks
       this._sync(this.windows);
       this.onChange();
@@ -117,7 +118,7 @@ class PcApps {
   apply() {
     this.generation++;
     if (!this.settings.pcApps.moveWindows) { this.bringBack(); if (this.desktop) this.desktop.release(); } // moving is its own switch, apart from letting the other open apps
-    this._moveKey();
+    this.prepareTransfer();
     if (!this.allowed) {
       for (const [id, a] of this.launched) if (!a.rz) this.launched.delete(id);
       if (this.launched.size) this._poll(true);
@@ -176,13 +177,32 @@ class PcApps {
   // The helper grabs a window with the move key and a click (AppWindows.TryGrab); "" = off.
   _moveKey() {
     const c = this.settings.pcApps;
-    this.helper.send('moveWin', { key: c.moveWindows ? c.moveKey : '' });
+    const ready = !this.desktop || (this.macAccepts && this.desktop.mon && this.link.status.state === 'connected');
+    this.helper.send('moveWin', { key: c.moveWindows && ready ? c.moveKey : '' });
+  }
+
+  prepareTransfer() {
+    this._moveKey();
+    if (!this.desktop || this.preparingTransfer || this.stopped || !this.settings.pcApps.moveWindows
+        || !this.macAccepts || this.link.status.state !== 'connected' || !this.desktop.vdd.state.checked) return;
+    // Driver activation belongs to enabling sharing, never to a title-bar drag.
+    this.preparingTransfer = this.desktop.ensure().then(() => {
+      this.message = '';
+    }).catch(e => {
+      this.message = 'Preparing window transfer: ' + e.message;
+    }).finally(() => {
+      this.preparingTransfer = null;
+      this._moveKey();
+      this.onChange();
+    });
+    return this.preparingTransfer;
   }
 
   // Move windows (shared/movewin.js, loaded only when used): a grabbed window crossed with the
   // pointer goes over there; bringBack returns one or all of them.
   moveOut(wid, from) {
     if (!this.settings.pcApps.moveWindows) return Promise.resolve(false);
+    if (this.desktop && !this.desktop.mon) return Promise.resolve(false);
     return require('./moved-windows').moveOut(this, wid, from);
   }
 

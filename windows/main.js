@@ -428,7 +428,7 @@ function start() {
   pcScreen = new PcScreen({ link, helper, sender, vdd, settings, inputAllowed: () => kvm.mode === 'home', onChange: pushState, needDriver: () => goTab('pc-mac') });
   const appDesktop = new (require('./app-desktop'))({ vdd, helper,
     canStart: () => pcScreen.mode !== 'extend' && !pcScreen.busy,
-    changed: mon => { kvm.setAppDisplay(mon); pushState(); } });
+    changed: mon => { kvm.setAppDisplay(mon); if (pcApps) pcApps._moveKey(); pushState(); } });
   pcApps = new PcApps({ link, helper, sender, settings, desktop: appDesktop, inputAllowed: () => kvm.mode === 'home', onTransferFailure: () => kvm.home(), onChange: pushState });
   require('electron').screen.on('display-removed', () => {
     if (!appDesktop.mon) return;
@@ -448,7 +448,7 @@ function start() {
   helper.on('exit', pushState);
   setupNet(guest);
   helper.start();
-  helper.once('ready', () => vdd.check()); // switches a virtual monitor left on by a crash off
+  helper.once('ready', () => vdd.check().then(() => pcApps.prepareTransfer())); // prepare before a drag, after stale-display cleanup
   // New releases on GitHub: a notification once per version, the tray item and About › Updates.
   // TwinDesk Portable (portable.js): a new version is downloaded by the browser, never installed by itself.
   updates = new Updates({

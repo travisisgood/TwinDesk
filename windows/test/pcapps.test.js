@@ -66,6 +66,22 @@ test('automatic and keyed move gestures reach the helper; disabling clears the g
   assert.deepEqual(commands.at(-1), { cmd: 'moveWin', key: '' });
 });
 
+test('gesture waits for prepared display and an early drag never starts the driver', async t => {
+  const f = fixture(t), wait = deferred(), commands = [];
+  let starts = 0;
+  f.helper.send = (cmd, args) => commands.push({cmd,...args});
+  f.settings.pcApps = {allow: true, moveWindows: true, moveKey: 'auto'};
+  f.apps.desktop = {vdd: {state: {checked:true}}, mon: null, ensure() { starts++; return wait.promise; }, release() {} };
+  const preparation = f.apps.prepareTransfer();
+  assert.deepEqual(commands.at(-1), {cmd:'moveWin',key:''});
+  assert.equal(await f.apps.moveOut(7), false);
+  assert.equal(starts,1);
+  f.apps.desktop.mon = {name:'virtual'};
+  wait.resolve(f.apps.desktop.mon);
+  await preparation;
+  assert.deepEqual(commands.at(-1), {cmd:'moveWin',key:'auto'});
+});
+
 test('crossed Windows windows preserve app identity and publish icons without executable paths', async t => {
   const f = fixture(t);
   f.helper.request = async () => ({ icons: ['data:image/png;base64,dGVzdA=='] });
