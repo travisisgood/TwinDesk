@@ -1,9 +1,15 @@
 'use strict';
 const legacy = require('../shared/movewin');
 
+function releaseIdle(pc) {
+  if (!pc.moved.size && !pc.pendingMoves?.size && pc.desktop) pc.desktop.release();
+}
+
 async function moveOut(pc, wid, from) {
   if (!Number.isFinite(wid) || !wid || !pc.settings.pcApps.moveWindows || !pc.macAccepts
-      || pc.moved.has(wid) || pc._mine(wid) || pc.link.current?.transport === 'ble') return false;
+      || pc.moved.has(wid) || pc.pendingMoves?.has(wid) || pc._mine(wid) || pc.link.current?.transport === 'ble') return false;
+  pc.pendingMoves ||= new Set();
+  pc.pendingMoves.add(wid);
   const generation = pc.generation;
   const current = () => !pc.stopped && pc.generation === generation && pc.link.status.state === 'connected';
   let original;
@@ -32,6 +38,9 @@ async function moveOut(pc, wid, from) {
     if (original) pc.helper.send('winVirtualReturn', { wid, x: from?.x ?? original.x, y: from?.y ?? original.y });
     pc.onChange();
     return false;
+  } finally {
+    pc.pendingMoves.delete(wid);
+    releaseIdle(pc);
   }
 }
 
@@ -45,18 +54,26 @@ function bringBack(pc, wid, home = false) {
     pc.helper.send('winVirtualReturn', { wid: id, x: at.x, y: at.y });
     changed = true;
   }
-  if (changed) { if (!pc.stopped) pc._poll(true); pc.onChange(); }
+  if (changed) {
+    if (pc.input) pc.input.release();
+    if (!pc.stopped) pc._poll(true);
+    pc.onChange();
+    releaseIdle(pc);
+  }
 }
 
 function list(pc, all, taken, out, pops) {
-  legacy.list(pc, all, taken, out, pops);
-  // Applications may reposition themselves. Keep them on their dedicated desktop.
+  // Do not advertise a source that escaped or outgrew its backing display.
   const mon = pc.desktop?.mon;
   if (!mon) return;
   for (const [wid, m] of pc.moved) {
     const w = all.find(w => w.wid === wid);
-    if (w && (w.x < mon.x || w.y < mon.y || w.x >= mon.x + mon.width || w.y >= mon.y + mon.height))
-      pc.helper.send('winPlace', { wid, x: m.virtualX, y: m.virtualY });
+    if (w && (w.x < mon.x || w.y < mon.y || w.x + w.w > mon.x + mon.width || w.y + w.h > mon.y + mon.height)) {
+      pc.message = 'The source left its backing display and was returned to Windows';
+      bringBack(pc, wid);
+    }
   }
+  legacy.list(pc, all, taken, out, pops);
+  releaseIdle(pc);
 }
 module.exports = { moveOut, bringBack, list };

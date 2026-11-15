@@ -447,6 +447,17 @@ namespace MacShare
             virtualHomes[wid] = new Point(homeX, homeY);
             EndMove(wid);
             Place(wid, x, y);
+            RECT actual;
+            bool placed = false;
+            if (Frame(Handle(wid), out actual))
+                foreach (System.Windows.Forms.Screen screen in System.Windows.Forms.Screen.AllScreens)
+                    if (string.Equals(screen.DeviceName, Screens.AppDisplay, StringComparison.OrdinalIgnoreCase))
+                        placed = screen.Bounds.Contains(Rectangle.FromLTRB(actual.left, actual.top, actual.right, actual.bottom));
+            if (!placed)
+            {
+                VirtualReturn(wid, homeX, homeY);
+                throw new Exception("Window did not fit or refused placement on the app display");
+            }
         }
         public static void VirtualReturn(double wid, int x, int y)
         {

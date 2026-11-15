@@ -57,3 +57,38 @@ test('whole-screen Extend and absent driver fail without transferring', async ()
     assert.equal(f.calls.some(c => c[0] === 'winVirtualPlace'), false);
   }
 });
+
+test('rejected native placement is returned and never advertised', async () => {
+  const f = fixture(), request = f.helper.request;
+  f.helper.request = async (cmd, args) => {
+    if (cmd === 'winVirtualPlace') throw new Error('Window refused placement');
+    return request(cmd, args);
+  };
+  assert.equal(await moved.moveOut(f.pc, 7), false);
+  assert.equal(f.pc.moved.size, 0);
+  await f.desktop.queue;
+  assert.equal(f.vdd.appDisplay, false);
+  assert.ok(f.calls.some(c => c[0] === 'winVirtualReturn'));
+});
+
+test('returning one window retains display; returning last releases it', async () => {
+  const f = fixture();
+  await moved.moveOut(f.pc, 7);
+  f.pc.moved.set(8, { x: 60, y: 70 });
+  moved.bringBack(f.pc, 7);
+  await f.desktop.queue;
+  assert.equal(f.vdd.appDisplay, true);
+  moved.bringBack(f.pc, 8);
+  await f.desktop.queue;
+  assert.equal(f.vdd.appDisplay, false);
+});
+
+test('source escaping backing bounds is returned before publishing', async () => {
+  const f = fixture();
+  await moved.moveOut(f.pc, 7);
+  const out = [], pops = [];
+  moved.list(f.pc, [{ wid: 7, x: 20, y: 20, w: 350, h: 320 }], new Set(), out, pops);
+  assert.equal(out.length, 0);
+  assert.equal(f.pc.moved.size, 0);
+  await f.desktop.queue;
+});
