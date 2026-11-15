@@ -1,0 +1,10 @@
+{
+  "release": "seamless-0.1.0-rc.1",
+  "status": "paired-test-candidate",
+  "branch": "network-monitor-integration",
+  "windowsSource": "bcd713f812bf2b9252948a536cccf4f08545cdd2",
+  "macSource": "aaee013a483ae576064d0aa46f7ae56ee5a1a91c",
+  "integrationCommit": "Read git rev-parse HEAD when packaging; record it in the platform build metadata",
+  "inputTestBaseline": "TCP; repeat UDP separately after baseline validation",
+  "pairedLiveValidation": "pending"
+}

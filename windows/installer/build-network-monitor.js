@@ -80,5 +80,11 @@ fs.writeFileSync(file, JSON.stringify(settings, null, 2));
 require('./windows/main.js');
 `);
 const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).trim();
+const pairedFile = path.join(root, 'paired-build.json');
+if (fs.existsSync(pairedFile)) {
+  const paired = { ...JSON.parse(fs.readFileSync(pairedFile, 'utf8')), integrationCommit: commit, platform: 'windows' };
+  fs.writeFileSync(path.join(output, 'PAIRED-BUILD.json'), JSON.stringify(paired, null, 2));
+  fs.writeFileSync(path.join(app, 'paired-build.json'), JSON.stringify(paired, null, 2));
+}
 fs.writeFileSync(path.join(output, 'BUILD-INFO.txt'), `TwinDesk Network Monitor Windows test build\nSource: https://github.com/travisisgood/TwinDesk/tree/windows-network-monitor\nBase commit: ${commit}\nIncludes working-tree changes at build time.\nElectron: ${require(path.join(win, 'node_modules/electron/package.json')).version}\nNo driver installed by build. Optional phone/camera/gamepad/signing binaries omitted.\nNative Rust input lane omitted: existing Node input lane is used.\nSettings: test-profile beside the executable. Upstream auto-updates disabled.\n`);
 console.log('Built: ' + path.join(output, 'TwinDesk Network Monitor.exe'));
