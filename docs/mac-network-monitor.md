@@ -110,3 +110,92 @@ the helper releases that native drag and reports the same crossing event as a
 drag from the Mac trackpad. This path does not handle per-window injected
 events, so remote app input cannot inadvertently transfer the source again.
 The candidate is based on Windows Build 05 and uses its existing messages.
+
+## Review of the Windows integration baseline
+
+Reviewed Windows at `ef1d760d0d49abbc02520ac7d2bff50de8c8ccbb`.
+That commit documents coordination and includes the Windows Build 05 code.
+The Mac implementation under review is
+`84135c6aed1ed0d1f378b250b40e41ae23d6837c`. The integration owner should build
+both platforms from the same reviewed integration commit. The shared release
+identifier, integration SHA and platform source SHAs belong in the candidate
+metadata. Build 05 remains the historical Windows test iteration.
+
+### Compatible behavior
+
+- Windows serializes access to one installed VDD at the driver's active mode.
+  Mac allocates a separate backing display sized for each source window.
+  Neither transfer path starts a desktop video stream. Both address app input
+  by `wid` and inject it at the source window on the backing display.
+- Both filter the backing display from their advertised layout and native
+  crossing geometry. Windows clamps physical hook events while raw motion
+  supplies crossing deltas. Mac clamps local motion and leaves injected app
+  events alone. Windows Build 05's TCP setting is a diagnostic for reported UDP
+  mouse loss. Compare the same crossing and reconnect checks under TCP and UDP
+  and record the negotiated lane, rather than treating TCP as a protocol change
+  or a confirmed fix.
+- Windows sends stable opaque app IDs in existing `PAPP_WINDOWS.id` and
+  matching PNG icons in `PAPPS_RESULT`. Mac sends real bundle IDs, including
+  `com.apple.finder`, and matching icons in `APPS_RESULT`. Both accept catalog
+  updates for existing proxies. Existing `wid`, `moved`, `popup`, `owner`,
+  `x`, `y`, and `scale` meanings, window RTC2 signaling, input, and return
+  messages are used as before. This Mac branch adds local helper commands for
+  parking, return and proxy captions. It adds no peer message types or fields.
+
+### Findings for Windows review
+
+1. **Verify native placement before advertising a transfer.** Windows
+   `VirtualPlace` validates the handle and registers its home, then calls
+   `Place`, which ignores the result of `SetWindowPos`. The JS sender treats
+   the helper reply as success and the list builder emits crossed windows even
+   while an out-of-bounds window is being repositioned. A rejected or adjusted
+   placement can leave a source visible on a physical monitor while its proxy
+   accepts input. Verify the resulting frame is on the backing display before
+   publishing the window, and handle failure as a return. Test a window that
+   resists movement and one larger than the backing mode.
+   [Native placement](https://github.com/travisisgood/TwinDesk/blob/ef1d760d0d49abbc02520ac7d2bff50de8c8ccbb/windows-helper/src/AppWindows.cs#L443-L450)
+   [JS transfer and polling](https://github.com/travisisgood/TwinDesk/blob/ef1d760d0d49abbc02520ac7d2bff50de8c8ccbb/windows/moved-windows.js#L15-L60)
+2. **Agree on release after the last window returns.** On Windows, returning
+   the last window or losing its stream does not release the app VDD. Extend
+   refuses to start as long as the VDD is flagged for Apps. A user can therefore
+   return every window and still have to disable Move windows or disconnect
+   before Extend works. Mac removes each backing display on return. If Windows
+   intends to keep the monitor warm, document that lifetime and explicitly
+   yield it to Extend when no transfer is active or pending. Test return,
+   destination close, and failed capture with the last and second-to-last
+   windows.
+   [Release sites](https://github.com/travisisgood/TwinDesk/blob/ef1d760d0d49abbc02520ac7d2bff50de8c8ccbb/windows/pcapps.js#L64-L98)
+   [Extend ownership guard](https://github.com/travisisgood/TwinDesk/blob/ef1d760d0d49abbc02520ac7d2bff50de8c8ccbb/windows/pcscreen.js#L111-L121)
+3. **Check title-bar parity and local minimize together.** Windows still uses a
+   framed main proxy for Finder. Mac uses a frameless proxy for crossed Windows
+   windows and Command-M for local minimize. A source caption present in the
+   Finder capture can produce two title bars on Windows. Agree which caption
+   should be visible and how the receiver handles minimize versus sending a
+   source action. Test standard Explorer and Finder chrome as well as Scarlett's
+   custom controls. Coordinate before adding any caption metadata.
+   [Windows main proxy](https://github.com/travisisgood/TwinDesk/blob/ef1d760d0d49abbc02520ac7d2bff50de8c8ccbb/windows/peerapps.js#L251-L284)
+4. **Exercise recovery beyond a normal disconnect.** Windows records home
+   positions in the helper, returns them on pipe EOF, and tries to release the
+   display on policy change, quit and topology removal. A forced helper kill
+   cannot run the EOF handler. On Mac a hard helper exit relies on WindowServer
+   rehoming windows as their displays disappear. On both platforms verify
+   normal disconnect, policy disable, display loss, quit and helper failure with
+   a window and a popup open. Also return one of two crossed windows while a
+   modifier or drag is held, then verify the surviving proxy has no held input.
+   [Windows helper EOF](https://github.com/travisisgood/TwinDesk/blob/ef1d760d0d49abbc02520ac7d2bff50de8c8ccbb/windows-helper/src/Program.cs#L156-L166)
+   [Windows input routing](https://github.com/travisisgood/TwinDesk/blob/ef1d760d0d49abbc02520ac7d2bff50de8c8ccbb/windows/pcapps.js#L399-L443)
+
+### Review validation
+
+Re-ran 10 Mac tests and 68 targeted Node tests from an isolated export of
+Windows `ef1d760` on Mac. All 78 passed. The Windows suite used mocks for
+Windows-specific components. The Mac candidate at `84135c6` was built and
+signature-verified before this documentation review. These runs do not exercise
+the native Windows VDD and hooks or establish a paired candidate.
+
+Outstanding live checks include Finder from both the Mac trackpad and Windows
+mouse through KVM, original Dock/taskbar icons, local minimize and restore,
+Scarlett dropdowns without changing audio settings, Explorer and REAPER FX
+popups, TCP versus UDP crossing, and disconnect/reconnect and emergency
+recovery. Use a reviewed integration commit and shared identifier for the
+paired candidates.
