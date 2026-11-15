@@ -157,3 +157,16 @@ leave it idle for over 3 seconds. It must never reappear on a physical Windows
 display. Test Dock minimize/restore, return drag, and disconnection. Repeat with
 Explorer and a dropdown. Native compilation and mock-based JS lifecycle/input
 tests pass; end-to-end paired behavior remains unverified until that test.
+
+### Build 05: physical mouse boundary
+
+Build 04 excluded the app display from KVM geometry but did not constrain local
+physical mouse motion. Windows could move the pointer onto the backing display,
+past the physical edge that triggers crossing. The mouse hook now clamps only
+non-injected, uncaptured physical movement to physical screens while an app
+display is active. Injected app input still reaches the backing display.
+Both helpers compile; six native geometry assertions pass (backing exclusion,
+edge detection, overshoot, adjacent physical monitors and ordinary Extend).
+The Windows-to-Mac intermittent crossing report still requires live retesting;
+input-lane reconnects were also observed and are not proven fixed by this patch.
+Mac should check its physical pointer boundary as well as filtering its map.

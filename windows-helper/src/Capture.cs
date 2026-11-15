@@ -477,6 +477,19 @@ namespace MacShare
                 return Native.CallNextHookEx(mouseHook, nCode, wParam, lParam); // Rule 4: our own
             }
             int msg = wParam.ToInt32();
+            // The app backing display is a real Windows monitor, but not a place
+            // for the user's physical pointer. Hold physical motion at the real
+            // screen edge so OnRawMove can see the outward push. Injected app
+            // input above must still reach windows on that backing display.
+            if (!capturing && msg == Native.WM_MOUSEMOVE && (m.flags & Native.LLMHF_INJECTED) == 0
+                && !string.IsNullOrEmpty(Screens.AppDisplay) && !Screens.Contains(m.pt.x, m.pt.y))
+            {
+                Native.POINT current;
+                Native.GetCursorPos(out current);
+                Point edge = Screens.Clamp(m.pt.x, m.pt.y, current.x, current.y);
+                Injector.MoveTo(edge.X, edge.Y);
+                return (IntPtr)1;
+            }
             if (!capturing && mouseArrivalGuard && msg == Native.WM_MOUSEMOVE && (m.flags & Native.LLMHF_INJECTED) == 0)
             {
                 uint now = unchecked((uint)Environment.TickCount);
