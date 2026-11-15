@@ -23,3 +23,31 @@ from PATH. `--proxy` uses an existing App Server control socket if available.
 The default starts a local App Server. Use an idle target chat and stop the
 listener before running another agent turn there. Desktop refresh behavior
 and Windows installation require live validation.
+
+## Existing desktop chat transport (Windows and Mac)
+
+When the desktop app owns the chat, prefer the installed desktop messaging
+plugin over starting another App Server against the same thread:
+
+```
+node mac/tools/twindesk-codex-bridge.js <connection-file> <chat-id> --probe --desktop-mcp=<installed-codex-app-tools-server.mjs>
+node mac/tools/twindesk-codex-bridge.js <connection-file> <chat-id> --once --expect=mac_to_win_01 --announce --desktop-mcp=<installed-codex-app-tools-server.mjs>
+```
+
+Launch from the local Codex execution environment so the desktop plugin's
+`CODEX_APP_TOOLS_PIPE_PATH` is inherited; do not copy this private endpoint
+between computers or commit it. The adapter speaks standard MCP to the
+installed plugin and calls `send_message_to_thread` with the actual local chat
+ID. It uses the existing session's settings. No separate model process is
+started. A new wake marker queues a real peer notification; the receiving
+agent sends `CODEX_REPLY` only after it has actually received the notification.
+The listener itself does not manufacture a successful agent acknowledgment.
+
+Both platforms use this same script and adapter. The desktop route was tested
+on Windows for delivery to an active chat; idle wake and bidirectional delivery
+still require live validation. Ordinary messages and replies do not wake agents.
+Timeouts make no model calls. The one-message listener exits after queueing one
+notification or after five minutes. A desktop app restart invalidates its inherited
+connection; relaunch explicitly. Stop on delivery errors; do not retry ambiguous
+delivery automatically. This is a temporary connectivity test, not a general
+unattended agent dispatcher.
