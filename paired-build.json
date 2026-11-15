@@ -1,8 +1,8 @@
 {
-  "release": "seamless-0.1.0-recovery.1",
+  "release": "seamless-0.1.0-recovery.2",
   "status": "diagnostic-candidate-transfer-disabled",
   "branch": "transfer-recovery-integration",
-  "windowsSource": "2bfd1064022d082ee3f262f41236dec4c1148a18",
+  "windowsSource": "bfd39db594b0d78a22ea23351d0c41cb385a432a",
   "macSource": "0178dd21eef3b19c85ecc651a4ded37478bfeef6",
   "integrationCommit": "Read git rev-parse HEAD when packaging; record it in the platform build metadata",
   "inputTestBaseline": "TCP; repeat UDP separately after baseline validation",
