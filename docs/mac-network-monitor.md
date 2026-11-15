@@ -211,3 +211,17 @@ signing requires granting permissions for the new identity once. Future builds
 with the same designated requirement should retain them. Verify each of
 Screen Recording, Accessibility and Input Monitoring on the test Mac before
 treating permission retention as confirmed.
+
+## Transfer recovery signaling
+
+The Mac window sender publishes the RTC2 offer before any local ICE generated
+during setup. The Mac app viewer also holds a bounded set of early ICE for
+existing `win: 'send'` signaling and drains it after the matching offer.
+Peer replacement and session stop clear the relevant candidates. Whole-screen
+and viewer-side signals are separate. App-window logs record offer/session
+matching and connection status, without printing SDP or ICE addresses.
+
+These changes address a reproducible ordering race that could lose candidates
+and leave a destination window on Connecting. They use the existing message
+contract. Mock tests exercise both ends. Pair with the reviewed Windows recovery
+commit before re-enabling transfers and verify the live result.

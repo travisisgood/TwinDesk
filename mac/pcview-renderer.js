@@ -187,7 +187,7 @@ async function onOffer(m) {
   } catch (e) {
     if (my === pc) {
       setOverlay('Could not show the screen: {error}', { error: e.message });
-      report('failed');
+      report('failed', { error: e.message });
     }
   }
 }

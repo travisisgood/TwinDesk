@@ -28,9 +28,11 @@ class PcApps extends EventEmitter {
     this.wins = new Map(); // wid -> {info, win, session, ready, queue, keys, closing, focusedAt}
     this.stubs = new Map(); // app id -> DockStub
     this.stubIdentity = new Map();
+    this.earlyIce = new Map();
 
     this.pendingLink = null; // {id, at}: a kept Dock icon was clicked before the PC was connected
     server.on('client', () => {
+      this.earlyIce.clear();
       this.rz = false;
       this.apps = [];
       this.launch = {};
@@ -42,6 +44,7 @@ class PcApps extends EventEmitter {
     });
     server.on('closed', () => {
       if (server.current) return;
+      this.earlyIce.clear();
       this._sync([]);
       this.emit('change');
     });
@@ -65,13 +68,10 @@ class PcApps extends EventEmitter {
     server.on(`t:${T.PAPP_WINDOWS}`, (m) => this.accepting && Array.isArray(m.windows) && this._sync(m.windows));
     server.on(`t:${T.RTC2_OFFER}`, (m) => this._onOffer(m));
     // `win: 'view'` is another Mac's viewer talking to our own sender (appsend.js), not for us.
-    server.on(`t:${T.RTC2_ICE}`, (m) => {
-      if (m.win === 'view') return;
-      const w = this._bySession(m.session);
-      if (w) this._toWin(w, { ...m });
-    });
+    server.on(`t:${T.RTC2_ICE}`, (m) => this._onIce(m));
     server.on(`t:${T.RTC2_STOP}`, (m) => {
       if (m.win === 'view') return;
+      this.earlyIce.delete(m.session);
       const w = this._bySession(m.session);
       if (!w) return;
       w.session = null;
@@ -89,7 +89,13 @@ class PcApps extends EventEmitter {
         this.server.sendToClient({ ...input, wid: w.info.wid });
       }
     });
-    ipcMain.on('pcview:state', () => {}); // stats of app windows aren't shown
+    ipcMain.on('pcview:state', (e, state) => {
+      const w = mine(e);
+      if (!w || w.session === null || state?.session !== w.session || !state.status || state.status === w.connectionStatus) return;
+      w.connectionStatus = state.status;
+      const detail = typeof state.error === 'string' ? state.error.slice(0, 200) : '';
+      console.log(`[pcapps] window ${w.info.wid} session ${w.session}: ${state.status}${detail ? ' (' + detail + ')' : ''}`);
+    });
     ipcMain.on('pcview:ready', (e) => {
       const w = mine(e);
       if (!w) return;
@@ -107,7 +113,10 @@ class PcApps extends EventEmitter {
     if (this.rz === (on === true)) return;
     this.rz = on === true;
     if (this.server.current) this._policy();
-    if (!this.accepting) this._sync([]);
+    if (!this.accepting) {
+      this.earlyIce.clear();
+      this._sync([]);
+    }
   }
 
   get accepting() {
@@ -352,12 +361,33 @@ class PcApps extends EventEmitter {
     if (!w.win.isDestroyed()) w.win.close();
   }
 
+  _onIce(m) {
+    if (m.win !== 'send' || !this.accepting || !Number.isSafeInteger(m.session) || !m.candidate) return;
+    const w = this._bySession(m.session);
+    if (w) return this._toWin(w, m);
+    if (!this.earlyIce.has(m.session)) {
+      if (this.earlyIce.size >= 16) this.earlyIce.delete(this.earlyIce.keys().next().value);
+      this.earlyIce.set(m.session, { at: Date.now(), candidates: [] });
+    }
+    const { candidates } = this.earlyIce.get(m.session);
+    if (candidates.length < 32) candidates.push(m);
+  }
+
   _onOffer(m) {
     if (m.kind !== 'window' || m.win === 'view' || typeof m.sdp !== 'string' || !this.accepting) return;
     const w = this.wins.get(Number(m.wid));
-    if (!w || w.win.isDestroyed()) return; // not listed (yet): the PC lists before it offers
+    const early = this.earlyIce.get(m.session);
+    this.earlyIce.delete(m.session);
+    if (!w || w.win.isDestroyed()) {
+      console.log(`[pcapps] no window for offer: wid ${Number(m.wid)}, session ${Number(m.session)}`);
+      return;
+    }
     w.session = m.session;
+    w.connectionStatus = null;
+    const candidates = early && Date.now() - early.at < 10000 ? early.candidates : [];
+    console.log(`[pcapps] window ${w.info.wid} session ${w.session}: offer (${candidates.length} early ICE)`);
     this._toWin(w, { t: 'offer', session: m.session, sdp: m.sdp, audio: false, volume: 0, input: true });
+    for (const candidate of candidates) this._toWin(w, candidate);
   }
 
   _toWin(w, m) {
@@ -463,7 +493,10 @@ class PcApps extends EventEmitter {
 
   applySettings() {
     this._policy();
-    if (!this.accepting) this._sync([]);
+    if (!this.accepting) {
+      this.earlyIce.clear();
+      this._sync([]);
+    }
     else if (!this.apps.length) this.list();
     this.emit('change');
   }
