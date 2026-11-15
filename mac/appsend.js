@@ -67,7 +67,9 @@ class AppSend extends EventEmitter {
     helper.on('ready', () => this._moveKey()); // a restarted helper is told the move key again
     const on = (t, fn) => server.on(`t:${t}`, fn);
     on(T.PAPP_POLICY, (m) => {
-      this.accepts = m.accept === true;
+      const accept = m.accept === true;
+      if (accept !== this.accepts) console.log(`[appsend] peer ${accept ? 'accepts' : 'declines'} app windows`);
+      this.accepts = accept;
       this._moveKey();
       if (!this.accepts) this.bringBack();
       this._sync(this.windows);

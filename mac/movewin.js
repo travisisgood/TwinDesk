@@ -53,14 +53,16 @@ function list(as, all, out, pops) {
     if (!m.app) continue; // only advertise after the helper verified placement
     const w = all.find((x) => x.wid === wid && !x.popup);
     const display = as.parkingDisplay(m.displayId);
-    if (w && display && !inside(w, display.bounds)) {
-      as.bringBack(wid);
-      continue;
-    }
-    if (!w || !display) {
-      // WindowServer and Electron can take a short time to publish a new display.
+    if (!w || !display || !inside(w, display.bounds)) {
+      // AX can confirm the move before CGWindowList and Electron agree on the
+      // new coordinates. Suppress capture until they agree; allow them to settle.
       m.missingSince ||= Date.now();
-      if (Date.now() - m.missingSince > 1200) as.bringBack(wid);
+      if (Date.now() - m.missingSince > 1200) {
+        const reason = !display ? 'backing display unavailable' : !w ? 'window unavailable'
+          : 'window remained outside its backing display';
+        console.log(`[appsend] returning window ${wid}: ${reason}`);
+        as.bringBack(wid);
+      }
       continue;
     }
     m.missingSince = 0;
