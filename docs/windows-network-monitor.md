@@ -170,3 +170,18 @@ edge detection, overshoot, adjacent physical monitors and ordinary Extend).
 The Windows-to-Mac intermittent crossing report still requires live retesting;
 input-lane reconnects were also observed and are not proven fixed by this patch.
 Mac should check its physical pointer boundary as well as filtering its map.
+
+### Receiver follow-up: Finder on Windows
+
+Windows now fences renderer pointer messages by local capture-session identity
+(the tag is stripped before sending the existing peer message). Old video tracks
+cannot replace a newer picture. Receiving-window minimize/restore controls owned
+popup visibility locally and releases input; it does not close or return Finder.
+The original title is kept without an added from-computer suffix. Native taskbar
+identity/icons and the receiving frame's minimize controls remain.
+
+Diagnostic lines under [peerapps] identify receiver creation, an offer received,
+WebRTC state, and video playing using numeric window IDs, without window titles,
+SDP, app contents, or credentials. Offers for unlisted windows are reported.
+This is local receiver instrumentation; no peer schema change. Use these stages
+alongside Mac drag/parking/capture logs to locate failed Finder transfers.

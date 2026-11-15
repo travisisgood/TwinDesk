@@ -7,6 +7,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('appview', {
   on: (fn) => ipcRenderer.on('appview', (_e, m) => fn(m)), // offer | rtc2.ice | blur | stop
   send: (msg) => ipcRenderer.send('appview:out', msg),
+  state: (msg) => ipcRenderer.send('appview:state', msg),
   ready: () => ipcRenderer.send('appview:ready'),
 });
 
