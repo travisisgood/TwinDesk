@@ -57,6 +57,17 @@ function startServices({ server, getSettings, pushState, onHelperReady }) {
   const audio = new Audio({ server, hub, stream, getSettings: s });
   const pcView = new PcView({ server, getSettings: s, virtualDisplayId: () => displays.virtualId, saveSettings: () => store.saveSettings(s()) });
   const pcApps = new PcApps({ server, getSettings: s });
+  let proxyKey = '';
+  const syncProxyCaptions = () => {
+    const ids = pcApps.proxyIds();
+    const key = ids.join(',');
+    if (proxyKey !== key) {
+      proxyKey = key;
+      helper.send('proxyMoveWindows', { ids });
+    }
+  };
+  pcApps.on('change', syncProxyCaptions);
+  helper.on('ready', () => { proxyKey = null; syncProxyCaptions(); });
   const notifs = new Notifs({ server, helper, getSettings: s, saveSettings: () => store.saveSettings(s()) });
   // History › Keep history: the clipboard's and notifications' history kept, encrypted (shared/histkeeper.js).
   const history = new (require('../shared/histkeeper.js').HistoryKeeper)({ dir: require('electron').app.getPath('userData'), clip: clipboard, notifs, changed: pushState });

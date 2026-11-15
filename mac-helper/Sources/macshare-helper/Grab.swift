@@ -29,6 +29,7 @@ final class WindowGrab {
 
   private var titleCandidate: (wid: Int, pid: Int)?
   private var press = 0
+  var proxyWindows = Set<Int>()
 
   var grabbing: Bool { win != nil }
   var automatic: Bool { keyName == "auto" }
@@ -39,7 +40,15 @@ final class WindowGrab {
     clearTitle()
     guard automatic else { return }
     let current = press
+    let proxies = proxyWindows
     queue.async {
+      if !proxies.isEmpty, let proxy = Self.proxyCaption(at: point, ids: proxies) {
+        DispatchQueue.main.async {
+          guard self.press == current, self.automatic else { return }
+          self.titleCandidate = proxy
+        }
+        return
+      }
       let root = AXUIElementCreateSystemWide()
       AXUIElementSetMessagingTimeout(root, 0.12)
       var hit: AXUIElement?
@@ -78,6 +87,21 @@ final class WindowGrab {
     }
   }
 
+  // The receiving proxy uses the same invisible caption area as the renderer.
+  private static func proxyCaption(at point: CGPoint, ids: Set<Int>) -> (wid: Int, pid: Int)? {
+    let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+    for window in windows where (window[kCGWindowLayer as String] as? Int) == 0 {
+      guard let b = window[kCGWindowBounds as String] as? [String: Double] else { continue }
+      let frame = CGRect(x: b["X"] ?? 0, y: b["Y"] ?? 0, width: b["Width"] ?? 0, height: b["Height"] ?? 0)
+      guard frame.contains(point) else { continue }
+      guard point.y < frame.minY + 30, point.x < frame.maxX - 144,
+            let wid = window[kCGWindowNumber as String] as? Int, ids.contains(wid),
+            let pid = window[kCGWindowOwnerPID as String] as? Int else { return nil }
+      return (wid, pid)
+    }
+    return nil
+  }
+
   func clearTitle() {
     press += 1
     titleCandidate = nil
@@ -85,9 +109,9 @@ final class WindowGrab {
 
   var titleDragging: Bool { titleCandidate != nil }
 
-  func takeTitle() -> (wid: Int, pid: Int)? {
+  func takeTitle(swallowRelease: Bool = true) -> (wid: Int, pid: Int)? {
     let result = titleCandidate
-    if result != nil { upPending = true }
+    if result != nil && swallowRelease { upPending = true }
     clearTitle()
     return result
   }

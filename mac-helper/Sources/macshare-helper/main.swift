@@ -285,6 +285,9 @@ func handle(_ line: String) {
   case "moveWin": // Apps › Move windows: the key held to grab a window, "" = off
     WindowGrab.shared.setKey((msg["key"] as? String) ?? "")
     reply(id)
+  case "proxyMoveWindows":
+    WindowGrab.shared.proxyWindows = Set(((msg["ids"] as? [NSNumber]) ?? []).map { $0.intValue })
+    reply(id)
   case "appFocus":
     reply(id, ["done": Apps.focus(wid: (msg["wid"] as? NSNumber)?.intValue ?? 0)])
   case "appClose":

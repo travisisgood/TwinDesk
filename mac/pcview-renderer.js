@@ -40,6 +40,7 @@ let receivers = [];
 let fg = null; // FrameGen while frame generation is on
 const bar = document.getElementById('bar');
 const windowOnly = query.get('windowOnly') === '1';
+document.getElementById('caption').hidden = query.get('caption') !== '1';
 const btn = (id) => document.getElementById(id);
 
 // steady: no hints, and the answer leaves out the playout-delay extension (steadySdp), so the PC's

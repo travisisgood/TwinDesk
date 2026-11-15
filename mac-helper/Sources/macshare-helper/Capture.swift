@@ -367,9 +367,16 @@ final class Capture {
     lastCross = now()
     Flash.shared.leave(at: p, side: side)
     var out: [String: Any] = ["event": "return", "offset": off]
-    if let d = returnDrag(at: p) { out["drag"] = d }
-    let moving = WindowGrab.shared.take(keepUp: false)
-    if moving != 0 { out["moving"] = moving; out["movingPid"] = WindowGrab.shared.pid } // a grabbed window goes along
+    if injector.heldButtons.contains(0), let window = WindowGrab.shared.takeTitle(swallowRelease: false) {
+      injector.button(0, down: false, at: p)
+      out["moving"] = window.wid
+      out["movingPid"] = window.pid
+      log("move windows: forwarded title bar crossed, window \(window.wid)")
+    } else {
+      if let d = returnDrag(at: p) { out["drag"] = d }
+      let moving = WindowGrab.shared.take(keepUp: false)
+      if moving != 0 { out["moving"] = moving; out["movingPid"] = WindowGrab.shared.pid }
+    }
     emit(out)
   }
 #endif
@@ -739,6 +746,7 @@ final class Capture {
       injector.mouse(.leftMouseUp, at: e.location, button: 0, clickState: 1)
       startCapture(mouse: true, keyboard: cfgKeyboard)
       Flash.shared.leave(at: e.location, side: side)
+      log("move windows: local title bar crossed, window \(window.wid)")
       emit(["event": "edge", "offset": off, "crossingFlags": crossingBits(e.flags),
             "moving": window.wid, "movingPid": window.pid])
       return true

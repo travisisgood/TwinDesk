@@ -233,6 +233,7 @@ class PcApps extends EventEmitter {
     } : {};
     const win = new BrowserWindow({
       title: this._title(info),
+      frame: !info.moved,
       width,
       height,
       ...where,
@@ -257,6 +258,11 @@ class PcApps extends EventEmitter {
     w.keys = attachKeys(win, {
       send: (m) => this.server.current && this.server.sendToClient({ ...m, wid: w.info.wid }),
       enabled: () => !!(w.session !== null && this.server.current),
+      local: (input) => {
+        if (!w.info.moved || !input.meta || input.code !== 'KeyM') return false;
+        if (input.type === 'keyDown' && !input.isAutoRepeat) win.minimize();
+        return true;
+      },
     });
     win.webContents.on('console-message', (e) => e.level === 'error' && console.log(`[pcapps] ${e.message}`));
     win.on('focus', () => {
@@ -294,7 +300,7 @@ class PcApps extends EventEmitter {
       this.emit('change');
     });
     this.wins.set(info.wid, w);
-    win.loadFile(path.join(__dirname, 'pcview.html'), { query: { language: this._i18n().locale, ...this._playerTitle(info), windowOnly: '1' } });
+    win.loadFile(path.join(__dirname, 'pcview.html'), { query: { language: this._i18n().locale, ...this._playerTitle(info), windowOnly: '1', caption: info.moved ? '1' : '' } });
   }
 
   // Never bigger than the PC's screen (1:1 pixels, nothing upscaled) nor this Mac's work area.
@@ -438,6 +444,11 @@ class PcApps extends EventEmitter {
 
   // A window grabbed with the move key crossed back (kvm.js, the helper's `moving` CGWindowID): if
   // it's the copy of a window moved here, that window goes home (shared/movewin.js).
+  proxyIds() {
+    return [...this.wins.values()].filter((w) => w.info.moved && !w.info.popup && !w.win.isDestroyed())
+      .map((w) => Number(/^window:(\d+):/.exec(w.win.getMediaSourceId() || '')?.[1])).filter(Boolean);
+  }
+
   returnWindow(cgId) {
     if (!cgId) return false;
     for (const w of this.wins.values()) {

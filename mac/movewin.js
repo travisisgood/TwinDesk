@@ -20,6 +20,7 @@ async function moveOut(as, wid, pid) {
     }
     pending.app = parked.app;
     pending.displayId = parked.displayId;
+    console.log(`[appsend] parked ${parked.app.id} window ${wid} on display ${parked.displayId}`);
     as.server.sendToClient({ t: T.APPS_RESULT, apps: as.movedCatalog() });
     as._poll();
     as.emit('change');

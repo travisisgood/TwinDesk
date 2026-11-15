@@ -93,3 +93,20 @@ online display list. The detached shell helper lacked Accessibility and Screen
 Recording permissions, so this native smoke test used a temporary display
 without moving an existing app window. Live Finder, Scarlett, Explorer, Dock
 and taskbar behavior require the paired tests.
+
+
+### Build 05 follow-up candidate
+
+The macOS receiver uses a frameless native proxy for crossed Windows windows,
+so the captured Windows caption is the only visible title bar. An invisible
+drag strip covers the top 30 points except for the rightmost 144 points, which
+remain available to the source's controls. Use Command-M to minimize the Mac
+proxy locally, and restore it from its app icon in the Dock. The strip assumes
+a conventional top caption; custom layouts need validation.
+
+Mac title-bar detection also runs on relative mouse input delivered from
+Windows through KVM. When a recognized drag reaches the configured return edge,
+the helper releases that native drag and reports the same crossing event as a
+drag from the Mac trackpad. This path does not handle per-window injected
+events, so remote app input cannot inadvertently transfer the source again.
+The candidate is based on Windows Build 05 and uses its existing messages.
