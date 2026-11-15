@@ -362,7 +362,10 @@ final class Capture {
   /// Return-edge check while driven; called for local moves and for injected relative moves.
   func checkReturn(_ p: CGPoint, dx: Double, dy: Double, flags: CGEventFlags) {
     guard !returnRequiresModifier || allowsCrossing(required: crossingModifier, flags: flags) else { ret.push = 0; return }
-    guard let side = returnSide, let off = push(&ret, p, dx, dy, side, returnResistance, returnZones) else { return }
+    let titleDrag = injector.heldButtons.contains(0) && WindowGrab.shared.titleDragging
+    guard let side = returnSide,
+          let off = push(&ret, p, dx, dy, side, titleDrag ? 0 : returnResistance, returnZones,
+                         inset: titleDrag ? 12 : 0) else { return }
     returnSide = nil
     lastCross = now()
     Flash.shared.leave(at: p, side: side)
@@ -435,7 +438,7 @@ final class Capture {
 
   /// Accumulate outward motion on an outer edge; returns the offset when it went through.
   private func push(_ st: inout (push: Double, at: Double, since: Double), _ p: CGPoint, _ dx: Double, _ dy: Double,
-                    _ side: String, _ resistance: Double, _ zones: [Zone]?) -> Double? {
+                    _ side: String, _ resistance: Double, _ zones: [Zone]?, inset: CGFloat = 0) -> Double? {
     let out = side == "right" ? dx : side == "left" ? -dx : side == "bottom" ? dy : -dy
     let t = now()
     if t - st.at > 0.3 { st.push = 0 }
@@ -452,7 +455,7 @@ final class Capture {
       }
       arrival = nil
     }
-    guard out > 0, Screens.isOuterEdge(p, side: side),
+    guard out > 0, Screens.isOuterEdge(p, side: side, inset: inset),
           zones.map({ z in z.contains { ($0.side == nil || $0.side == side) && $0.range.contains(Screens.offset(p, side: side)) } }) ?? true else {
       st.push = 0
       return nil
@@ -740,7 +743,7 @@ final class Capture {
     if type == .leftMouseDown { dragPbCount = NSPasteboard(name: .drag).changeCount }
 #if !MULTI
     if type == .leftMouseDragged, !capturing, edgeEnabled, allowed, grab.titleDragging,
-       let off = push(&edge, e.location, dx, dy, side, resistance, edgeZones),
+       let off = push(&edge, e.location, dx, dy, side, 0, edgeZones, inset: 12),
        let window = grab.takeTitle() {
       // End the source's ordinary title-bar drag before the helper parks it.
       injector.mouse(.leftMouseUp, at: e.location, button: 0, clickState: 1)

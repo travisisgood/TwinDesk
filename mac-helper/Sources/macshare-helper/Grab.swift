@@ -56,12 +56,13 @@ final class WindowGrab {
       guard status == .success, let hit else { return }
       var role: CFTypeRef?
       guard AXUIElementCopyAttributeValue(hit, kAXRoleAttribute as CFString, &role) == .success else { return }
-      // Finder's unoccupied unified title-bar area can be the toolbar itself.
-      // Its buttons and editable controls report their own roles.
+      // A native unified title bar can expose bare space as a toolbar, group,
+      // or title text. Buttons, fields, and other controls stay with the app.
+      guard let hitRole = role as? String else { return }
       let window: AXUIElement
-      if (role as? String) == (kAXWindowRole as String) {
+      if hitRole == kAXWindowRole as String {
         window = hit
-      } else if (role as? String) == (kAXToolbarRole as String) {
+      } else if [kAXToolbarRole, kAXGroupRole, kAXStaticTextRole].contains(hitRole) {
         var ancestor: CFTypeRef?
         guard AXUIElementCopyAttributeValue(hit, kAXWindowAttribute as CFString, &ancestor) == .success,
               let ancestor, CFGetTypeID(ancestor) == AXUIElementGetTypeID() else { return }

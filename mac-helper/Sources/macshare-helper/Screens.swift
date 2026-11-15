@@ -56,10 +56,9 @@ enum Screens {
 
   /// True when `p` sits on `side`'s edge of its display (within ~1 pt) and no other display
   /// continues past that edge at that point.
-  static func isOuterEdge(_ p: CGPoint, side: String) -> Bool {
-    let ds = displays()
+  static func isOuterEdge(_ p: CGPoint, side: String, inset: CGFloat = 0, displays ds: [CGRect] = displays()) -> Bool {
     guard let d = containing(p, ds) else { return false }
-    let tol: CGFloat = 1.5
+    let tol: CGFloat = 1.5 + inset
     switch side {
     case "right":
       return p.x >= d.maxX - tol && !ds.contains { abs($0.minX - d.maxX) < 1 && p.y >= $0.minY && p.y < $0.maxY }
