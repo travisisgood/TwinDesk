@@ -35,3 +35,6 @@ native/tdfast/target/
 mac-helper/lib/
 linux-helper/lib/
 windows/fullkvm/bin/
+
+# Temporary messenger local credentials
+agent-messenger.json
