@@ -313,7 +313,7 @@ function appsHeld() {
 function sendScreenState() {
   const c = peer && peer.current;
   if (!c || !svc) return void (screenStateKey = '');
-  const msg = { t: P.T.SCREEN_STATE, on: !!settings.sharing.on, mode: displayMode(), remote: settings.sharing.remote !== false, modes: ['extend', 'mirror'], ...Pick.stateFields(svc.displays.list(), svc.displays.target(), settings.sharing.remote !== false && !appsHeld()) };
+  const msg = { t: P.T.SCREEN_STATE, on: !!settings.sharing.on && (!svc.displays.extending || !!svc.displays.target()), mode: displayMode(), remote: settings.sharing.remote !== false, modes: ['extend', 'mirror'], ...Pick.stateFields(svc.displays.list(), svc.displays.target(), settings.sharing.remote !== false && !appsHeld()) };
   const key = JSON.stringify([c.deviceId, msg]);
   if (key === screenStateKey) return;
   screenStateKey = key;
@@ -350,10 +350,13 @@ function onScreenCtl(m) {
   // The phone viewer's Close stops sharing even when the viewer may not start and switch it.
   if (m.share === false && m.close === true) return void (settings.sharing.on && actions.setSharing(false, 'remote'));
   if (settings.sharing.remote === false) return void (screenStateKey = '', pushState()); // re-send: remote false
-  if (m.share !== false && mirrorDisplay(m)) return;
+  if (m.share !== false && m.mode !== 'extend' && mirrorDisplay(m)) return;
   // Started from the viewer without a mode: Mirror (the virtual display doesn't always start); Extend is its switch.
   const mode = m.mode === 'extend' || m.mode === 'mirror' ? m.mode : m.share === true && !settings.sharing.on ? 'mirror' : null;
-  if (mode && displayMode() !== mode) actions.setDisplayMode(mode);
+  if (mode && (displayMode() !== mode || (mode === 'extend' && !svc.displays.extending))) actions.setDisplayMode(mode);
+  else if (mode === 'extend' && settings.sharing.on && !svc.displays.target()) {
+    svc.displays.applyVirtual().then(() => svc.stream.restart('retry Extend'));
+  }
   if (typeof m.share === 'boolean' && m.share !== !!settings.sharing.on) actions.setSharing(m.share, 'remote');
 }
 
@@ -371,13 +374,13 @@ function handleSendLink(url) {
 // The menu's Share Screen, Extend and Mirror: share in that mode (null: stop), as the viewer's screen.ctl does.
 function shareAs(mode) {
   if (!mode) return void (settings.sharing.on && actions.setSharing(false));
-  if (displayMode() !== mode) actions.setDisplayMode(mode);
+  if (displayMode() !== mode || (mode === 'extend' && !svc.displays.extending)) actions.setDisplayMode(mode);
   if (!settings.sharing.on) actions.setSharing(true);
 }
 
 function displayMode() {
   const t = svc && svc.displays.target();
-  if (!t) return 'custom';
+  if (!t) return svc?.displays.extending ? 'extend' : 'custom';
   if (t.virtual) return 'extend';
   return t.primary && !settings.virtual.enabled ? 'mirror' : 'custom';
 }
@@ -678,6 +681,16 @@ app.whenReady().then(() => {
   peer.on('rtt', pushState);
 
   svc = startServices({ server: peer, getSettings: () => settings, pushState, onHelperReady: refreshPermissions });
+  svc.stream.on('extend-failed', (error) => {
+    svc.displays.virtualError = error;
+    screenStateKey = '';
+    actions.setSharing(false, 'remote');
+  });
+  peer.on('closed', (ctx) => {
+    if (!peer.current && !P.isPhoneOs(ctx.os) && settings.sharing.on && svc.displays.extending) {
+      actions.setSharing(false, 'remote');
+    }
+  });
   svc.kvm.laneReady.then(laneGo);
   // File Sharing › TwinDesk Drive (shared/drive-host.js, docs/drive.md): nothing of it is loaded until it's on.
   svc.loadDrive = () => svc.drive || (svc.drive = require('../shared/drive-host.js').create({

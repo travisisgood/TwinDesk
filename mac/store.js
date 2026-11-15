@@ -108,7 +108,7 @@ const DEFAULT_SETTINGS = {
   net: { ble: true, blePc: false, bleWifiOff: true, hotspots: {}, tailscale: true, bleInput: false }, // ble: with phones, blePc: with computers; bleWifiOff: none on the same Wi-Fi (blepolicy.js wifiQuiet); tailscale: shared/tailnet.js; bleInput: mouse and keyboard over Bluetooth beside Wi-Fi (shared/bleinput.js)
 
   // The other computer's screen in a window here; framegen: shared/framegen.js.
-  receive: { on: false, fullScreen: false, input: true, framegen: false },
+  receive: { on: false, fullScreen: false, displayId: null, input: true, framegen: false },
   wake: { peers: {} }, // {deviceId: {name, macs, address, at}} from wol.info, for Wake
   pairSync: {}, // {deviceId: {feature: {out, in}}} two-way switches per pair (pairsync.js)
   smb: { connectPc: false, sharing: false, folder: '', secret: '' }, // secret = safeStorage

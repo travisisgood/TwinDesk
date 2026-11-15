@@ -49,7 +49,7 @@ const SCHEMA = {
   notifs: { send: bool, receive: bool, hideText: bool },
   smb: { connectPc: bool },
   apps: { offer: bool, onVirtual: bool, moveWindows: bool, moveKey: oneOf(['ControlRight', 'ControlLeft', 'ShiftRight', 'ShiftLeft', 'AltRight', 'AltLeft', 'MetaRight', 'MetaLeft'], 'MetaRight') }, // moveWindows: Apps › Move windows (movewin.js)
-  receive: { on: bool, fullScreen: bool, input: bool, framegen: bool },
+  receive: { on: bool, fullScreen: bool, displayId: (v) => Number.isInteger(v) && v > 0 ? v : null, input: bool, framegen: bool },
   sharing: { remote: bool, pace: oneOf(['fast', 'smooth', 'steady'], 'fast'), codec: oneOf(['h264', 'h265'], 'h264'), fps: oneOf([0, 30, 60], 0) },
   papps: { on: bool },
   phone: { sound: bool, bitrateMbps: (v) => Math.round(clamp(2, 40, 8)(v)), maxSize: oneOf([0, 1920, 1600, 1280, 1024], 0), wallpaper: bool, input: oneOf(['adb', 'phone'], 'adb'), inputPicked: bool, mirror: oneOf(['auto', 'adb', 'native'], 'auto'), soundVia: oneOf(['auto', 'adb', 'native'], 'auto'), enterSends: bool, arrowSwipe: bool, uhid: bool, direct: bool, lowLatency: bool },
@@ -258,6 +258,7 @@ function setupIpc(ctx) {
     // by: 'apps' when Mac apps on the PC turned it on/off by themselves; a person's switch ends that.
     setSharing(on, by) {
       if (by !== 'apps' && ctx.apps) ctx.apps.autoShare = false;
+      if (on) ctx.displays.virtualError = null;
       settings.sharing.on = !!on;
       save();
       // Through Bluetooth the picture needs Wi-Fi first (netlink.js); it starts once the session is on it.
@@ -296,12 +297,14 @@ function setupIpc(ctx) {
     },
     // null = the TwinDesk virtual display
     selectDisplay(displayId) {
-      settings.sharing.displayId = displayId == null ? null : Number(displayId);
+      if (displayId == null) return actions.setDisplayMode('extend');
+      settings.sharing.displayId = Number(displayId);
       save();
       ctx.stream.restart('display selected');
     },
     // Extend: Monitor 2 is the TwinDesk virtual display. Mirror: it shows this Mac's main screen.
     setDisplayMode(mode) {
+      if (ctx.stream.active) ctx.stream.stop(`switching to ${mode}`);
       if (mode === 'mirror') {
         settings.sharing.displayId = screen.getPrimaryDisplay().id;
         settings.virtual.enabled = false;

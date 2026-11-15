@@ -21,6 +21,8 @@ UI.tab({
     const STATUS = { off: I18n.t('Off'), connecting: I18n.t('Connecting…'), new: I18n.t('Connecting…'), live: I18n.t('Live'), disconnected: I18n.t('Reconnecting…'), failed: I18n.t('Waiting for {name}…'), stopped: I18n.t('Stopped on the other computer'), closed: I18n.t('Closed') };
 
     const fullSw = UI.switch((v) => api.setReceive({ fullScreen: v }), { label: I18n.t('Open full screen') });
+    const monitor = UI.select([], (v) => api.setReceive({ displayId: v === 'primary' ? null : Number(v) }));
+    const monitorRow = UI.row(I18n.t('Full-screen monitor'), '', [monitor.el]);
     const inputSw = UI.switch((v) => api.setReceive({ input: v }), { label: I18n.t('Control it') });
     const ctlRow = UI.row(I18n.t('Control {name} from its window'), '', [inputSw]);
     const showBtn = UI.button(I18n.t('Open'), () => api.showPcView(), 'primary');
@@ -53,6 +55,7 @@ UI.tab({
         winRow,
         rRow,
         UI.row(I18n.t('Open full screen'), I18n.t('Ctrl ⌘ F switches'), [fullSw]),
+        monitorRow,
         ctlRow,
         paceRow,
         fgRow,
@@ -64,6 +67,12 @@ UI.tab({
       const r = s.receive;
       if (!r) return;
       fullSw.set(r.fullScreen);
+      const monitors = r.monitors || [];
+      monitor.options([
+        { value: 'primary', label: I18n.t('Main display') },
+        ...monitors.map((d) => ({ value: d.id, label: UI.monitorLabel(d.label || `Display ${d.id}`) })),
+      ]);
+      monitor.set(monitors.some((d) => d.id === r.displayId) ? r.displayId : 'primary');
       paceRow.render(s);
       fgSw.set(!!r.framegen);
       const rs = r.remote;
@@ -72,7 +81,7 @@ UI.tab({
       rRow.setHint(!s.client ? I18n.t('Connect to choose from here')
         : !rs ? I18n.t('Update TwinDesk on the other computer to choose from here')
           : !rs.remote ? I18n.t('The other computer doesn’t allow choosing from here')
-            : rs.on ? (rs.mode === 'extend' ? I18n.t('An extra screen for it, shown here') : I18n.t('Its main screen, shown here')) : I18n.t('Pick Mirror or Extend — or just press Open'));
+            : rs.on ? (rs.mode === 'extend' ? I18n.t('An extra screen for it, shown here') : I18n.t('Its main screen, shown here')) : I18n.t('Choose Extend or Mirror. If Extend fails, check TwinDesk on the sending computer.'));
       inputSw.set(r.input);
       const p = UI.peer(s);
       const pc = p.name;

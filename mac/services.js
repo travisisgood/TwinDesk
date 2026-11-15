@@ -38,9 +38,12 @@ function startServices({ server, getSettings, pushState, onHelperReady }) {
   let kvm = null;
   // Stream input only when "Receive input" is on and shared input is home.
   const input = new Input(server, helper, displays, {
-    enabled: () => s().streamInput !== false && (!kvm || kvm.mode === 'home'),
+    enabled: () => !!stream.active && stream.active.session === stream.session
+      && stream.active.displayId === displays.target()?.id
+      && s().streamInput !== false && (!kvm || kvm.mode === 'home'),
     swapKeys: () => server.keySwap(s()), // never between two Macs
   });
+  stream.on('release-input', () => input.releaseAll());
   const clipboard = new Clipboard(server, helper, s);
   const drop = new Drop({ server, helper, displays, getSettings: s });
   const fileSend = new FileSend(server, s);
@@ -52,7 +55,7 @@ function startServices({ server, getSettings, pushState, onHelperReady }) {
   const apps = new Apps({ server, helper, displays, stream, getSettings: s });
   const sshClient = new SshClient(server, s);
   const audio = new Audio({ server, hub, stream, getSettings: s });
-  const pcView = new PcView({ server, getSettings: s, saveSettings: () => store.saveSettings(s()) });
+  const pcView = new PcView({ server, getSettings: s, virtualDisplayId: () => displays.virtualId, saveSettings: () => store.saveSettings(s()) });
   const pcApps = new PcApps({ server, getSettings: s });
   const notifs = new Notifs({ server, helper, getSettings: s, saveSettings: () => store.saveSettings(s()) });
   // History › Keep history: the clipboard's and notifications' history kept, encrypted (shared/histkeeper.js).

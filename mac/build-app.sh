@@ -192,7 +192,7 @@ if [ -n "$MAC_IDENTITY" ]; then
   ID="$MAC_IDENTITY"
   OPTIONS="--options runtime --timestamp"
   echo "Signing with Developer ID: $ID"
-elif KC=$(scripts/signing-identity.sh 2>/dev/null) && SIGNTEST=$(mktemp) && cp /usr/bin/true "$SIGNTEST" \
+elif [ "${MAC_ADHOC_SIGN:-0}" != 1 ] && KC=$(scripts/signing-identity.sh 2>/dev/null) && SIGNTEST=$(mktemp) && cp /usr/bin/true "$SIGNTEST" \
   && { security list-keychains -d user | grep -qF "$KC" || eval "security list-keychains -d user -s \"$KC\" $(security list-keychains -d user | tr '\n' ' ')"; } \
   && codesign --force --keychain "$KC" --sign "TwinDesk Self-Signed" "$SIGNTEST" 2>/dev/null; then
   # codesign finds the certificate only in a keychain on the search list (a fresh CI machine's isn't):

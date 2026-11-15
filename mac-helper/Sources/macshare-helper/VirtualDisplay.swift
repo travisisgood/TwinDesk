@@ -65,9 +65,14 @@ final class VirtualDisplay {
     display = vd
     let id = vd.displayID
     log("created display \(id) \(width)x\(height) pt, \(pw)x\(ph) px")
-    selectMode(id: id, width: width, pixels: pw, attempt: 0, gen: gen) { [weak self] in
+    selectMode(id: id, size: CGSize(width: width, height: height), pixels: CGSize(width: pw, height: ph), attempt: 0, gen: gen) { [weak self] in
       guard let self = self, gen == self.generation else {
         done(.failure(HelperError(message: "replaced")))
+        return
+      }
+      guard CGDisplayIsOnline(id) != 0, CGDisplayIsInMirrorSet(id) == 0 else {
+        self.destroy()
+        done(.failure(HelperError(message: "The TwinDesk display is unavailable as an independent display")))
         return
       }
       let b = CGDisplayBounds(id)
@@ -81,13 +86,13 @@ final class VirtualDisplay {
     }
   }
 
-  // Wait until the mode list contains (width points, pixels wide) and switch to it.
-  private func selectMode(id: CGDirectDisplayID, width: Int, pixels: Int, attempt: Int, gen: Int,
+  // Wait for a mode that matches both dimensions at the requested scale.
+  private func selectMode(id: CGDirectDisplayID, size: CGSize, pixels: CGSize, attempt: Int, gen: Int,
                           then: @escaping () -> Void) {
     guard gen == generation else { return then() }
     let opts = [kCGDisplayShowDuplicateLowResolutionModes: true] as CFDictionary
     let modes = (CGDisplayCopyAllDisplayModes(id, opts) as? [CGDisplayMode]) ?? []
-    if let mode = modes.first(where: { $0.width == width && $0.pixelWidth == pixels }) {
+    if let mode = modes.first(where: { CGSize(width: $0.width, height: $0.height) == size && CGSize(width: $0.pixelWidth, height: $0.pixelHeight) == pixels }) {
       var cfg: CGDisplayConfigRef?
       if CGBeginDisplayConfiguration(&cfg) == .success, let cfg = cfg {
         CGConfigureDisplayWithDisplayMode(cfg, id, mode, nil)
@@ -97,11 +102,11 @@ final class VirtualDisplay {
       return then()
     }
     if attempt >= 10 {
-      log("mode \(width) pt / \(pixels) px not found; keeping default")
+      log("mode \(size) pt / \(pixels) px not found; keeping default")
       return then()
     }
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-      self.selectMode(id: id, width: width, pixels: pixels, attempt: attempt + 1, gen: gen, then: then)
+      self.selectMode(id: id, size: size, pixels: pixels, attempt: attempt + 1, gen: gen, then: then)
     }
   }
 

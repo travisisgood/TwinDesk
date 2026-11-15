@@ -1,7 +1,7 @@
 // TwinDesk — Copyright (C) 2026 inukaasith. GPL-3.0, see LICENSE.
 // The TwinDesk virtual display (via mac-helper), the display list, and which display is shared.
 // settings.sharing.displayId: null = the TwinDesk virtual display (falls back to the main
-// display when it is off), otherwise an Electron display id (= CGDirectDisplayID).
+// display in Mirror mode), otherwise an Electron display id (= CGDirectDisplayID).
 //
 // Events: 'change' — displays were added/removed/resized or the virtual display changed.
 'use strict';
@@ -59,7 +59,6 @@ class Displays extends EventEmitter {
   applyVirtual() {
     const run = async () => {
       const v = this.getSettings().virtual;
-      this.virtualError = null;
       try {
         // The virtual display exists only while this Mac's screen is shared in Extend mode (no empty
         // extra monitor), or while something holds it, in Mirror mode too: this Mac's apps open on
@@ -70,6 +69,7 @@ class Displays extends EventEmitter {
           this.virtualKey = '';
           return;
         }
+        this.virtualError = null;
         const size = this.override || v;
         // Already there as asked: keep it (re-creating it pulls it from under a capture that just
         // started on it; several callers apply at once when sharing starts).
@@ -83,16 +83,23 @@ class Displays extends EventEmitter {
         console.log(`[displays] virtual display ${r.displayId}: ${size.width}x${size.height} pt, ${r.pixelWidth}x${r.pixelHeight} px`);
         await this._waitForDisplay(r.displayId);
       } catch (e) {
+        this.virtualError = e.message;
+        // A timed-out create can still have allocated a display in the helper.
+        if (this.virtualId !== null || this.holds.size || (v.enabled && this.getSettings().sharing.on)) {
+          await this.helper.request('destroyDisplay').catch(() => {});
+        }
         this.virtualId = null;
         this.virtualKey = '';
-        this.virtualError = e.message;
         console.error(`[displays] virtual display: ${e.message}`);
       } finally {
         this._changed();
       }
     };
-    this.applying = (this.applying || Promise.resolve()).then(run);
-    return this.applying;
+    const applying = (this.applying || Promise.resolve()).then(run);
+    this.applying = applying;
+    return applying.finally(() => {
+      if (this.applying === applying) this.applying = null;
+    });
   }
 
   // Needed (or not any more) without screen sharing. Resolves once it is applied.
@@ -111,16 +118,16 @@ class Displays extends EventEmitter {
 
   _waitForDisplay(id) {
     if (screen.getAllDisplays().some((d) => d.id === id)) return Promise.resolve();
-    return new Promise((resolve) => {
-      const done = () => {
+    return new Promise((resolve, reject) => {
+      const done = (error) => {
         clearTimeout(timer);
         screen.removeListener('display-added', onAdded);
-        resolve();
+        if (error) reject(error);
+        else resolve();
       };
       const onAdded = (_e, d) => d.id === id && done();
       const timer = setTimeout(() => {
-        console.error(`[displays] display ${id} did not appear within ${WAIT_DISPLAY_MS} ms`);
-        done();
+        done(new Error(`Display ${id} did not appear in macOS`));
       }, WAIT_DISPLAY_MS);
       screen.on('display-added', onAdded);
     });
@@ -142,31 +149,20 @@ class Displays extends EventEmitter {
     }));
   }
 
-  // The display to share right now (an entry of list()), or null.
+  get extending() {
+    const settings = this.getSettings();
+    return settings.virtual.enabled && settings.sharing.displayId == null;
+  }
+
+  // Capture and input both use this selection. Extend requires our virtual display.
   target() {
     const all = this.list();
-    // This Mac's apps open on the other computer: they live on the virtual display, so it is the one
-    // shared, in Mirror mode too (back to mirroring once they are closed).
-    if (this.holds.has('apps-open')) {
-      const v = all.find((d) => d.virtual);
-      if (v) return v;
-    }
-    const settings = this.getSettings();
-    const want = settings.sharing.displayId;
-    const picked = want != null && all.find((d) => d.id === want);
-    if (picked) return picked;
-    // The saved screen is gone. Extend (no saved id, or the virtual display is on) still prefers
-    // that display. A real-screen pick must not silently become Extend because a virtual display
-    // is still up. Input uses this same target, so the picture and the pointer stay on one screen.
-    if (want != null && settings.virtual && settings.virtual.enabled === false) {
-      return all.find((d) => d.primary && !d.virtual) || all.find((d) => !d.virtual) || all[0] || null;
-    }
-    return (
-      all.find((d) => d.virtual) ||
-      all.find((d) => d.primary) ||
-      all[0] ||
-      null
-    );
+    if (this.extending || this.holds.has('apps-open')) return all.find((d) => d.virtual) || null;
+    const want = this.getSettings().sharing.displayId;
+    return all.find((d) => !d.virtual && d.id === want)
+      || all.find((d) => !d.virtual && d.primary)
+      || all.find((d) => !d.virtual)
+      || null;
   }
 }
 
