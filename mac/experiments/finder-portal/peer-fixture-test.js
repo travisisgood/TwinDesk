@@ -12,12 +12,13 @@ async function main(){
   const pairingFile=path.join(output,'pairing.json'),resultFile=path.join(output,'receiver-result.json');
   fs.rmSync(resultFile,{force:true});
   fs.writeFileSync(pairingFile,JSON.stringify({url:'ws://127.0.0.1:'+source.wss.address().port+'/portal',token:source.token}),{mode:0o600});
-  receiver=connect({capture,pairingFile,sourceCommit:commit,resultFile,maxFrames:16,testMinimize:true});
+  receiver=connect({capture,pairingFile,sourceCommit:commit,resultFile,maxFrames:16,testMinimize:true,evidenceDirectory:output});
   for(let i=0;i<150&&!fs.existsSync(resultFile);i++)await sleep(100);
   const r=JSON.parse(fs.readFileSync(resultFile));
   if(r.frames!==16||r.appId!=='test.fixture'||JSON.stringify(r.minimizeStates)!=='[true,false]')throw Error('Peer fixture receiver failed');
   if(source.stats.hello!==1||source.stats.frames!==16)throw Error('Peer fixture exchange failed');
   if(r.sourceCommit!=='f'.repeat(40)||r.receiverCommit!==commit||r.distinctDecodedFrames<2)throw Error('Decoded frame evidence failed');
+  if(fs.readFileSync(path.join(output,'first.png')).equals(fs.readFileSync(path.join(output,'final.png'))))throw Error('Changing frame artifacts missing');
   console.log(JSON.stringify({localFixtureOnly:true,receiver:r,source:{hellos:source.stats.hello,frames:source.stats.frames}}));
  }finally{receiver?.close('Fixture test finished');source.close();fs.rmSync(path.join(output,'pairing.json'),{force:true});}
 }

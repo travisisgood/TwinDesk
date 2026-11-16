@@ -446,3 +446,11 @@ whose native decoding completed (bounded to 1024 unique hashes). The unchanged
 Windows fixture produced 16 distinct decoded frames in the 16-frame test.
 Different hashes are supporting transport evidence, not proof of a specific
 application change: paired acceptance still requires inspecting the content.
+
+For explicit capture tests, optional local `evidenceDirectory` saves `first.png`
+after the first native decode acknowledgment and `final.png` at close, containing
+the last acknowledged frame. Only one latest decoded PNG is retained in memory;
+the directory/files are created with private permissions. These are remote source
+image artifacts, not screenshots of the Mac desktop. Leave this option unset for
+ordinary sessions. They can establish source content changes while the Mac is
+locked, but cannot verify native Dock appearance or interactive receiver behavior.

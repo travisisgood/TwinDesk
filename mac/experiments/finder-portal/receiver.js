@@ -29,14 +29,17 @@ function connect(config){
  }
  const ws=new WebSocket(pair.url,{agent,perMessageDeflate:false,maxPayload:12*1024*1024,handshakeTimeout:5000,followRedirects:false});
  let session=null,window=null,child=null,buffer='',last=Date.now(),lastFrame=0,pendingFrame=null,inputSeq=0,closed=false,heartbeat=null,nonce=0;
- const inputs=new Set();let frames=0,sourceCommit=null;const minimizeStates=[],localDrags=[],decodedHashes=new Set();
+ const inputs=new Set();let frames=0,sourceCommit=null,lastDecodedPNG=null,evidenceError=null;const minimizeStates=[],localDrags=[],decodedHashes=new Set();
+ if(config.evidenceDirectory)fs.mkdirSync(config.evidenceDirectory,{recursive:true,mode:0o700});
+ const saveEvidence=name=>{if(config.evidenceDirectory&&lastDecodedPNG)try{fs.writeFileSync(path.join(config.evidenceDirectory,name),lastDecodedPNG,{mode:0o600});}catch{evidenceError='Could not save decoded frame artifact';}};
  const log=m=>{if(config.resultFile)fs.writeFileSync(config.resultFile,JSON.stringify(m,null,2));};
  const send=m=>{if(ws.readyState===1)ws.send(JSON.stringify({v:1,sessionId:session,...m}));};
  const close=reason=>{
   if(closed)return;closed=true;clearInterval(heartbeat);clearTimeout(handshake);
   if(session)send({type:'close',reason});ws.close();agent?.destroy();const timer=setTimeout(()=>ws.terminate(),1000);timer.unref();
   if(child){child.stdin.end();const timer=setTimeout(()=>child.kill(),2000);timer.unref();}
-  log({closed:true,reason,frames,sourceCommit,receiverCommit:config.sourceCommit,distinctDecodedFrames:decodedHashes.size,distinctFrameLimit:1024,appId:window?.appId||null,inputResults:inputSeq-inputs.size,minimizeStates,localDrags});
+  saveEvidence('final.png');
+  log({closed:true,reason,frames,sourceCommit,receiverCommit:config.sourceCommit,distinctDecodedFrames:decodedHashes.size,distinctFrameLimit:1024,evidenceError,appId:window?.appId||null,inputResults:inputSeq-inputs.size,minimizeStates,localDrags});
  };
  const handshake=setTimeout(()=>close('Handshake timeout'),5000);
  const native=m=>{check(child&&!child.killed,'Native receiver unavailable');check(child.stdin.writableLength<16*1024*1024,'Native decoder backpressure');child.stdin.write(JSON.stringify(m)+'\n');};
@@ -50,6 +53,7 @@ function connect(config){
    if(m.event==='frameAck'){
     check(pendingFrame&&m.seq===pendingFrame.seq&&m.width===window.pixelSize.width&&m.height===window.pixelSize.height,'Native decoded frame mismatch');
     if(decodedHashes.size<1024)decodedHashes.add(pendingFrame.hash);
+    if(config.evidenceDirectory){lastDecodedPNG=pendingFrame.png;if(frames===0)saveEvidence('first.png');}
     send({type:'frameAck',windowId:window.windowId,seq:m.seq});pendingFrame=null;frames++;
     if(config.testMinimize&&frames===2)native({type:'minimize'});
     if(config.testMinimize&&frames===8)native({type:'restore'});
@@ -81,7 +85,7 @@ function connect(config){
    metadata(m);check(window?(m.windowId===window.windowId&&m.geometryRevision===window.geometryRevision+1&&!pendingFrame):m.geometryRevision===1,'Invalid metadata revision');
    window=m;if(!child)startNative();native(m);
   }else if(m.type==='frame'){
-   check(window&&!pendingFrame&&m.seq>lastFrame,'Unexpected frame');frame(m,window);lastFrame=m.seq;pendingFrame={seq:m.seq,at:Date.now(),hash:crypto.createHash('sha256').update(Buffer.from(m.png,'base64')).digest('hex')};native(m);
+   check(window&&!pendingFrame&&m.seq>lastFrame,'Unexpected frame');frame(m,window);lastFrame=m.seq;const png=Buffer.from(m.png,'base64');pendingFrame={seq:m.seq,at:Date.now(),hash:crypto.createHash('sha256').update(png).digest('hex'),png:config.evidenceDirectory?png:null};native(m);
   }else if(m.type==='ping'||m.type==='pong'){
    check(Number.isSafeInteger(m.nonce)&&m.nonce>=0,'Invalid nonce');if(m.type==='ping')send({type:'pong',nonce:m.nonce});
   }else if(m.type==='inputResult'){
