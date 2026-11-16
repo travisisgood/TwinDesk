@@ -465,3 +465,12 @@ sources a preferred 900-point local width bounded by 90% of the available screen
 Source size and protocol coordinates are unchanged. Signed build passes; actual
 menu/Dock behavior remains pending. A local UI check was interrupted before its
 menu action could be verified and is not counted as a pass.
+
+In the subsequent real Explorer session, Travis supplied a photo and confirmed
+the Explorer folder Dock icon looks correct. This is user-observed icon acceptance,
+not minimize/restore acceptance. He also reported excessive zoom and no working
+interaction. The forced 900-point initial enlargement is therefore removed;
+initial sizing now only shrinks to fit. This does not establish correct Windows
+DPI-to-Mac-point mapping or improve the source image resolution. That mapping and
+broader Explorer input remain coordinated work with Windows. The active session
+was left intact while preparing this correction.

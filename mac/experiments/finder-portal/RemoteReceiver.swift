@@ -101,9 +101,9 @@ import Cocoa
             }
             if let size = m["logicalSize"] as? [String: Double], let w = size["width"], let h = size["height"], w > 0, h > 0 {
                 let screen = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1000, height: 700)
-                // Windows capture coordinates are not macOS points. Give small
-                // sources a usable local viewing size without resizing the source.
-                let scale = min(max(1, 900 / w), min(screen.width * 0.9 / w, screen.height * 0.9 / h))
+                // Do not force an enlargement of the source image. Cross-platform
+                // DPI semantics still require paired validation; fit only if needed.
+                let scale = min(1, min(screen.width * 0.9 / w, screen.height * 0.9 / h))
                 window.setContentSize(NSSize(width: w * scale, height: h * scale)); layoutCaption()
             }
         } else if type == "frame" {
