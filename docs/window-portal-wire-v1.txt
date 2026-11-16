@@ -1,6 +1,18 @@
 Window Portal wire v1 -- concrete proposal for Mac agreement
 Windows checkpoint 1aa368a; Mac checkpoint reviewed b3861fb.
-Status: proposed, not yet accepted by both peers. No LAN implementation yet.
+Status: accepted with Mac amendments from 0e46199 on 2026-11-15.
+The clarifications below take precedence over the original proposal wording.
+1. Explicit 127.0.0.1-only test mode permits the same expiring single-use token
+over ws. Server binds only 127.0.0.1 and rejects other peers. LAN always requires
+pinned TLS; no fallback. Consume the token atomically upon successful auth.
+2. Well-formed stale geometry, unsupported op and queue-full consume input seq
+and return rejected/unsupported without execution or teardown. Malformed/bounds
+violations, invalid IDs, non-increasing seq and unsent frameSeq close session.
+3. hello.sourceCommit identifies the RECEIVER build; welcome.sourceCommit the
+SOURCE build. Each frame pixelSize equals current window metadata for its
+geometryRevision. Associate each sent frameSeq with that revision. frameAck
+identifies exactly the single outstanding frame.
+No LAN acceptance run has occurred yet.
 
 Scope and ownership
 One selected source window and one borderless receiver per connection. Mac owns
