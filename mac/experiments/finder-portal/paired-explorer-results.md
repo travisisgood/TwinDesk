@@ -23,8 +23,17 @@ beside the repository, not committed test fixtures.
 
 Windows reported source bounds (3864,-876), 767×556, wholly inside DISPLAY35 at
 (3840,-900), 1440×900. These coordinates are Windows measurements; Mac did not
-independently enumerate Windows displays. Exact post-close restoration and
-backing persistence require the independent Windows recovery report.
+independently enumerate Windows displays. Windows subsequently corrected the
+settled post-DPI source bounds to (3871,-876), 611×442; the earlier placement
+record preceded DPI settlement. This test does not establish input coordinates.
+
+Windows' `WINDOWS_PAIRED_RECOVERY_PASS_48` independently confirmed before/after
+DWM bounds exactly (93,76), 767×556, `returned:true`, after receiver close at
+`2026-11-16T03:09:24.491Z`. The same DISPLAY35 persisted at (3840,-900), 1440×900,
+with physical displays unchanged. Normal source recovery therefore passes by
+paired evidence; Mac's native receiver close and Windows' recovery measurement
+are separate observations. Windows' subsequent `1d5e0fa` stabilization change
+was a local test and is not retroactively attributed to this paired run.
 
 The Mac desktop was locked. Inspection used the received remote Explorer PNGs,
 not a bypass of the Mac lock screen. Native Dock icon appearance, visible desktop

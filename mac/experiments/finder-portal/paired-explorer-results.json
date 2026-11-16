@@ -17,6 +17,25 @@
   "finalObservation": "BASELINE.txt and NETWORKPAIREDPROOF.txt both visible",
   "visualEvidence": "Remote Explorer PNGs inspected after native decode acknowledgment; not Mac desktop screenshots",
   "markerCreatedByWindowsUTC": "2026-11-16T03:08:40.2088301Z",
-  "sourceRecovery": "Awaiting independent Windows report",
-  "macDesktopLocked": true
+  "sourceRecovery": {
+    "reportedBy": "Windows",
+    "message": "WINDOWS_PAIRED_RECOVERY_PASS_48",
+    "before": {
+      "x": 93,
+      "y": 76,
+      "width": 767,
+      "height": 556
+    },
+    "after": {
+      "x": 93,
+      "y": 76,
+      "width": 767,
+      "height": 556
+    },
+    "returned": true,
+    "backingPersisted": "DISPLAY35 at 3840,-900,1440x900",
+    "receiverClosedUTC": "2026-11-16T03:09:24.491Z"
+  },
+  "macDesktopLocked": true,
+  "sourceGeometryCaveat": "Original placement recorded pre-DPI bounds; Windows later measured settled source at 3871,-876,611x442. Coordinate input accuracy was not tested."
 }
