@@ -2,7 +2,7 @@
 const {app,BrowserWindow,desktopCapturer,ipcMain}=require('electron'),fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process'),readline=require('node:readline');
 const config=JSON.parse(fs.readFileSync(process.argv.find(a=>a.startsWith('--worker-config=')).slice(16),'utf8'));
 app.setPath('userData',path.join(config.output,'worker-profile'));
-let helper,fixture,win,selected,latest,sourceInfo,next=0,closed=false,clicks=0;const pending=new Map();
+let helper,fixture,win,selected,latest,sourceInfo,originalBounds,next=0,closed=false,clicks=0;const pending=new Map();
 const transport=require('node:net').createConnection(config.pipe);
 transport.on('error',()=>cleanup());transport.on('close',()=>cleanup());
 function emit(m){if(m.error)fs.appendFileSync(path.join(config.output,'worker-errors.jsonl'),JSON.stringify({error:m.error})+'\n');try{transport.write(JSON.stringify(m)+'\n');}catch{cleanup()}}
@@ -15,7 +15,7 @@ function startNative(args){
   readline.createInterface({input:child.stdout}).on('line',line=>{let m;try{m=JSON.parse(line)}catch{return}if(m.eventName==='ready')resolve(m);if(m.eventName==='clicked')clicks=m.clicks;const p=pending.get(m.id);if(p){clearTimeout(p.timer);pending.delete(m.id);m.ok?p.resolve(m.result):p.reject(Error(m.error));}});
  });return {child,ready};
 }
-async function cleanup(){if(closed)return;closed=true;try{if(selected)await native('restore');}catch{}helper?.stdin.end();fixture?.stdin.end();app.quit();}
+async function cleanup(){if(closed)return;closed=true;try{if(selected){await native('restore');await new Promise(r=>setTimeout(r,100));const after=(await native('status')).bounds;fs.writeFileSync(path.join(config.output,'source-return.json'),JSON.stringify({before:originalBounds,after,returned:Math.abs(after.x-originalBounds.x)<=2&&Math.abs(after.y-originalBounds.y)<=2}));}}catch{}helper?.stdin.end();fixture?.stdin.end();app.quit();}
 app.whenReady().then(async()=>{
  const control=startNative(['controller']);helper=control.child;await control.ready;
  let fixtureId;
@@ -28,6 +28,7 @@ app.whenReady().then(async()=>{
  }
  if(!source)throw Error('Selected source window not found');
  const wid=Number(/^window:(\d+):/.exec(source.id)[1]);await native('select',{wid});selected=wid;
+ originalBounds=(await native('status')).bounds;
  const mon=config.backing;await native('park',{x:mon.x+24,y:mon.y+24});
  let status;
  for(let i=0;i<12;i++){status=await native('status');const b=status.bounds;if(b.x>=mon.x&&b.y>=mon.y&&b.x+b.width<=mon.x+mon.width&&b.y+b.height<=mon.y+mon.height)break;await new Promise(r=>setTimeout(r,100));}
