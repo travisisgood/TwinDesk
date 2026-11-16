@@ -32,3 +32,5 @@ Backing probe deadline is 120 seconds. Real Explorer/Scarlett remain separate te
 
 Three lifecycle tests pass: reuse without enable, concurrent setup enables once,
 and topology loss fails without cycling. No network/Scarlett compatibility claim.
+
+Real Explorer follow-up: completed after DPI fix; newly created marker filename appeared in the captured after image and was absent before. Source returned and display geometry stayed unchanged. PrintWindow image still has rendering artifacts and source exceeds the 1440x900 monitor; this is a content-freshness result, not visual-quality or whole-window containment acceptance. Generic input and network transfer remain unverified.
