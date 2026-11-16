@@ -23,8 +23,7 @@ after sources have returned. Physical KVM map observed as three displays with
 DISPLAY35 excluded; normal mouse crossing still requires a live user check.
 
 Run: node main.cjs <private source config JSON>. Required local config paths:
-nativeHelper, displayProbe, electron, kvmProfile, output, pairingFile. Set fixture
-true or supply sourceTitle exactly; also sourceCommit full SHA, host, port,
+nativeHelper, displayProbe, electron, kvmProfile, output, pairingFile. Testing is Explorer-only. Supply sourceWid for an exact, restored Explorer window; also sourceCommit full SHA, host, port,
 durationSeconds (15..900). LAN requires certFile/keyFile. Pairing secret is created
 after listener setup, valid five minutes, one use. Never print/commit pairingFile.
 Exchange it encrypted with the receiver's ephemeral public key.
@@ -34,4 +33,5 @@ node loopback-test.cjs <private pairing file> <source output> <receiver SHA>
 At2475aa9:10 frames,5 distinct PNGs; button count0->1 via button-invoke. Capture
 image inspected. The fixture occupied482x301 fully inside1440x900 backing display.
 These are local results, not yet Windows->Mac paired acceptance or Explorer input.
+
 
