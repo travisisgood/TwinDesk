@@ -50,17 +50,36 @@ import CryptoKit
             config.showsCursor = false
             config.ignoreShadowsSingleWindow = true
             config.capturesAudio = false
+            let rootAX = FinderAccess.window(pid: window.owningApplication!.processID, title: title)
             let viewer = viewerMode ? PortalViewer(source: window) : nil
             try await viewer?.start()
             emit(["ready": true, "wid": window.windowID, "pid": window.owningApplication!.processID])
             while let path = await Task.detached(operation: { readLine() }).value {
+                if path == "@viewer-minimize" || path == "@viewer-restore" {
+                    guard let viewer else { emit(["error": "Viewer is not enabled"]); continue }
+                    if path == "@viewer-minimize" { viewer.window.miniaturize(nil) }
+                    else { viewer.window.deminiaturize(nil) }
+                    emit(["viewerMinimized": viewer.window.isMiniaturized]); continue
+                }
+                if path.hasPrefix("@open:") {
+                    guard let rootAX else { emit(["error": "Finder AX window unavailable"]); continue }
+                    emit(FinderAccess.openItem(String(path.dropFirst(6)), window: rootAX)); continue
+                }
+                if path == "@confirm" {
+                    guard let rootAX else { emit(["error": "Finder AX window unavailable"]); continue }
+                    emit(FinderAccess.confirmSearch(window: rootAX)); continue
+                }
+                if path.hasPrefix("@text:") {
+                    guard let rootAX else { emit(["error": "Finder AX window unavailable"]); continue }
+                    emit(FinderAccess.setSearchText(String(path.dropFirst(6)), window: rootAX)); continue
+                }
                 if path.hasPrefix("@click:"), let viewer {
                     let parts = path.dropFirst(7).split(separator: ",").compactMap { Double($0) }
                     guard parts.count == 2, parts.allSatisfy({ $0.isFinite && (0...1).contains($0) }) else { emit(["error": "Invalid normalized point"]); continue }
                     viewer.click(CGPoint(x: parts[0], y: parts[1])); emit(viewer.lastInput ?? [:]); continue
                 }
                 if path == "@axdump" || path.hasPrefix("@press:") {
-                    guard let root = FinderAccess.window(pid: window.owningApplication!.processID, title: title) else { emit(["error": "Finder AX window unavailable", "accessibility": AXIsProcessTrusted()]); continue }
+                    guard let root = rootAX else { emit(["error": "Finder AX window unavailable", "accessibility": AXIsProcessTrusted()]); continue }
                     let nodes = FinderAccess.nodes(root)
                     if path == "@axdump" { emit(["elements": nodes.map { FinderAccess.describe($0) }]); continue }
                     let label = String(path.dropFirst(7))
@@ -84,7 +103,7 @@ import CryptoKit
                     let intersects = current.displays.contains { $0.frame.intersects(frame) }
                     emit(["png": path, "sha256": SHA256.hash(data: png).map { String(format: "%02x", $0) }.joined(),
                           "verification": "Inspect saved PNG for the newly created filename", "listed": now != nil, "onScreen": now?.isOnScreen ?? false,
-                          "intersectsDisplay": intersects, "frame": NSStringFromRect(frame), "streamFrames": viewer?.frames ?? 0, "snapshotFrames": viewer?.snapshotFrames ?? 0, "streamError": viewer?.lastError ?? "", "lastInput": viewer?.lastInput ?? [:]])
+                          "intersectsDisplay": intersects, "frame": NSStringFromRect(frame), "viewerMinimized": viewer?.window.isMiniaturized ?? false, "streamFrames": viewer?.frames ?? 0, "snapshotFrames": viewer?.snapshotFrames ?? 0, "streamError": viewer?.lastError ?? "", "lastInput": viewer?.lastInput ?? [:]])
                 } catch { emit(["error": String(describing: error)]) }
             }
             await viewer?.stop()

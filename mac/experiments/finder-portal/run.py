@@ -20,6 +20,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--hold', type=int, default=0, choices=range(0,61), help='Keep the minimized live viewer available for up to 60 seconds')
     parser.add_argument('--click', help='Normalized x,y point routed through the viewer click handler')
+    parser.add_argument('--local-minimize', action='store_true', help='Minimize and restore the receiver window while the source stays minimized')
+    parser.add_argument('--script-child', action='store_true', help='Test Finder-specific target scripting for a disposable child folder')
+    parser.add_argument('--open-child', action='store_true', help='Create and AXOpen only a disposable child folder')
+    parser.add_argument('--quick', action='store_true', help='Only the minimized phase, for focused input/recovery tests')
+    parser.add_argument('--confirm', action='store_true', help='Confirm the minimized source search field after setting text')
+    parser.add_argument('--text', help='Set an existing minimized Finder search field through AXValue')
     parser.add_argument('--press', help='Exact accessible description; invoked once while minimized')
     parser.add_argument('--viewer', action='store_true')
     parser.add_argument('capture', type=pathlib.Path)
@@ -35,6 +41,9 @@ def main():
     folder = out / title
     folder.mkdir()
     (folder / 'BASELINE.txt').write_text('Dedicated Finder capture fixture.\n')
+    if args.open_child or args.script_child:
+        (folder / 'PortalChild').mkdir()
+        (folder / 'PortalChild' / 'CHILDPROOF.txt').write_text('Navigation reached this disposable child folder.\n')
     # JSON string quoting also quotes this generated POSIX path for AppleScript.
     wid = script('tell application "Finder"\nset w to make new Finder window to POSIX file ' + json.dumps(str(folder)) + '\nset current view of w to list view\nset bounds of w to {100, 100, 900, 650}\nactivate\nreturn id of w\nend tell')
     if not wid.isdigit():
@@ -51,9 +60,10 @@ def main():
         capture = subprocess.Popen([str(args.capture.resolve())] + (['--viewer'] if args.viewer else []) + [title], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
         ready = receive(capture)
         results.append(ready)
+        (out / 'fixture.json').write_text(json.dumps({'finderWindowID': wid, 'capturePID': capture.pid, 'controllerPID': os.getpid(), 'title': title}))
         if not ready.get('ready'):
             raise RuntimeError(ready)
-        for phase in ['visible', 'offscreen', 'minimized', 'restored']:
+        for phase in (['minimized'] if args.quick else ['visible', 'offscreen', 'minimized', 'restored']):
             script(restore)
             if phase == 'offscreen':
                 script(f'tell application "Finder" to set bounds of Finder window id {wid} to {{-10000, 100, -9200, 650}}')
@@ -65,6 +75,9 @@ def main():
             for index in range(4):
                 if index == 1:
                     (folder / (marker + '.txt')).write_text('Created after source entered ' + phase + '.\n')
+                if args.viewer and args.local_minimize and phase == 'minimized' and index in (1, 2):
+                    capture.stdin.write(('@viewer-minimize' if index == 1 else '@viewer-restore') + '\n'); capture.stdin.flush()
+                    results.append({'viewerAction': receive(capture)})
                 time.sleep(2)
                 path = out / f'{phase}-{index}.png'
                 capture.stdin.write(str(path) + '\n')
@@ -77,6 +90,14 @@ def main():
                 if args.viewer and phase == 'minimized' and index == 0:
                     capture.stdin.write('@axdump\n'); capture.stdin.flush()
                     (out / 'minimized-ax.json').write_text(json.dumps(receive(capture), indent=2))
+                    if args.script_child:
+                        script('tell application "Finder" to set target of Finder window id ' + wid + ' to POSIX file ' + json.dumps(str(folder / 'PortalChild')))
+                        results.append({'scriptNavigation': True, 'stateAfter': script('tell application "Finder" to get {name, collapsed} of Finder window id ' + wid)})
+                    if args.open_child:
+                        capture.stdin.write('@open:PortalChild\n'); capture.stdin.flush()
+                        opened = receive(capture)
+                        results.append({'openAction': opened})
+                        (out / 'open-action.json').write_text(json.dumps(opened, indent=2))
                     if args.press or args.click:
                         command = '@click:' + args.click if args.click else '@press:' + args.press
                         if '\n' in command or '\r' in command: raise ValueError('Invalid input command')
@@ -84,10 +105,26 @@ def main():
                         action = receive(capture)
                         results.append({'inputAction': action})
                         (out / 'action.json').write_text(json.dumps(action, indent=2))
+                        capture.stdin.write('@axdump\n'); capture.stdin.flush()
+                        (out / 'after-action-ax.json').write_text(json.dumps(receive(capture), indent=2))
+                        if args.text:
+                            if '\n' in args.text or '\r' in args.text: raise ValueError('Invalid test text')
+                            capture.stdin.write('@text:' + args.text + '\n'); capture.stdin.flush()
+                            textResult = receive(capture)
+                            results.append({'textAction': textResult})
+                            (out / 'text-action.json').write_text(json.dumps(textResult, indent=2))
+                            if args.confirm:
+                                capture.stdin.write('@confirm\n'); capture.stdin.flush()
+                                confirmed = receive(capture)
+                                results.append({'confirmAction': confirmed})
+                                (out / 'confirm-action.json').write_text(json.dumps(confirmed, indent=2))
                 print(json.dumps(sample), flush=True)
                 if args.viewer and phase == 'minimized' and index == 3 and args.hold:
                     print(json.dumps({'manualViewerSeconds': args.hold, 'sourceMinimized': True}), flush=True)
-                    time.sleep(args.hold)
+                    until = time.monotonic() + args.hold
+                    while time.monotonic() < until:
+                        if capture.poll() is not None: raise RuntimeError('Viewer exited; restoring source')
+                        time.sleep(0.1)
                     capture.stdin.write(str(out / 'after-manual.png') + '\n'); capture.stdin.flush()
                     results.append({'afterManual': receive(capture)})
     finally:

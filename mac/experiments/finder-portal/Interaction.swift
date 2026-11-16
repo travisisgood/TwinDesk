@@ -37,10 +37,36 @@ enum FinderAccess {
         if let r = frame(e) { result["frame"] = NSStringFromRect(r) }
         return result
     }
+    static func openItem(_ name: String, window: AXUIElement) -> [String: Any] {
+        // Actual Finder AXOpen testing restored the minimized source. Never use
+        // that mechanism in the viewer; return a capability error instead.
+        return ["error": "Finder AXOpen is disabled: it restores the source window", "minimizedAfter": value(window, kAXMinimizedAttribute) as? Bool ?? false]
+    }
+    static func confirmSearch(window: AXUIElement) -> [String: Any] {
+        guard value(window, kAXMinimizedAttribute) as? Bool == true else { return ["error": "Source is not minimized; confirm refused"] }
+        guard let field = nodes(window).first(where: {
+            value($0, kAXRoleAttribute) as? String == kAXTextFieldRole && value($0, kAXSubroleAttribute) as? String == "AXSearchField"
+        }) else { return ["error": "No source search field"] }
+        let result = AXUIElementPerformAction(field, kAXConfirmAction as CFString)
+        return ["AXError": result.rawValue, "minimizedAfter": value(window, kAXMinimizedAttribute) as? Bool ?? false]
+    }
+    static func setSearchText(_ text: String, window: AXUIElement) -> [String: Any] {
+        guard value(window, kAXMinimizedAttribute) as? Bool == true else { return ["error": "Source is not minimized; text refused"] }
+        guard let field = nodes(window).first(where: {
+            value($0, kAXRoleAttribute) as? String == kAXTextFieldRole &&
+            value($0, kAXSubroleAttribute) as? String == "AXSearchField"
+        }) else { return ["error": "No search text field in the selected Finder window"] }
+        let result = AXUIElementSetAttributeValue(field, kAXValueAttribute as CFString, text as CFString)
+        return ["AXError": result.rawValue, "element": describe(field), "minimizedAfter": value(window, kAXMinimizedAttribute) as? Bool ?? false]
+    }
     static func press(_ e: AXUIElement, window: AXUIElement) -> [String: Any] {
         guard value(window, kAXMinimizedAttribute) as? Bool == true else { return ["error": "Source is not minimized; input refused"] }
         let subrole = value(e, kAXSubroleAttribute) as? String ?? ""
         guard !["AXCloseButton", "AXMinimizeButton", "AXZoomButton", "AXFullScreenButton"].contains(subrole) else { return ["error": "Source window-management control blocked"] }
+        let label = value(e, kAXDescriptionAttribute) as? String ?? ""
+        guard ["Name", "Size", "Kind", "Date Modified", "Search"].contains(label) else {
+            return ["error": "This control has not passed hidden-source validation", "control": label]
+        }
         let code = AXUIElementPerformAction(e, kAXPressAction as CFString)
         return ["AXError": code.rawValue, "element": describe(e), "minimizedAfter": value(window, kAXMinimizedAttribute) as? Bool ?? false]
     }

@@ -142,4 +142,52 @@ Actual follow-up observations on 2026-11-15:
 Proxy images are saved alongside requested samples as `.png.stream.png`; despite
 that historical suffix they contain whichever image the viewer currently displays
 (stream or snapshot fallback). All source-window movement, fixture creation, and
-cleanup remain isolated from TwinDesk. Keyboard events are not forwarded yet.
+cleanup remain isolated from TwinDesk. General keyboard events are not forwarded; the later search-only keyboard test is below.
+
+## Search input, navigation and recovery follow-up
+
+Actual CUA keyboard test: clicked the proxy search field, typed `minimizedproof`
+as individual native key events, then pressed Return. Finder search results
+appeared in the proxy. The after-manual sample reported source onScreen=false,
+minimizedAfter=true, 208 fallback snapshots and no capture error. Source restoration
+succeeded afterward. The viewer implements this using AXValue and AXConfirm on
+the source search field, **not** arbitrary process/global key injection. Text input
+is limited to that field, printable characters, backspace, Command-A replacement,
+and Return; general shortcuts, selection, IME and other editors are unsupported.
+
+Search activation, programmatic text assignment and AXConfirm also passed
+separately. A transient -3811 snapshot error still occurred during one restoration
+transition despite serialization; subsequent visible stream frames resumed.
+Serialization does not eliminate all transition errors.
+
+Navigation results:
+- AXOpen on a disposable child folder restored the original Finder window.
+  **Failed hidden-source requirement.** AXOpen is disabled in the normal helper;
+  `--open-child` now checks that refusal rather than repeating the unsafe behavior.
+- Finder-specific `set target of Finder window id ...` reached PortalChild and
+  captured CHILDPROOF.txt while collapsed=true/onScreen=false. This is a narrow
+  application scripting result, not generic navigation or interactive double-click
+  support. `--script-child` reproduces that isolated fixture test.
+- Proxy presses are restricted to validated types of controls; unsupported actions
+  return an error rather than falling back to global input. Only Name and Search
+  received individual live interaction tests; other sort headers use the same AX
+  path but are not independently validated.
+
+Real failure tests (`recovery_test.py <binary> <output> helper|controller`):
+- SIGKILL of our capture helper while its fixture was minimized: restored in 2.895s.
+- SIGKILL of our controller, preventing its finally block: independent guardian
+  restored the source in 1.695s. The result was recorded before test cleanup.
+Both measured the original bounds {100,100,900,650} and collapsed=false. These are
+local process-failure tests, not network disconnect tests.
+
+`--viewer --quick --local-minimize` exercises receiver-only minimize/restore.
+The regular native viewer sets the Finder application icon; actual Dock appearance
+must be checked separately from programmatic NSWindow state. `--quick` runs only
+the minimized phase. `--hold` is bounded at 60 seconds, and helper exit during that
+period now causes prompt controller cleanup.
+
+Receiver-only minimize/restore live test passed: viewerMinimized changed false ->
+true -> false while every source sample remained collapsed=true/onScreen=false.
+Fallback frames advanced from 10 to 28; cleanup restored the source. The disabled
+AXOpen command returned its capability error without exposing Finder. This tests
+local receiver window state, not a paired Windows taskbar/Dock interaction.

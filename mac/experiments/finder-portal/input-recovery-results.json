@@ -1,0 +1,171 @@
+{
+  "helperCrash": {
+    "victim": "helper",
+    "minimizedBeforeCrash": true,
+    "restored": true,
+    "elapsedSeconds": 2.895,
+    "checks": [
+      "100, 100, 900, 650, true",
+      "100, 100, 900, 650, true",
+      "100, 100, 900, 650, true",
+      "100, 100, 900, 650, true",
+      "100, 100, 900, 650, true",
+      "100, 100, 900, 650, false"
+    ]
+  },
+  "controllerCrash": {
+    "victim": "controller",
+    "minimizedBeforeCrash": true,
+    "restored": true,
+    "elapsedSeconds": 1.695,
+    "checks": [
+      "100, 100, 900, 650, true",
+      "100, 100, 900, 650, true",
+      "100, 100, 900, 650, true",
+      "100, 100, 900, 650, false"
+    ]
+  },
+  "searchText": {
+    "AXError": 0,
+    "element": {
+      "actions": [
+        "AXShowMenu",
+        "AXConfirm"
+      ],
+      "AXRole": "AXTextField",
+      "AXSubrole": "AXSearchField",
+      "AXValue": "VISIBLEPROOF",
+      "frame": "{{651, 107}, {242, 38}}"
+    },
+    "minimizedAfter": true
+  },
+  "searchConfirm": {
+    "AXError": 0,
+    "minimizedAfter": true
+  },
+  "failedAXOpen": {
+    "AXError": -25205,
+    "minimizedAfter": false
+  },
+  "keyboard": [
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 10,
+      "streamError": ""
+    },
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 17,
+      "streamError": ""
+    },
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 24,
+      "streamError": ""
+    },
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 31,
+      "streamError": ""
+    },
+    {
+      "onScreen": false,
+      "lastInput": {
+        "AXError": 0,
+        "minimizedAfter": true
+      },
+      "snapshotFrames": 208,
+      "streamError": ""
+    },
+    {
+      "restored": true
+    }
+  ],
+  "scriptNavigation": [
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 10,
+      "streamError": ""
+    },
+    {
+      "scriptNavigation": true,
+      "stateAfter": "PortalChild, true"
+    },
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 18,
+      "streamError": ""
+    },
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 25,
+      "streamError": ""
+    },
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 32,
+      "streamError": ""
+    },
+    {
+      "restored": true
+    }
+  ],
+  "receiverMinimize": [
+    {},
+    {
+      "index": 0,
+      "viewerMinimized": false,
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "snapshotFrames": 10
+    },
+    {
+      "openAction": {
+        "error": "Finder AXOpen is disabled: it restores the source window",
+        "minimizedAfter": true
+      }
+    },
+    {},
+    {
+      "index": 1,
+      "viewerMinimized": true,
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "snapshotFrames": 16
+    },
+    {},
+    {
+      "index": 2,
+      "viewerMinimized": false,
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "snapshotFrames": 22
+    },
+    {
+      "index": 3,
+      "viewerMinimized": false,
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "snapshotFrames": 28
+    },
+    {
+      "restored": true
+    }
+  ]
+}

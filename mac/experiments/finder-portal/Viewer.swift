@@ -20,7 +20,11 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
 
 @MainActor final class PortalImage: NSImageView {
     var click: ((CGPoint) -> Void)?
+    var key: ((NSEvent) -> Void)?
+    override var acceptsFirstResponder: Bool { true }
+    override func keyDown(with event: NSEvent) { key?(event) }
     override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
         guard let image else { return }
         let p = convert(event.locationInWindow, from: nil)
         let scale = min(bounds.width / image.size.width, bounds.height / image.size.height)
@@ -43,18 +47,22 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
     var snapshotTask: Task<Void, Never>?
     var lastError: String?
     var lastInput: [String: Any]?
+    var replaceSearch = false
     let source: SCWindow
-    var sourceAX: AXUIElement? { FinderAccess.window(pid: source.owningApplication!.processID, title: source.title ?? "") }
+    lazy var sourceAX: AXUIElement? = FinderAccess.window(pid: source.owningApplication!.processID, title: source.title ?? "")
     init(source: SCWindow) {
         self.source = source
         window = NSWindow(contentRect: NSRect(x: 160, y: 120, width: 800, height: 550), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         super.init()
-        window.title = "Finder Portal — standalone live capture (experimental AX clicks)"
+        NSApp.setActivationPolicy(.regular)
+        NSApp.applicationIconImage = NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
+        window.title = "Finder Portal — search and sorting"
         window.isReleasedWhenClosed = false
         window.delegate = self
         image.imageScaling = .scaleProportionallyUpOrDown
         window.contentView = image
         image.click = { [weak self] p in self?.click(p) }
+        image.key = { [weak self] e in self?.typeSearch(e) }
         sink.receive = { [weak self] cg in Task { @MainActor in
             guard let self else { return }
             self.frames += 1
@@ -88,6 +96,22 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
                 try? await Task.sleep(nanoseconds: 250_000_000)
             }
         }
+    }
+    func typeSearch(_ event: NSEvent) {
+        guard let root = sourceAX else { lastInput = ["error": "Source AX window unavailable"]; return }
+        if event.modifierFlags.contains(.command) {
+            if event.charactersIgnoringModifiers == "a" { replaceSearch = true }
+            else { lastInput = ["error": "Only search text and Command-A are supported"] }
+            return
+        }
+        if event.keyCode == 36 { lastInput = FinderAccess.confirmSearch(window: root); return }
+        guard let field = FinderAccess.nodes(root).first(where: { FinderAccess.value($0, kAXRoleAttribute) as? String == kAXTextFieldRole && FinderAccess.value($0, kAXSubroleAttribute) as? String == "AXSearchField" }) else { lastInput = ["error": "Open Search in the proxy before typing"]; return }
+        var text = replaceSearch ? "" : FinderAccess.value(field, kAXValueAttribute) as? String ?? ""
+        replaceSearch = false
+        if event.keyCode == 51 { if !text.isEmpty { text.removeLast() } }
+        else if let chars = event.characters, !event.modifierFlags.contains(.control), chars.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) { text += chars }
+        else { lastInput = ["error": "Unsupported search key"]; return }
+        lastInput = FinderAccess.setSearchText(text, window: root)
     }
     func captureFresh() async throws -> CGImage {
         while captureBusy { try await Task.sleep(nanoseconds: 10_000_000) }
