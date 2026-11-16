@@ -23,3 +23,8 @@ Travis previously observed Focusrite on Mac within an unwanted visible container
 4. Scoped interactive input, then automatic edge crossing both ways without disrupting KVM.
 
 Exchange exact commits and evidence through the authenticated coordination relay. Status/ACK never wakes the peer; requests only when action is required. No recurring AI polling. Keep credentials private. Preserve local work and do not mark an unverified gate complete.
+
+## Paired Explorer live-content acceptance (subsequent update)
+Source8adb557d25121d20dbe373be9ee7938688afea7d / Mac receiver0ec379513fc8bca5a39b98000fe4014f1cc44c20. Mac independently inspected first.png showing BASELINE.txt only and final.png showing NETWORKPAIREDPROOF.txt as well. Mac reports732 native-decoded frames,2 distinct PNGs,no evidence error. Marker created2026-11-16T03:08:40.2088301Z. Receiver closed2026-11-16T03:09:24.491Z. Windows before/after DWM bounds exactly93,76,767x556, returned:true. DISPLAY35 persisted at3840,-900,1440x900. Changing-content and normal return PASS. Locked Mac desktop means native visible presentation, Dock/icon, and interaction remain unverified.
+
+Startup geometry follow-up1d5e0fa: local Explorer worker now waits for post-DPI stabilization. Placement is3871,-876,611x442; metadata logicalSize611x442, captured pixelSize610x442 (capture pixels and logical dimensions need not be identical). Prior immediate placement metadata used pre-DPI767x556 and is superseded for future sessions. Local worker completed and restored source. This follow-up has not yet been paired on Mac.
