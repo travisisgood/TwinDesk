@@ -1,0 +1,496 @@
+{
+  "normal": [
+    {
+      "backingReady": {
+        "before": [
+          {
+            "height": 900,
+            "id": 1,
+            "width": 1440,
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "displayID": 16,
+        "ready": true,
+        "topology": [
+          {
+            "height": 900,
+            "id": 1,
+            "width": 1440,
+            "x": 0,
+            "y": 0
+          },
+          {
+            "height": 900,
+            "id": 16,
+            "width": 1280,
+            "x": 1440,
+            "y": 0
+          }
+        ]
+      }
+    },
+    {
+      "captureReady": {
+        "ready": true
+      }
+    },
+    {
+      "phase": "baseline",
+      "sample": {
+        "frame": "{{1480, 60}, {800, 550}}",
+        "intersectsDisplay": true,
+        "lastInput": {},
+        "listed": true,
+        "onScreen": true,
+        "sha256": "bbd462db6a6ef0e92a67a17e3899f8e3ea2ba1cb9de806e7a176b2b32cbe95c0",
+        "snapshotFrames": 0,
+        "streamError": "",
+        "streamFrames": 33,
+        "verification": "Inspect saved PNG for the newly created filename",
+        "viewerMinimized": false
+      },
+      "display": {
+        "displayID": 16,
+        "topology": [
+          {
+            "height": 900,
+            "id": 1,
+            "width": 1440,
+            "x": 0,
+            "y": 0
+          },
+          {
+            "height": 900,
+            "id": 16,
+            "width": 1280,
+            "x": 1440,
+            "y": 0
+          }
+        ]
+      },
+      "finderState": "1480, 60, 2280, 610, false"
+    },
+    {
+      "phase": "changed",
+      "sample": {
+        "frame": "{{1480, 60}, {800, 550}}",
+        "intersectsDisplay": true,
+        "lastInput": {},
+        "listed": true,
+        "onScreen": true,
+        "sha256": "cb5e8c57900524054059d0fee4b944ce664e1bd0224ef0b484e0acf4ce53a1a4",
+        "snapshotFrames": 0,
+        "streamError": "",
+        "streamFrames": 68,
+        "verification": "Inspect saved PNG for the newly created filename",
+        "viewerMinimized": false
+      },
+      "display": {
+        "displayID": 16,
+        "topology": [
+          {
+            "height": 900,
+            "id": 1,
+            "width": 1440,
+            "x": 0,
+            "y": 0
+          },
+          {
+            "height": 900,
+            "id": 16,
+            "width": 1280,
+            "x": 1440,
+            "y": 0
+          }
+        ]
+      },
+      "finderState": "1480, 60, 2280, 610, false"
+    },
+    {
+      "rawSort": {
+        "after": {
+          "actions": [
+            "AXPress"
+          ],
+          "AXDescription": "Name",
+          "AXMinimized": false,
+          "AXRole": "AXButton",
+          "AXValue": "AXAscendingSortDirection",
+          "frame": "{{1649, 112}, {222, 28}}"
+        },
+        "before": {
+          "actions": [
+            "AXPress"
+          ],
+          "AXDescription": "Name",
+          "AXMinimized": false,
+          "AXRole": "AXButton",
+          "AXValue": "AXAscendingSortDirection",
+          "frame": "{{1649, 112}, {222, 28}}"
+        },
+        "method": "CGEvent.postToPid plus explicit window fields",
+        "minimizedAfter": false
+      }
+    },
+    {
+      "semanticSort": {
+        "AXError": 0,
+        "element": {
+          "actions": [
+            "AXPress"
+          ],
+          "AXDescription": "Name",
+          "AXMinimized": false,
+          "AXRole": "AXButton",
+          "AXValue": "AXDescendingSortDirection",
+          "frame": "{{1649, 112}, {222, 28}}"
+        },
+        "minimizedAfter": false
+      }
+    },
+    {
+      "afterInput": {
+        "frame": "{{1480, 60}, {800, 550}}",
+        "intersectsDisplay": true,
+        "lastInput": {},
+        "listed": true,
+        "onScreen": true,
+        "sha256": "b11a5f32f01d2cc3ce9fb24df1dc247ad9b6fc8a84195626cad799117ffd439a",
+        "snapshotFrames": 0,
+        "streamError": "",
+        "streamFrames": 84,
+        "verification": "Inspect saved PNG for the newly created filename",
+        "viewerMinimized": false
+      }
+    },
+    {
+      "localMinimize": {
+        "viewerMinimized": false
+      }
+    },
+    {
+      "localRestore": {
+        "viewerMinimized": true
+      }
+    },
+    {
+      "afterLocalRestore": {
+        "frame": "{{1480, 60}, {800, 550}}",
+        "intersectsDisplay": true,
+        "lastInput": {},
+        "listed": true,
+        "onScreen": true,
+        "sha256": "b11a5f32f01d2cc3ce9fb24df1dc247ad9b6fc8a84195626cad799117ffd439a",
+        "snapshotFrames": 0,
+        "streamError": "",
+        "streamFrames": 109,
+        "verification": "Inspect saved PNG for the newly created filename",
+        "viewerMinimized": false
+      }
+    },
+    {
+      "phase": "returned",
+      "sample": {
+        "frame": "{{100, 100}, {800, 550}}",
+        "intersectsDisplay": true,
+        "lastInput": {},
+        "listed": true,
+        "onScreen": true,
+        "sha256": "01d8f732c60833842e1affb29032814dc44f4e992b3ddacbc380799a91ba8d04",
+        "snapshotFrames": 0,
+        "streamError": "",
+        "streamFrames": 144,
+        "verification": "Inspect saved PNG for the newly created filename",
+        "viewerMinimized": false
+      },
+      "display": {
+        "displayID": 16,
+        "topology": [
+          {
+            "height": 900,
+            "id": 1,
+            "width": 1440,
+            "x": 0,
+            "y": 0
+          },
+          {
+            "height": 900,
+            "id": 16,
+            "width": 1280,
+            "x": 1440,
+            "y": 0
+          }
+        ]
+      },
+      "finderState": "100, 100, 900, 650, false"
+    },
+    {
+      "phase": "reparked",
+      "sample": {
+        "frame": "{{1480, 60}, {800, 550}}",
+        "intersectsDisplay": true,
+        "lastInput": {},
+        "listed": true,
+        "onScreen": true,
+        "sha256": "b11a5f32f01d2cc3ce9fb24df1dc247ad9b6fc8a84195626cad799117ffd439a",
+        "snapshotFrames": 0,
+        "streamError": "",
+        "streamFrames": 200,
+        "verification": "Inspect saved PNG for the newly created filename",
+        "viewerMinimized": false
+      },
+      "display": {
+        "displayID": 16,
+        "topology": [
+          {
+            "height": 900,
+            "id": 1,
+            "width": 1440,
+            "x": 0,
+            "y": 0
+          },
+          {
+            "height": 900,
+            "id": 16,
+            "width": 1280,
+            "x": 1440,
+            "y": 0
+          }
+        ]
+      },
+      "finderState": "1480, 60, 2280, 610, false"
+    },
+    {
+      "afterCaptureExit": {
+        "displayID": 16,
+        "topology": [
+          {
+            "height": 900,
+            "id": 1,
+            "width": 1440,
+            "x": 0,
+            "y": 0
+          },
+          {
+            "height": 900,
+            "id": 16,
+            "width": 1280,
+            "x": 1440,
+            "y": 0
+          }
+        ]
+      }
+    },
+    {
+      "restored": true,
+      "finalFinderState": "100, 100, 900, 650, false"
+    },
+    {
+      "backingExit": 0
+    }
+  ],
+  "holderFailure": [
+    {
+      "backingReady": {
+        "before": [
+          {
+            "height": 900,
+            "id": 1,
+            "width": 1440,
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "displayID": 17,
+        "ready": true,
+        "topology": [
+          {
+            "height": 900,
+            "id": 1,
+            "width": 1440,
+            "x": 0,
+            "y": 0
+          },
+          {
+            "height": 900,
+            "id": 17,
+            "width": 1280,
+            "x": 1440,
+            "y": 0
+          }
+        ]
+      }
+    },
+    {
+      "captureReady": {
+        "ready": true
+      }
+    },
+    {
+      "phase": "baseline",
+      "sample": {
+        "frame": "{{1480, 60}, {800, 550}}",
+        "intersectsDisplay": true,
+        "lastInput": {},
+        "listed": true,
+        "onScreen": true,
+        "sha256": "2a282213f792c7027fbf858c859a5f62af9071a7ccc77928c3ffa0ead2826109",
+        "snapshotFrames": 0,
+        "streamError": "",
+        "streamFrames": 33,
+        "verification": "Inspect saved PNG for the newly created filename",
+        "viewerMinimized": false
+      },
+      "display": {
+        "displayID": 17,
+        "topology": [
+          {
+            "height": 900,
+            "id": 1,
+            "width": 1440,
+            "x": 0,
+            "y": 0
+          },
+          {
+            "height": 900,
+            "id": 17,
+            "width": 1280,
+            "x": 1440,
+            "y": 0
+          }
+        ]
+      },
+      "finderState": "1480, 60, 2280, 610, false"
+    },
+    {
+      "phase": "changed",
+      "sample": {
+        "frame": "{{1480, 60}, {800, 550}}",
+        "intersectsDisplay": true,
+        "lastInput": {},
+        "listed": true,
+        "onScreen": true,
+        "sha256": "83bb37903c71f56f439ddca55b0f46dd2f86d2869aee1f99c342023c500e40cf",
+        "snapshotFrames": 0,
+        "streamError": "",
+        "streamFrames": 68,
+        "verification": "Inspect saved PNG for the newly created filename",
+        "viewerMinimized": false
+      },
+      "display": {
+        "displayID": 17,
+        "topology": [
+          {
+            "height": 900,
+            "id": 1,
+            "width": 1440,
+            "x": 0,
+            "y": 0
+          },
+          {
+            "height": 900,
+            "id": 17,
+            "width": 1280,
+            "x": 1440,
+            "y": 0
+          }
+        ]
+      },
+      "finderState": "1480, 60, 2280, 610, false"
+    },
+    {
+      "rawSort": {
+        "after": {
+          "actions": [
+            "AXPress"
+          ],
+          "AXDescription": "Name",
+          "AXMinimized": false,
+          "AXRole": "AXButton",
+          "AXValue": "AXAscendingSortDirection",
+          "frame": "{{1649, 112}, {222, 28}}"
+        },
+        "before": {
+          "actions": [
+            "AXPress"
+          ],
+          "AXDescription": "Name",
+          "AXMinimized": false,
+          "AXRole": "AXButton",
+          "AXValue": "AXAscendingSortDirection",
+          "frame": "{{1649, 112}, {222, 28}}"
+        },
+        "method": "CGEvent.postToPid plus explicit window fields",
+        "minimizedAfter": false
+      }
+    },
+    {
+      "semanticSort": {
+        "AXError": 0,
+        "element": {
+          "actions": [
+            "AXPress"
+          ],
+          "AXDescription": "Name",
+          "AXMinimized": false,
+          "AXRole": "AXButton",
+          "AXValue": "AXDescendingSortDirection",
+          "frame": "{{1649, 112}, {222, 28}}"
+        },
+        "minimizedAfter": false
+      }
+    },
+    {
+      "afterInput": {
+        "frame": "{{1480, 60}, {800, 550}}",
+        "intersectsDisplay": true,
+        "lastInput": {},
+        "listed": true,
+        "onScreen": true,
+        "sha256": "0bf4474e417a1337c1406a9dbbc151e732348befc3d1865c727699bf9c75f65e",
+        "snapshotFrames": 0,
+        "streamError": "",
+        "streamFrames": 83,
+        "verification": "Inspect saved PNG for the newly created filename",
+        "viewerMinimized": false
+      }
+    },
+    {
+      "localMinimize": {
+        "viewerMinimized": false
+      }
+    },
+    {
+      "localRestore": {
+        "viewerMinimized": true
+      }
+    },
+    {
+      "afterLocalRestore": {
+        "frame": "{{1480, 60}, {800, 550}}",
+        "intersectsDisplay": true,
+        "lastInput": {},
+        "listed": true,
+        "onScreen": true,
+        "sha256": "0bf4474e417a1337c1406a9dbbc151e732348befc3d1865c727699bf9c75f65e",
+        "snapshotFrames": 0,
+        "streamError": "",
+        "streamFrames": 108,
+        "verification": "Inspect saved PNG for the newly created filename",
+        "viewerMinimized": false
+      }
+    },
+    {
+      "injectedHolderFailure": true
+    },
+    {
+      "restored": true,
+      "finalFinderState": "100, 100, 900, 650, false"
+    },
+    {
+      "backingExit": -9
+    }
+  ]
+}

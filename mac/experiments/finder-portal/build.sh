@@ -7,6 +7,7 @@ out="$(cd "$out" && pwd)"
 app="$out/Finder Portal Probe.app"
 mkdir -p "$app/Contents/MacOS" "$out/module-cache"
 swiftc -parse-as-library -module-cache-path "$out/module-cache" "$src/Capture.swift" "$src/Interaction.swift" "$src/Viewer.swift" "$src/RawInputProbe.swift" -o "$app/Contents/MacOS/FinderPortalCapture"
+swiftc -parse-as-library -module-cache-path "$out/module-cache" -I "$src/../../../mac-helper/Sources/VirtualDisplayBridge/include" "$src/BackingDisplay.swift" -o "$app/Contents/MacOS/FinderPortalBacking"
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -21,8 +22,10 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 </dict></plist>
 PLIST
 if [ -n "${MAC_IDENTITY:-}" ]; then
+  codesign --force --sign "$MAC_IDENTITY" --timestamp=none "$app/Contents/MacOS/FinderPortalBacking"
   codesign --force --sign "$MAC_IDENTITY" --timestamp=none "$app"
 else
+  codesign --force --sign - "$app/Contents/MacOS/FinderPortalBacking"
   codesign --force --sign - "$app"
 fi
 codesign --verify --deep --strict "$app"

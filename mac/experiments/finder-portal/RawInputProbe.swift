@@ -4,7 +4,7 @@ import Cocoa
 // Never advertised as a viewer capability. No HID/session/global event posting.
 enum RawInputProbe {
     @MainActor static func sort(window: AXUIElement, wid: CGWindowID, pid: pid_t) async -> [String: Any] {
-        guard FinderAccess.value(window, kAXMinimizedAttribute) as? Bool == true,
+        guard FinderAccess.inputAllowed(window),
               let header = FinderAccess.nodes(window).first(where: { FinderAccess.value($0, kAXDescriptionAttribute) as? String == "Name" }),
               let frame = FinderAccess.frame(header) else { return ["error": "Minimized fixture Name header unavailable"] }
         let before = FinderAccess.describe(header)

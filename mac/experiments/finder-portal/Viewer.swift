@@ -35,6 +35,11 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
     }
 }
 
+@MainActor final class PortalWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
 @MainActor final class PortalViewer: NSObject, NSWindowDelegate {
     let window: NSWindow
     let image = PortalImage()
@@ -52,7 +57,7 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
     lazy var sourceAX: AXUIElement? = FinderAccess.window(pid: source.owningApplication!.processID, title: source.title ?? "")
     init(source: SCWindow) {
         self.source = source
-        window = NSWindow(contentRect: NSRect(x: 160, y: 120, width: 800, height: 550), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        window = PortalWindow(contentRect: NSRect(x: 160, y: 120, width: 800, height: 550), styleMask: FinderAccess.backingDisplayID == nil ? [.titled, .closable, .miniaturizable, .resizable] : [.borderless, .miniaturizable, .resizable], backing: .buffered, defer: false)
         super.init()
         NSApp.setActivationPolicy(.regular)
         NSApp.applicationIconImage = NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
@@ -76,6 +81,7 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
         cfg.minimumFrameInterval = CMTime(value: 1, timescale: 15)
         cfg.queueDepth = 3; cfg.showsCursor = false; cfg.capturesAudio = false
         cfg.ignoreShadowsSingleWindow = true
+        cfg.scalesToFit = true
         captureConfig = cfg
         let stream = SCStream(filter: SCContentFilter(desktopIndependentWindow: source), configuration: cfg, delegate: sink)
         try stream.addStreamOutput(sink, type: .screen, sampleHandlerQueue: DispatchQueue(label: "finder.portal.frames"))

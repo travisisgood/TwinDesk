@@ -23,7 +23,15 @@ import CryptoKit
                 return
             }
             let viewerMode = CommandLine.arguments.contains("--viewer")
-            guard CommandLine.arguments.count == (viewerMode ? 3 : 2) else { throw NSError(domain: "Usage: Capture unique-window-title", code: 1) }
+            let backingIndex = CommandLine.arguments.firstIndex(of: "--backing")
+            if let index = backingIndex, index + 1 < CommandLine.arguments.count {
+                guard let id = UInt32(CommandLine.arguments[index + 1]), CGDisplayIsOnline(id) != 0,
+                      CGDisplayVendorNumber(id) == 0x4d53, CGDisplayModelNumber(id) == 0x4650 else {
+                    throw NSError(domain: "Invalid experiment backing display", code: 3)
+                }
+                FinderAccess.backingDisplayID = id
+            }
+            guard CommandLine.arguments.count == (viewerMode ? 3 : 2) + (backingIndex == nil ? 0 : 2) else { throw NSError(domain: "Usage: Capture unique-window-title", code: 1) }
             let title = CommandLine.arguments.last!
             if title == "--accessibility" || title == "--request-accessibility" {
                 let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: title == "--request-accessibility"] as CFDictionary
@@ -49,6 +57,7 @@ import CryptoKit
             config.height = Int(window.frame.height * 2)
             config.showsCursor = false
             config.ignoreShadowsSingleWindow = true
+            config.scalesToFit = true
             config.capturesAudio = false
             let rootAX = FinderAccess.window(pid: window.owningApplication!.processID, title: title)
             let viewer = viewerMode ? PortalViewer(source: window) : nil

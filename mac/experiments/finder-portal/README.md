@@ -1,8 +1,10 @@
 # Standalone Finder window capture experiment
 
 This is an isolated native command-line probe, not a TwinDesk build or integration.
-It imports no TwinDesk code and creates no displays, network sessions, event taps,
-or global input. It does not implement network transfer. The optional native viewer experiments
+The original `run.py` minimized/offscreen experiment creates no displays. The
+separate `backing_test.py` now tests the user-approved persistent backing-display
+design, using the existing private display API header. Neither creates network
+sessions, event taps, or global input. It does not implement network transfer. The optional native viewer experiments
 with window-scoped Accessibility presses; general input is not implemented.
 
 Windows reference inspected: `window-only-poc` at
@@ -212,3 +214,65 @@ not move, but **sort order did not change**. This raw-input path failed the acti
 test; it is not a normal viewer capability and is never a fallback for AX input.
 It says nothing about raw keyboard support. The source code is retained solely
 as a reproducible bounded diagnostic.
+
+
+## Persistent backing-display experiment (architecture revision)
+
+The user explicitly approved persistent backing displays with **individual window
+receivers only**. Previous minimized/offscreen evidence remains intact. No
+whole-desktop stream, TwinDesk integration, or shared protocol change is included.
+
+```sh
+python3 mac/experiments/finder-portal/backing_test.py \
+  '/absolute/output/finder-portal/Finder Portal Probe.app/Contents/MacOS/FinderPortalCapture' \
+  /absolute/output/backing-results
+```
+
+`FinderPortalBacking` owns one 1280×900 display for this bounded session (180-second
+maximum), placed to the right of the existing display union. It verifies existing
+display geometry is unchanged and that the new display is independent, not mirrored.
+The holder retains the display across source returns, re-parking, and capture-process
+exit. It removes it only on session exit/EOF/timeout. The test restores its own
+Finder fixture first; an independent guardian covers controller disappearance.
+This is session persistence, not a login service or permanent OS display.
+
+Capture uses the individual Finder window filter. The backing-mode receiver is
+borderless, so there is no second Mac title bar around the captured Finder window.
+Explicit scale-to-fit fixes blank padding when a 1× backing display feeds a 2×
+configured stream. Input is permitted only while the selected fixture is wholly
+inside the expected experiment display; no input action relocates the source.
+The original minimized-mode guards remain in place when no backing ID is supplied.
+
+Actual Mac tests: Finder remained at (1480,60), 800×550 on the backing display,
+while the physical display stayed at (0,0), 1440×900. A newly created
+`BACKINGLIVEPROOF.txt` appeared in the native receiver's **SCStream image**, visually
+inspected against its absent baseline. Stream frames advanced and snapshot fallback
+count stayed zero. Returning to (100,100) and re-parking retained the same display
+ID and topology. Receiver-only minimize/restore preserved source placement.
+Accessibility Name sorting succeeded. The process-targeted raw mouse diagnostic
+still did not change the sort, so general mouse input remains unsupported.
+
+`--fail-holder` kills only the experiment holder to exercise source restoration.
+The injected holder-termination run restored the fixture to its original physical
+bounds through controller cleanup; unexpected controller death in backing mode
+is not yet live-tested. Normal capture EOF left the holder display unchanged.
+Measured sanitized results are in `backing-results.json`; images and full logs
+remain in the local output directory.
+
+Limitations: private macOS display API, fixed right-edge arrangement and resolution,
+one disposable Finder window, no network transfer or automatic edge dragging,
+no owned-popup capture, no general raw keyboard/mouse, no receiver title-bar button
+routing, and no paired Windows validation. The standalone test has no KVM layout
+map; filtering the backing display from TwinDesk's physical map remains integration
+work. Crash recovery measurements for the original minimized experiment must not
+be treated as proof for this new architecture. No Scarlett/audio settings changed.
+
+
+Peer review at this checkpoint: fetched `coordination-relay` at `1aa368a` and
+read its revised architecture note, `window-only-poc` remains `0033a84`, and
+`windows-network-monitor` is `89c2072`. The shared note still lists old Mac
+checkpoint/evidence below its superseding design paragraph. Sent updated evidence
+through the relay; did not independently edit shared coordination or Windows files.
+Windows' source-display reuse and this experiment's retained holder are compatible
+in lifetime intent. Exact peer layout negotiation and isolated transport remain
+unagreed/unimplemented, so fixed right-edge placement is only a local test choice.

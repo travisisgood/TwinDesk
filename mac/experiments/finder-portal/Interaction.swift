@@ -2,6 +2,16 @@ import Cocoa
 
 // Only touches the selected disposable Finder window; no global input injection.
 enum FinderAccess {
+    static var backingDisplayID: CGDirectDisplayID?
+    static func inputAllowed(_ window: AXUIElement) -> Bool {
+        if let id = backingDisplayID {
+            guard CGDisplayIsOnline(id) != 0, CGDisplayIsInMirrorSet(id) == 0,
+                  CGDisplayVendorNumber(id) == 0x4d53, CGDisplayModelNumber(id) == 0x4650,
+                  let frame = frame(window) else { return false }
+            return CGDisplayBounds(id).contains(frame)
+        }
+        return value(window, kAXMinimizedAttribute) as? Bool == true
+    }
     static func value(_ e: AXUIElement, _ name: String) -> CFTypeRef? {
         var v: CFTypeRef?
         return AXUIElementCopyAttributeValue(e, name as CFString, &v) == .success ? v : nil
@@ -43,7 +53,7 @@ enum FinderAccess {
         return ["error": "Finder AXOpen is disabled: it restores the source window", "minimizedAfter": value(window, kAXMinimizedAttribute) as? Bool ?? false]
     }
     static func confirmSearch(window: AXUIElement) -> [String: Any] {
-        guard value(window, kAXMinimizedAttribute) as? Bool == true else { return ["error": "Source is not minimized; confirm refused"] }
+        guard inputAllowed(window) else { return ["error": "Source is neither minimized nor on the selected backing display; confirm refused"] }
         guard let field = nodes(window).first(where: {
             value($0, kAXRoleAttribute) as? String == kAXTextFieldRole && value($0, kAXSubroleAttribute) as? String == "AXSearchField"
         }) else { return ["error": "No source search field"] }
@@ -51,7 +61,7 @@ enum FinderAccess {
         return ["AXError": result.rawValue, "minimizedAfter": value(window, kAXMinimizedAttribute) as? Bool ?? false]
     }
     static func setSearchText(_ text: String, window: AXUIElement) -> [String: Any] {
-        guard value(window, kAXMinimizedAttribute) as? Bool == true else { return ["error": "Source is not minimized; text refused"] }
+        guard inputAllowed(window) else { return ["error": "Source is neither minimized nor on the selected backing display; text refused"] }
         guard let field = nodes(window).first(where: {
             value($0, kAXRoleAttribute) as? String == kAXTextFieldRole &&
             value($0, kAXSubroleAttribute) as? String == "AXSearchField"
@@ -60,7 +70,7 @@ enum FinderAccess {
         return ["AXError": result.rawValue, "element": describe(field), "minimizedAfter": value(window, kAXMinimizedAttribute) as? Bool ?? false]
     }
     static func press(_ e: AXUIElement, window: AXUIElement) -> [String: Any] {
-        guard value(window, kAXMinimizedAttribute) as? Bool == true else { return ["error": "Source is not minimized; input refused"] }
+        guard inputAllowed(window) else { return ["error": "Source is neither minimized nor on the selected backing display; input refused"] }
         let subrole = value(e, kAXSubroleAttribute) as? String ?? ""
         guard !["AXCloseButton", "AXMinimizeButton", "AXZoomButton", "AXFullScreenButton"].contains(subrole) else { return ["error": "Source window-management control blocked"] }
         let label = value(e, kAXDescriptionAttribute) as? String ?? ""
