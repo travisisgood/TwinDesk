@@ -130,7 +130,11 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
         guard let root = sourceAX else { lastInput = ["error": "Accessibility access unavailable"]; return }
         let r = FinderAccess.frame(root) ?? source.frame
         let p = CGPoint(x: r.minX + point.x * r.width, y: r.minY + point.y * r.height)
-        let candidates = FinderAccess.nodes(root).filter { e in
+        let nodes = FinderAccess.nodes(root)
+        if FinderAccess.backingDisplayID != nil, let field = nodes.first(where: {
+            FinderAccess.value($0, kAXSubroleAttribute) as? String == "AXSearchField" && FinderAccess.frame($0)?.contains(p) == true
+        }) { lastInput = FinderAccess.focusSearch(field, window: root); return }
+        let candidates = nodes.filter { e in
             guard FinderAccess.frame(e)?.contains(p) == true else { return false }
             var actions: CFArray?
             return AXUIElementCopyActionNames(e, &actions) == .success && (actions as? [String] ?? []).contains(kAXPressAction)

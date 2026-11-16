@@ -1,0 +1,131 @@
+{
+  "wire": "window-portal-v1 accepted ce24665",
+  "macSourceCommit": "c8f2bff2d8bfa7d00b0e751b942a17d0d0afa7b7",
+  "windowsReceiverCommit": "125ce778404d21192a26a4ca52833bc911c4322b",
+  "sourceBacking": {
+    "height": 900,
+    "id": 26,
+    "width": 1280,
+    "x": -1280,
+    "y": 0
+  },
+  "sourcePhysicalMap": [
+    "{{0, 0}, {1440, 900}}"
+  ],
+  "sourceUnits": "macOS points",
+  "logicalWindowSize": {
+    "width": 800,
+    "height": 550
+  },
+  "encodedPixelSize": {
+    "width": 1600,
+    "height": 1100
+  },
+  "macMeasured": {
+    "recovery": {
+      "restored": true,
+      "state": "100, 100, 900, 650, false"
+    },
+    "marker": {
+      "marker": "NETWORKPAIREDPROOF.txt",
+      "afterWindowsBaselineAck": true,
+      "sourceState": "-1240, 60, -440, 610, false",
+      "createdAt": 1794794103.0866618
+    },
+    "inputEvents": [
+      {
+        "at": "2026-11-16T01:54:39.535Z",
+        "event": "inputResult",
+        "seq": 1,
+        "op": "pressAt",
+        "status": "dispatched"
+      },
+      {
+        "at": "2026-11-16T01:55:02.304Z",
+        "event": "inputResult",
+        "seq": 2,
+        "op": "pressAt",
+        "status": "dispatched"
+      },
+      {
+        "at": "2026-11-16T01:55:57.441Z",
+        "event": "inputResult",
+        "seq": 3,
+        "op": "pressAt",
+        "status": "unsupported"
+      },
+      {
+        "at": "2026-11-16T01:55:58.879Z",
+        "event": "inputResult",
+        "seq": 4,
+        "op": "pressAt",
+        "status": "unsupported"
+      },
+      {
+        "at": "2026-11-16T01:56:01.330Z",
+        "event": "inputResult",
+        "seq": 5,
+        "op": "pressAt",
+        "status": "unsupported"
+      },
+      {
+        "at": "2026-11-16T01:56:02.177Z",
+        "event": "inputResult",
+        "seq": 6,
+        "op": "pressAt",
+        "status": "unsupported"
+      },
+      {
+        "at": "2026-11-16T01:58:10.145Z",
+        "event": "inputResult",
+        "seq": 7,
+        "op": "setSearchText",
+        "status": "dispatched"
+      },
+      {
+        "at": "2026-11-16T01:58:10.323Z",
+        "event": "inputResult",
+        "seq": 8,
+        "op": "confirmSearch",
+        "status": "dispatched"
+      }
+    ],
+    "lastLoggedFrameAck": 1600,
+    "closeEvents": [
+      {
+        "at": "2026-11-16T01:58:46.816Z",
+        "event": "sessionEnded",
+        "reason": "Receiver closed",
+        "authenticated": true
+      }
+    ],
+    "backingSurvivedReceiverClose": true,
+    "backingAfterClose": {
+      "id": 26,
+      "x": -1280,
+      "y": 0,
+      "width": 1280,
+      "height": 900,
+      "parking": true
+    }
+  },
+  "windowsReported": {
+    "messageId": "d3c44c43-16b7-42be-9175-8e20e7adfb3a",
+    "baselineBeforeMarker": true,
+    "markerVisuallyAppeared": true,
+    "nameSortVisuallyChanged": true,
+    "searchOpened": true,
+    "searchTextAndResultsVisuallyVerified": true,
+    "localMinimizeRestore": true,
+    "closedWithLocalShortcut": true
+  },
+  "notVerified": [
+    "actual Windows taskbar logo rendering",
+    "Windows to Mac source/receiver pairing",
+    "automatic titlebar crossing and return drag",
+    "arbitrary raw input",
+    "owned popups/dialogs",
+    "REAPER and Scarlett"
+  ],
+  "note": "Windows visual results are peer-reported; Mac source state and event log were measured locally. No TwinDesk rebuild."
+}

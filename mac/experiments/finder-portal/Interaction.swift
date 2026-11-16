@@ -52,6 +52,18 @@ enum FinderAccess {
         // that mechanism in the viewer; return a capability error instead.
         return ["error": "Finder AXOpen is disabled: it restores the source window", "minimizedAfter": value(window, kAXMinimizedAttribute) as? Bool ?? false]
     }
+    static func focusSearch(_ field: AXUIElement, window: AXUIElement) -> [String: Any] {
+        // Do not extend minimized-window input semantics: focus may unminimize
+        // other apps. This path is only for a live window on our backing display.
+        guard backingDisplayID != nil, inputAllowed(window),
+              value(field, kAXRoleAttribute) as? String == kAXTextFieldRole,
+              value(field, kAXSubroleAttribute) as? String == "AXSearchField" else {
+            return ["error": "Search focus requires the backing source"]
+        }
+        let result = AXUIElementSetAttributeValue(field, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        return ["AXError": result.rawValue, "backingAfter": inputAllowed(window),
+                "frameAfter": NSStringFromRect(frame(window) ?? .null)]
+    }
     static func confirmSearch(window: AXUIElement) -> [String: Any] {
         guard inputAllowed(window) else { return ["error": "Source is neither minimized nor on the selected backing display; confirm refused"] }
         guard let field = nodes(window).first(where: {

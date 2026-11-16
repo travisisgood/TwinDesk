@@ -6,6 +6,7 @@ from run import script, receive
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--search-focus', action='store_true', help='Test focus and text in an expanded backing Finder search field')
     parser.add_argument('--fail-holder', action='store_true', help='Kill only the experiment display holder and verify restoration')
     parser.add_argument('capture', type=pathlib.Path)
     parser.add_argument('output', type=pathlib.Path)
@@ -58,6 +59,18 @@ def main():
                 results.append({'rawSort': command(capture, '@raw-sort')})
                 results.append({'semanticSort': command(capture, '@press:Name')})
                 results.append({'afterInput': command(capture, str(out / 'after-input.png'))})
+                if args.search_focus:
+                    results.append({'openSearch': command(capture, '@press:Search')})
+                    time.sleep(1)
+                    elements = command(capture, '@axdump')['elements']
+                    field = next(e for e in elements if e.get('AXSubrole') == 'AXSearchField')
+                    import re
+                    fx, fy, fw, fh = [float(n) for n in re.findall(r'-?\d+(?:\.\d+)?', field['frame'])]
+                    results.append({'focusSearch': command(capture, '@click:' + str((fx+fw/2-x)/800) + ',' + str((fy+fh/2-y)/550))})
+                    results.append({'searchText': command(capture, '@text-json:' + json.dumps({'text':'BACKINGLIVEPROOF'}))})
+                    results.append({'confirmSearch': command(capture, '@confirm')})
+                    time.sleep(2)
+                    results.append({'afterSearch': command(capture, str(out / 'after-search.png'))})
                 results.append({'localMinimize': command(capture, '@viewer-minimize')})
                 time.sleep(1)
                 results.append({'localRestore': command(capture, '@viewer-restore')})

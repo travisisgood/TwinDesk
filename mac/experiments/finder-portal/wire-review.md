@@ -1,5 +1,9 @@
 # Mac review of standalone wire v1
 
+Status update: all amendments below were accepted by Windows in `ce24665`.
+The original review text is preserved as history; implementation now follows
+the accepted contract.
+
 Reviewed proposal: `coordination-relay`
 `9c2f9cfd7504674fe2059935aaa03cc6a5fba964`,
 `docs/window-portal-wire-v1.txt`. Mac implementation checkpoint:

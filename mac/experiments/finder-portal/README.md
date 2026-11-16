@@ -382,3 +382,14 @@ but Windows did not inspect a later marker snapshot or exercise input before its
 deadline. Therefore paired changing-content, input and taskbar-logo acceptance
 remain outstanding. The first run used the original right-side test backing;
 the corrected left-side/excluded candidate requires a separate paired run.
+
+Paired follow-up evidence is now in `paired-results.md` and `paired-results.json`.
+It distinguishes Mac measurements from Windows' native UI observations.
+
+Following that paired run, `pressAt` on an already-expanded Finder Search field
+now uses AXFocused instead of requiring AXPress. This is restricted to a source
+still wholly on the experiment backing display; minimized-source behavior is
+unchanged. Real `backing_test.py --search-focus` passed: AX focus returned success,
+backingAfter stayed true, query text and results appeared in the captured window,
+and normal return/re-park/receiver-close restoration still passed. The paired
+checkpoint predates this fix, so do not retroactively attribute it to that run.

@@ -1,0 +1,35 @@
+[
+  {
+    "focusSearch": {
+      "AXError": 0,
+      "backingAfter": true,
+      "frameAfter": "{{1480, 60}, {800, 550}}"
+    }
+  },
+  {
+    "searchText": {
+      "AXError": 0,
+      "element": {
+        "actions": [
+          "AXShowMenu",
+          "AXConfirm"
+        ],
+        "AXRole": "AXTextField",
+        "AXSubrole": "AXSearchField",
+        "AXValue": "BACKINGLIVEPROOF",
+        "frame": "{{2031, 67}, {242, 38}}"
+      },
+      "minimizedAfter": false
+    }
+  },
+  {
+    "confirmSearch": {
+      "AXError": 0,
+      "minimizedAfter": false
+    }
+  },
+  {
+    "restored": true,
+    "finalFinderState": "100, 100, 900, 650, false"
+  }
+]
