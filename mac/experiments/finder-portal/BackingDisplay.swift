@@ -18,14 +18,21 @@ import VirtualDisplayBridge
         }
     }
     @MainActor static func main() {
-        let seconds = CommandLine.arguments.count == 2 ? Int(CommandLine.arguments[1]) ?? 0 : 180
+        let seconds = CommandLine.arguments.count >= 2 ? Int(CommandLine.arguments[1]) ?? 0 : 180
         guard (30...3600).contains(seconds) else { emit(["error": "Duration must be 30..3600 seconds"]); return }
+        var explicitOrigin: CGPoint?
+        if CommandLine.arguments.count == 4 {
+            guard let x = Int32(CommandLine.arguments[2]), let y = Int32(CommandLine.arguments[3]), abs(Int64(x)) <= 100000, abs(Int64(y)) <= 100000 else {
+                emit(["error": "Invalid backing origin"]); return
+            }
+            explicitOrigin = CGPoint(x: Int(x), y: Int(y))
+        } else if CommandLine.arguments.count > 2 { emit(["error": "Usage: holder [seconds [x y]]"]); return }
         let app = NSApplication.shared
         Task { @MainActor in
             let before = topology()
             let descriptor = CGVirtualDisplayDescriptor()
-            descriptor.name = "Finder Portal Backing (Experiment)"
-            descriptor.vendorID = 0x4d53; descriptor.productID = 0x4650; descriptor.serialNum = 1
+            descriptor.name = "TwinDesk Window Finder Portal (Experiment)"
+            descriptor.vendorID = 0x4d53; descriptor.productID = 0x4d54; descriptor.serialNum = 0x4650
             descriptor.maxPixelsWide = 1280; descriptor.maxPixelsHigh = 900
             descriptor.sizeInMillimeters = CGSize(width: 340, height: 239)
             descriptor.setDispatchQueue(.main)
@@ -41,11 +48,16 @@ import VirtualDisplayBridge
             guard created.apply(settings) else { emit(["error": "Display mode rejected"]); app.terminate(nil); return }
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             let x = before.map { ($0["x"] as! CGFloat) + ($0["width"] as! CGFloat) }.max() ?? 0
+            let origin = explicitOrigin ?? CGPoint(x: x, y: 0)
+            let intended = CGRect(origin: origin, size: CGSize(width: 1280, height: 900))
+            guard before.allSatisfy({ prior in
+                !intended.intersects(CGRect(x: prior["x"] as! CGFloat, y: prior["y"] as! CGFloat, width: prior["width"] as! CGFloat, height: prior["height"] as! CGFloat))
+            }) else { emit(["error": "Backing rectangle overlaps an existing display"]); app.terminate(nil); return }
             var config: CGDisplayConfigRef?
             guard CGBeginDisplayConfiguration(&config) == .success, let config else {
                 emit(["error": "Cannot configure backing display"]); app.terminate(nil); return
             }
-            let placement = CGConfigureDisplayOrigin(config, created.displayID, Int32(x), 0)
+            let placement = CGConfigureDisplayOrigin(config, created.displayID, Int32(origin.x), Int32(origin.y))
             guard placement == .success else {
                 CGCancelDisplayConfiguration(config); emit(["error": "Cannot place backing display"]); app.terminate(nil); return
             }
@@ -58,7 +70,7 @@ import VirtualDisplayBridge
                   before.allSatisfy({ prior in after.contains { NSDictionary(dictionary: $0).isEqual(to: prior) } }) else {
                 emit(["error": "Independent display or preserved topology verification failed", "before": before, "after": after]); app.terminate(nil); return
             }
-            emit(["ready": true, "displayID": created.displayID, "before": before, "topology": after])
+            emit(["ready": true, "displayID": created.displayID, "before": before, "topology": after, "physicalMap": Screens.displays().map { NSStringFromRect($0) }])
             // Bounded experiment, not a service; EOF/timeout releases only our display.
             Task { try? await Task.sleep(nanoseconds: UInt64(seconds) * 1_000_000_000); app.terminate(nil) }
             while let line = await Task.detached(operation: { readLine() }).value {

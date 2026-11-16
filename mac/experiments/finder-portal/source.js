@@ -38,17 +38,20 @@ async function start(config,{workerFactory=startWorker}={}){
  const duration=config.durationSeconds??120;
  check(Number.isInteger(duration)&&duration>=15&&duration<=900,'Session lifetime must be 15..900 seconds');
  fs.mkdirSync(config.output,{recursive:true,mode:0o700});
+ const log=(event,fields={})=>fs.appendFileSync(path.join(config.output,'events.jsonl'),JSON.stringify({at:new Date().toISOString(),event,...fields})+'\n',{mode:0o600});
  let server,pin=null;
  if(tls){const cert=fs.readFileSync(config.certFile);pin=crypto.createHash('sha256').update(new crypto.X509Certificate(cert).raw).digest('hex');server=https.createServer({cert,key:fs.readFileSync(config.keyFile),minVersion:'TLSv1.2'},(_,res)=>{res.writeHead(404);res.end();});}
  else server=http.createServer((_,res)=>{res.writeHead(404);res.end();});
  const token=crypto.randomBytes(32).toString('hex'),expires=Date.now()+300000;
  let used=false,active=null,closing=false,holder=null;
- let display=config.testDisplay;
+ let display=config.testDisplay,physicalMap=null;
  if(!display){
-  const child=spawn(path.join(path.dirname(config.capture),'FinderPortalBacking'),[String(duration+30)],{stdio:['pipe','pipe','inherit']});
+  const holderArgs=[String(duration+30)];
+  if(config.backingOrigin){check(Number.isInteger(config.backingOrigin.x)&&Number.isInteger(config.backingOrigin.y),'Invalid explicit backing origin');holderArgs.push(String(config.backingOrigin.x),String(config.backingOrigin.y));}
+  const child=spawn(path.join(path.dirname(config.capture),'FinderPortalBacking'),holderArgs,{stdio:['pipe','pipe','inherit']});
   holder=new Pipe(child);
   try { const ready=await holder.read();check(ready.ready,'Backing display unavailable');
-   display=ready.topology.find(d=>d.id===ready.displayID);check(display,'Missing backing geometry');
+   display=ready.topology.find(d=>d.id===ready.displayID);physicalMap=ready.physicalMap??null;check(display,'Missing backing geometry');
   } catch(e) { await stopChild(child);throw e; }
   child.once('exit',()=>{if(active)active.end('Backing display lost');});
  }
@@ -59,7 +62,7 @@ async function start(config,{workerFactory=startWorker}={}){
   let cleanupPromise=null;
   const send=m=>{if(ws.readyState===1)ws.send(JSON.stringify(m));};
   const end=reason=>{
-   if(cleanupPromise)return cleanupPromise;ended=true;clearInterval(timer);clearTimeout(helloTimer);
+   if(cleanupPromise)return cleanupPromise;log('sessionEnded',{reason,authenticated:!!state});ended=true;clearInterval(timer);clearTimeout(helloTimer);
    if(state)send(state.envelope('close',{reason}));ws.close(1000);
    const terminate=setTimeout(()=>ws.terminate(),1000);terminate.unref();
    cleanupPromise=(async()=>{await stopChild(worker?.child);if(active?.ws===ws)active=null;})();return cleanupPromise;
@@ -73,7 +76,7 @@ async function start(config,{workerFactory=startWorker}={}){
      check(!ended&&m.type==='hello'&&m.role==='receiver'&&SHA.test(m.sourceCommit)&&typeof m.token==='string','Invalid hello');
      const received=Buffer.from(m.token),expected=Buffer.from(token);
      check(!used&&!active&&Date.now()<expires&&received.length===expected.length&&crypto.timingSafeEqual(received,expected),'Authentication rejected');
-     used=true;clearTimeout(helloTimer);
+     used=true;clearTimeout(helloTimer);log('authenticated',{receiverCommit:m.sourceCommit});
      const initial={windowId:crypto.randomUUID(),geometryRevision:1,appId:'com.apple.finder',title:'Finder',logicalSize:{width:800,height:550},pixelSize:{width:1600,height:1100},iconPng:null,capabilities:['pressAt','setSearchText','confirmSearch']};
      state=new SourceState(config.sourceCommit,initial);active={ws,end};send(state.welcome());last=Date.now();
      timer=setInterval(()=>{
@@ -85,7 +88,7 @@ async function start(config,{workerFactory=startWorker}={}){
      const meta=await worker.read();
      if(ended){await stopChild(worker.child);return;}
      state.window={...meta,windowId:initial.windowId,geometryRevision:1};metadata(state.window);
-     send(state.envelope('window',state.window));ready=true;
+     send(state.envelope('window',state.window));ready=true;log('metadataReady',{appId:state.window.appId});
      const pump=async()=>{
       if(ended)return;
       if(!state.outstanding&&!frameBusy){
@@ -98,10 +101,11 @@ async function start(config,{workerFactory=startWorker}={}){
      };pump();return;
     }
     check(!ended,'Session closed');const action=state.accept(m);last=Date.now();
+    if(action.kind==='ack'&&(m.seq===1||m.seq%100===0))log('frameAcknowledged',{seq:m.seq});
     if(action.kind==='ping'){send(state.envelope('pong',{nonce:m.nonce}));return;}
     if(action.kind==='close'){end('Receiver closed');return;}
     if(action.kind==='input'||action.kind==='result'){
-     const answer=(status,detail)=>send(state.envelope('inputResult',{windowId:state.window.windowId,seq:m.seq,status,detail}));
+     const answer=(status,detail)=>{log('inputResult',{seq:m.seq,op:m.op,status});send(state.envelope('inputResult',{windowId:state.window.windowId,seq:m.seq,status,detail}));};
      if(action.kind==='result'){answer(action.status,action.detail);return;}
      if(!ready||inputs>=16){answer('rejected','Input queue unavailable');return;}
      inputs++;
@@ -116,7 +120,7 @@ async function start(config,{workerFactory=startWorker}={}){
  const address=server.address();
  const pairing={url:`${tls?'wss':'ws'}://${host}:${address.port}/portal`,token,certificateSha256:pin,expiresAt:new Date(expires).toISOString(),sourceCommit:config.sourceCommit};
  fs.writeFileSync(config.pairingFile,JSON.stringify(pairing),{mode:0o600});fs.chmodSync(config.pairingFile,0o600);
- fs.writeFileSync(path.join(config.output,'session.json'),JSON.stringify({port:address.port,host,tls,pin,display,sourceCommit:config.sourceCommit,expiresAt:new Date(Date.now()+duration*1000).toISOString()}));
+ fs.writeFileSync(path.join(config.output,'session.json'),JSON.stringify({port:address.port,host,tls,pin,display,physicalMap,sourceCommit:config.sourceCommit,expiresAt:new Date(Date.now()+duration*1000).toISOString()}));
  let stopping=null;
  const stop=()=>{
   if(stopping)return stopping;closing=true;

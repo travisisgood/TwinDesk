@@ -1,5 +1,6 @@
 'use strict';
 const fs=require('node:fs'),crypto=require('node:crypto'),{spawn}=require('node:child_process');
+const https=require('node:https'),tls=require('node:tls');
 const WebSocket=require('ws');const {parse,check,SHA,UUID,metadata,frame}=require('./wire');
 function connect(config){
  const pair=JSON.parse(fs.readFileSync(config.pairingFile));const url=new URL(pair.url);
@@ -7,16 +8,33 @@ function connect(config){
  check(url.pathname==='/portal'&&!url.username&&!url.password,'Invalid portal URL');
  check((url.protocol==='ws:'&&url.hostname==='127.0.0.1')||(url.protocol==='wss:'&&/^[a-f0-9]{64}$/i.test(pair.certificateSha256)),'LAN requires pinned TLS');
  check(typeof pair.token==='string'&&pair.token.length<=1024,'Missing pairing token');
- // Self-signed source certificates are trusted ONLY by exact DER pin below,
- // before hello/token transmission. No public-PKI bypass/fallback on mismatch.
- const ws=new WebSocket(pair.url,{perMessageDeflate:false,maxPayload:12*1024*1024,minVersion:'TLSv1.2',rejectUnauthorized:url.protocol!=='wss:'});
+ // Verify the exact paired DER pin before HTTP upgrade or hello/token.
+ let agent,pinFailed=false;
+ if(url.protocol==='wss:'){
+  agent=new https.Agent({keepAlive:false});
+  agent.createConnection=(options,callback)=>{
+   let finished=false;
+   const done=(error,socket)=>{if(finished)return;finished=true;callback(error,socket);};
+   const socket=tls.connect({...options,rejectUnauthorized:false,minVersion:'TLSv1.2'});
+   socket.once('error',()=>done(Error('TLS failed')));
+   socket.once('secureConnect',()=>{
+    const raw=socket.getPeerCertificate().raw;
+    const actual=raw&&crypto.createHash('sha256').update(raw).digest('hex');
+    if(!actual||actual!==pair.certificateSha256.toLowerCase()){
+     pinFailed=true;done(Error('Certificate pin mismatch'));socket.destroy();return;
+    }
+    done(null,socket);
+   });
+  };
+ }
+ const ws=new WebSocket(pair.url,{agent,perMessageDeflate:false,maxPayload:12*1024*1024,handshakeTimeout:5000,followRedirects:false});
  let session=null,window=null,child=null,buffer='',last=Date.now(),lastFrame=0,pendingFrame=null,inputSeq=0,closed=false,heartbeat=null,nonce=0;
  const inputs=new Set();let frames=0;const minimizeStates=[];
  const log=m=>{if(config.resultFile)fs.writeFileSync(config.resultFile,JSON.stringify(m,null,2));};
  const send=m=>{if(ws.readyState===1)ws.send(JSON.stringify({v:1,sessionId:session,...m}));};
  const close=reason=>{
   if(closed)return;closed=true;clearInterval(heartbeat);clearTimeout(handshake);
-  if(session)send({type:'close',reason});ws.close();const timer=setTimeout(()=>ws.terminate(),1000);timer.unref();
+  if(session)send({type:'close',reason});ws.close();agent?.destroy();const timer=setTimeout(()=>ws.terminate(),1000);timer.unref();
   if(child){child.stdin.end();const timer=setTimeout(()=>child.kill(),2000);timer.unref();}
   log({closed:true,reason,frames,appId:window?.appId||null,inputResults:inputSeq-inputs.size,minimizeStates});
  };
@@ -70,7 +88,7 @@ function connect(config){
   else throw Error('Unexpected message');
   last=Date.now();
  }catch{close('Source protocol or frame failure');}});
- ws.on('close',()=>close('Transport closed'));ws.on('error',()=>close('Transport error'));
+ ws.on('close',()=>close('Transport closed'));ws.on('error',()=>close(pinFailed?'TLS certificate rejected':'Transport error'));
  return {close};
 }
 module.exports={connect};

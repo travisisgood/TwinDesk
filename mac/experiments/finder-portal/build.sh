@@ -7,7 +7,7 @@ out="$(cd "$out" && pwd)"
 app="$out/Finder Portal Probe.app"
 mkdir -p "$app/Contents/MacOS" "$out/module-cache"
 swiftc -parse-as-library -module-cache-path "$out/module-cache" "$src/Capture.swift" "$src/Interaction.swift" "$src/Viewer.swift" "$src/RawInputProbe.swift" "$src/RemoteReceiver.swift" -o "$app/Contents/MacOS/FinderPortalCapture"
-swiftc -parse-as-library -module-cache-path "$out/module-cache" -I "$src/../../../mac-helper/Sources/VirtualDisplayBridge/include" "$src/BackingDisplay.swift" -o "$app/Contents/MacOS/FinderPortalBacking"
+swiftc -parse-as-library -module-cache-path "$out/module-cache" -I "$src/../../../mac-helper/Sources/VirtualDisplayBridge/include" "$src/BackingDisplay.swift" "$src/../../../mac-helper/Sources/macshare-helper/Screens.swift" -o "$app/Contents/MacOS/FinderPortalBacking"
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

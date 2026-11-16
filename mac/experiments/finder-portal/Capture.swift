@@ -28,7 +28,7 @@ import CryptoKit
             let backingIndex = CommandLine.arguments.firstIndex(of: "--backing")
             if let index = backingIndex, index + 1 < CommandLine.arguments.count {
                 guard let id = UInt32(CommandLine.arguments[index + 1]), CGDisplayIsOnline(id) != 0,
-                      CGDisplayVendorNumber(id) == 0x4d53, CGDisplayModelNumber(id) == 0x4650 else {
+                      CGDisplayVendorNumber(id) == 0x4d53, CGDisplayModelNumber(id) == 0x4d54, CGDisplaySerialNumber(id) == 0x4650 else {
                     throw NSError(domain: "Invalid experiment backing display", code: 3)
                 }
                 FinderAccess.backingDisplayID = id

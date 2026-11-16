@@ -5,11 +5,13 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function main(){
  const [capture,output,commit,mode='plain']=process.argv.slice(2);fs.mkdirSync(output,{recursive:true,mode:0o700});
  const config={capture,output,sourceCommit:commit,port:0,pairingFile:path.join(output,'pairing.json'),durationSeconds:60};
+ if(mode==='left-tls')config.backingOrigin={x:-1280,y:0};
  if(mode!=='plain'){
   config.certFile=path.join(output,'cert.pem');config.keyFile=path.join(output,'key.pem');
   execFileSync('/usr/bin/openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',config.keyFile,'-out',config.certFile,'-days','1','-subj','/CN=TwinDesk Standalone Probe'],{stdio:'ignore'});fs.chmodSync(config.keyFile,0o600);
  }
  const service=await start(config);let receiver;
+ if(mode==='left-tls'){const saved=JSON.parse(fs.readFileSync(path.join(output,'session.json')));if(saved.display.x!==-1280||!saved.physicalMap||saved.physicalMap.some(r=>r.includes('-1280')))throw Error('Backing display leaked into physical map');}
  try{
   if(mode==='wrong-pin'){const pair=JSON.parse(fs.readFileSync(config.pairingFile));pair.certificateSha256='0'.repeat(64);fs.writeFileSync(config.pairingFile,JSON.stringify(pair),{mode:0o600});}
   const resultFile=path.join(output,'receiver-result.json');

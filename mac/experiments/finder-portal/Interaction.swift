@@ -6,7 +6,7 @@ enum FinderAccess {
     static func inputAllowed(_ window: AXUIElement) -> Bool {
         if let id = backingDisplayID {
             guard CGDisplayIsOnline(id) != 0, CGDisplayIsInMirrorSet(id) == 0,
-                  CGDisplayVendorNumber(id) == 0x4d53, CGDisplayModelNumber(id) == 0x4650,
+                  CGDisplayVendorNumber(id) == 0x4d53, CGDisplayModelNumber(id) == 0x4d54, CGDisplaySerialNumber(id) == 0x4650,
                   let frame = frame(window) else { return false }
             return CGDisplayBounds(id).contains(frame)
         }

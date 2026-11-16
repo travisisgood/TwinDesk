@@ -352,3 +352,33 @@ Outstanding: paired TLS exchange/Windows native receiver acceptance, independent
 controller-failure cases beyond the tested worker kill, negotiated physical layout,
 automatic edge dragging, general input, owned windows and production lifecycle.
 No claim that this experimental endpoint replaces TwinDesk or Deskflow yet.
+
+### Physical map and first paired run
+
+The next holder identifies as `TwinDesk Window Finder Portal (Experiment)`, vendor
+0x4d53/product 0x4d54 with distinct experiment serial 0x4650. This matches the
+existing Electron label exclusion and native Screens parking-display category.
+Source input additionally checks the experiment serial, so it cannot target an
+unrelated TwinDesk backing display. The standalone build compiles the existing
+`Screens.swift` unchanged to measure its real physical-map result. Optional source
+`backingOrigin:{x,y}` specifies frozen placement; overlap is rejected. Reading the
+saved Mac KVM configuration found Windows on the left, along 0. A real pinned-TLS
+run at (-1280,0), 1280×900 kept the physical map at only (0,0), 1440×900, decoded
+16 frames and completed receiver minimize/restore. This checks the actual helper
+filter; the running TwinDesk app itself was not rebuilt or instrumented.
+
+Source `events.jsonl` records authentication (build ID only), first/every-100th
+frame ACK, input operation/status, and teardown reason. It never records tokens,
+search text or images. Receiver pin verification now precedes even HTTP upgrade,
+aligned with the reviewed Windows receiver implementation.
+
+First paired LAN run: Mac source `15d6498`, Windows receiver `73ec108` (peer report
+PAIRED_RESULT_25). Windows reports 691 decoded/displayed frames over 120 seconds,
+local minimize at frame 15 and restore at frame 27, and user screenshot confirmation
+of Finder over the Windows desktop. The receiver ended normally at its test
+boundary. Mac independently measured source restoration to (100,100), 800×550,
+not minimized. The source fixture contained NETWORKPAIREDPROOF after connection,
+but Windows did not inspect a later marker snapshot or exercise input before its
+deadline. Therefore paired changing-content, input and taskbar-logo acceptance
+remain outstanding. The first run used the original right-side test backing;
+the corrected left-side/excluded candidate requires a separate paired run.
