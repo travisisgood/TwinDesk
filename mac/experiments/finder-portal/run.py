@@ -18,6 +18,10 @@ def receive(process):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--hold', type=int, default=0, choices=range(0,61), help='Keep the minimized live viewer available for up to 60 seconds')
+    parser.add_argument('--click', help='Normalized x,y point routed through the viewer click handler')
+    parser.add_argument('--press', help='Exact accessible description; invoked once while minimized')
+    parser.add_argument('--viewer', action='store_true')
     parser.add_argument('capture', type=pathlib.Path)
     parser.add_argument('output', type=pathlib.Path)
     args = parser.parse_args()
@@ -44,7 +48,7 @@ def main():
     results = []
     try:
         time.sleep(2)
-        capture = subprocess.Popen([str(args.capture.resolve()), title], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
+        capture = subprocess.Popen([str(args.capture.resolve())] + (['--viewer'] if args.viewer else []) + [title], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
         ready = receive(capture)
         results.append(ready)
         if not ready.get('ready'):
@@ -70,7 +74,22 @@ def main():
                     markerSeen=None, # PNGs require visual verification; OCR is not on the capture path.
                     finderState=script(f'tell application "Finder" to get {{bounds, collapsed}} of Finder window id {wid}'))
                 results.append(sample)
+                if args.viewer and phase == 'minimized' and index == 0:
+                    capture.stdin.write('@axdump\n'); capture.stdin.flush()
+                    (out / 'minimized-ax.json').write_text(json.dumps(receive(capture), indent=2))
+                    if args.press or args.click:
+                        command = '@click:' + args.click if args.click else '@press:' + args.press
+                        if '\n' in command or '\r' in command: raise ValueError('Invalid input command')
+                        capture.stdin.write(command + '\n'); capture.stdin.flush()
+                        action = receive(capture)
+                        results.append({'inputAction': action})
+                        (out / 'action.json').write_text(json.dumps(action, indent=2))
                 print(json.dumps(sample), flush=True)
+                if args.viewer and phase == 'minimized' and index == 3 and args.hold:
+                    print(json.dumps({'manualViewerSeconds': args.hold, 'sourceMinimized': True}), flush=True)
+                    time.sleep(args.hold)
+                    capture.stdin.write(str(out / 'after-manual.png') + '\n'); capture.stdin.flush()
+                    results.append({'afterManual': receive(capture)})
     finally:
         try:
             script(restore)

@@ -2,7 +2,8 @@
 
 This is an isolated native command-line probe, not a TwinDesk build or integration.
 It imports no TwinDesk code and creates no displays, network sessions, event taps,
-or global input. It deliberately does **not** implement window transfer or input.
+or global input. It does not implement network transfer. The optional native viewer experiments
+with window-scoped Accessibility presses; general input is not implemented.
 
 Windows reference inspected: `window-only-poc` at
 `0033a84c9aed2c351f23c50e2238c64ce0db6fc6`,
@@ -109,3 +110,36 @@ folder, not committed. This is one actual Finder list-view test on macOS 27.2,
 using periodic screenshot capture. It is not proof of continuous video performance,
 input into a minimized window, arbitrary applications, or network transfer.
 No input injection, TwinDesk build/integration, or virtual display was involved.
+
+## Native viewer and click follow-up
+
+`run.py --viewer` opens a standalone Cocoa proxy. `--press Name` invokes the exact
+AX Name control; `--click 0.35,0.12` exercises normalized pointer mapping through
+the same handler used by the proxy mouse event. `--hold 45` leaves a bounded
+45-second period for real proxy mouse tests while the source stays minimized.
+The runner restores the source afterward. Accessibility access is required;
+`--accessibility` and `--request-accessibility` query/request the normal OS grant.
+
+Actual follow-up observations on 2026-11-15:
+
+- SCStream at requested 15 fps stopped producing complete frames while Finder
+  was minimized: all four minimized samples remained at frame 357. A new filename
+  appeared in SCScreenshotManager output, but was absent from the stream image.
+- The viewer therefore uses serialized repeated snapshots while minimized (250ms
+  delay after capture, not a guaranteed 4fps). Its stream resumes when visible.
+- Name-column AXPress returned success, changed ascending to descending order,
+  and reported minimizedAfter=true. Saved proxy images showed the changed order.
+- Normalized pointer routing to the Name header passed. A real CUA mouse click
+  inside the native proxy then changed it back to ascending. The after-manual
+  snapshot still reported source onScreen=false and minimizedAfter=true.
+- The final run generated 162 fallback snapshots, reported no capture errors,
+  and restored the source successfully. An earlier overlapping-snapshot run
+  reported transient -3811 on restoration; snapshot calls are now serialized.
+- These observations verify one accessible control and sampled source visibility,
+  not arbitrary keyboard/mouse events, transient-visibility absence between
+  samples, popups, child windows, network input, or all Finder controls.
+
+Proxy images are saved alongside requested samples as `.png.stream.png`; despite
+that historical suffix they contain whichever image the viewer currently displays
+(stream or snapshot fallback). All source-window movement, fixture creation, and
+cleanup remain isolated from TwinDesk. Keyboard events are not forwarded yet.

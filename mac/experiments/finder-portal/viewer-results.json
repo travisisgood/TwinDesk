@@ -1,0 +1,312 @@
+[
+  {},
+  {
+    "phase": "visible",
+    "index": 0,
+    "onScreen": true,
+    "frame": "{{100, 100}, {800, 550}}",
+    "finderState": "100, 100, 900, 650, false",
+    "streamFrames": 66,
+    "snapshotFrames": 0,
+    "streamError": "",
+    "lastInput": {}
+  },
+  {
+    "phase": "visible",
+    "index": 1,
+    "onScreen": true,
+    "frame": "{{100, 100}, {800, 550}}",
+    "finderState": "100, 100, 900, 650, false",
+    "streamFrames": 101,
+    "snapshotFrames": 0,
+    "streamError": "",
+    "lastInput": {}
+  },
+  {
+    "phase": "visible",
+    "index": 2,
+    "onScreen": true,
+    "frame": "{{100, 100}, {800, 550}}",
+    "finderState": "100, 100, 900, 650, false",
+    "streamFrames": 136,
+    "snapshotFrames": 0,
+    "streamError": "",
+    "lastInput": {}
+  },
+  {
+    "phase": "visible",
+    "index": 3,
+    "onScreen": true,
+    "frame": "{{100, 100}, {800, 550}}",
+    "finderState": "100, 100, 900, 650, false",
+    "streamFrames": 171,
+    "snapshotFrames": 0,
+    "streamError": "",
+    "lastInput": {}
+  },
+  {
+    "phase": "offscreen",
+    "index": 0,
+    "onScreen": true,
+    "frame": "{{-760, 100}, {800, 550}}",
+    "finderState": "-760, 100, 40, 650, false",
+    "streamFrames": 241,
+    "snapshotFrames": 0,
+    "streamError": "",
+    "lastInput": {}
+  },
+  {
+    "phase": "offscreen",
+    "index": 1,
+    "onScreen": true,
+    "frame": "{{-760, 100}, {800, 550}}",
+    "finderState": "-760, 100, 40, 650, false",
+    "streamFrames": 276,
+    "snapshotFrames": 0,
+    "streamError": "",
+    "lastInput": {}
+  },
+  {
+    "phase": "offscreen",
+    "index": 2,
+    "onScreen": true,
+    "frame": "{{-760, 100}, {800, 550}}",
+    "finderState": "-760, 100, 40, 650, false",
+    "streamFrames": 311,
+    "snapshotFrames": 0,
+    "streamError": "",
+    "lastInput": {}
+  },
+  {
+    "phase": "offscreen",
+    "index": 3,
+    "onScreen": true,
+    "frame": "{{-760, 100}, {800, 550}}",
+    "finderState": "-760, 100, 40, 650, false",
+    "streamFrames": 346,
+    "snapshotFrames": 0,
+    "streamError": "",
+    "lastInput": {}
+  },
+  {
+    "phase": "minimized",
+    "index": 0,
+    "onScreen": false,
+    "frame": "{{100, 100}, {800, 550}}",
+    "finderState": "100, 100, 900, 650, true",
+    "streamFrames": 353,
+    "snapshotFrames": 10,
+    "streamError": "",
+    "lastInput": {}
+  },
+  {
+    "inputAction": {
+      "AXError": 0,
+      "element": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXDescendingSortDirection",
+        "frame": "{{269, 152}, {222, 28}}"
+      },
+      "minimizedAfter": true
+    }
+  },
+  {
+    "phase": "minimized",
+    "index": 1,
+    "onScreen": false,
+    "frame": "{{100, 100}, {800, 550}}",
+    "finderState": "100, 100, 900, 650, true",
+    "streamFrames": 353,
+    "snapshotFrames": 17,
+    "streamError": "",
+    "lastInput": {
+      "AXError": 0,
+      "element": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXDescendingSortDirection",
+        "frame": "{{269, 152}, {222, 28}}"
+      },
+      "minimizedAfter": true
+    }
+  },
+  {
+    "phase": "minimized",
+    "index": 2,
+    "onScreen": false,
+    "frame": "{{100, 100}, {800, 550}}",
+    "finderState": "100, 100, 900, 650, true",
+    "streamFrames": 353,
+    "snapshotFrames": 23,
+    "streamError": "",
+    "lastInput": {
+      "AXError": 0,
+      "element": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXDescendingSortDirection",
+        "frame": "{{269, 152}, {222, 28}}"
+      },
+      "minimizedAfter": true
+    }
+  },
+  {
+    "phase": "minimized",
+    "index": 3,
+    "onScreen": false,
+    "frame": "{{100, 100}, {800, 550}}",
+    "finderState": "100, 100, 900, 650, true",
+    "streamFrames": 353,
+    "snapshotFrames": 30,
+    "streamError": "",
+    "lastInput": {
+      "AXError": 0,
+      "element": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXDescendingSortDirection",
+        "frame": "{{269, 152}, {222, 28}}"
+      },
+      "minimizedAfter": true
+    }
+  },
+  {
+    "afterManual": {
+      "onScreen": false,
+      "frame": "{{100, 100}, {800, 550}}",
+      "streamFrames": 353,
+      "snapshotFrames": 161,
+      "streamError": "",
+      "lastInput": {
+        "AXError": 0,
+        "element": {
+          "actions": [
+            "AXPress"
+          ],
+          "AXDescription": "Name",
+          "AXMinimized": false,
+          "AXRole": "AXButton",
+          "AXValue": "AXAscendingSortDirection",
+          "frame": "{{269, 152}, {222, 28}}"
+        },
+        "minimizedAfter": true
+      }
+    }
+  },
+  {
+    "phase": "restored",
+    "index": 0,
+    "onScreen": true,
+    "frame": "{{100, 100}, {800, 550}}",
+    "finderState": "100, 100, 900, 650, false",
+    "streamFrames": 416,
+    "snapshotFrames": 162,
+    "streamError": "",
+    "lastInput": {
+      "AXError": 0,
+      "element": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{269, 152}, {222, 28}}"
+      },
+      "minimizedAfter": true
+    }
+  },
+  {
+    "phase": "restored",
+    "index": 1,
+    "onScreen": true,
+    "frame": "{{100, 100}, {800, 550}}",
+    "finderState": "100, 100, 900, 650, false",
+    "streamFrames": 451,
+    "snapshotFrames": 162,
+    "streamError": "",
+    "lastInput": {
+      "AXError": 0,
+      "element": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{269, 152}, {222, 28}}"
+      },
+      "minimizedAfter": true
+    }
+  },
+  {
+    "phase": "restored",
+    "index": 2,
+    "onScreen": true,
+    "frame": "{{100, 100}, {800, 550}}",
+    "finderState": "100, 100, 900, 650, false",
+    "streamFrames": 487,
+    "snapshotFrames": 162,
+    "streamError": "",
+    "lastInput": {
+      "AXError": 0,
+      "element": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{269, 152}, {222, 28}}"
+      },
+      "minimizedAfter": true
+    }
+  },
+  {
+    "phase": "restored",
+    "index": 3,
+    "onScreen": true,
+    "frame": "{{100, 100}, {800, 550}}",
+    "finderState": "100, 100, 900, 650, false",
+    "streamFrames": 522,
+    "snapshotFrames": 162,
+    "streamError": "",
+    "lastInput": {
+      "AXError": 0,
+      "element": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{269, 152}, {222, 28}}"
+      },
+      "minimizedAfter": true
+    }
+  },
+  {
+    "restored": true
+  }
+]
