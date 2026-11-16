@@ -437,6 +437,8 @@ function start() {
   helper.on('ready', () => {
     if (appDesktop.mon) { pcApps.bringBack(); appDesktop.release(); }
   });
+  const portalBackingBridge = new (require('./portal-backing-bridge').PortalBackingBridge)({ directory: app.getPath('userData'), helper, kvm, busy: () => !!appDesktop.mon || pcScreen.mode === 'extend' }).start();
+  app.once('before-quit', () => portalBackingBridge.stop());
   peerApps = new PeerApps({ link, settings, popup: (kind, text) => hud.show(kind, text), peerName, onChange: pushState });
   // Apps › Move windows: a window grabbed with the move key crossed with the pointer. A
   // copy of the other computer's window goes home there (peerapps.js); one of this PC's goes over (pcapps.js).

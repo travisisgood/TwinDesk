@@ -55,7 +55,8 @@ class Native {
     if(cmd=="status"){
       int cloaked=0;if(target!=IntPtr.Zero)DwmGetWindowAttribute(target,14,out cloaked,4);
       POINT p;GetCursorPos(out p);
-      return new {wid=target.ToInt64(),cloaked,clicks,ticks,text=input.Text,cursor=new{x=p.X,y=p.Y}};
+      RECT bounds=Frame();
+      return new {wid=target.ToInt64(),cloaked,clicks,ticks,text=input.Text,cursor=new{x=p.X,y=p.Y},bounds=new{x=bounds.L,y=bounds.T,width=bounds.R-bounds.L,height=bounds.B-bounds.T}};
     }
     if(cmd=="restore"){Restore();return new {restored=true};}
     if(target==IntPtr.Zero || !IsWindow(target))throw new Exception("Select an existing source window first");

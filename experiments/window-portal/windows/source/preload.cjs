@@ -1,0 +1,1 @@
+const {contextBridge,ipcRenderer}=require('electron');contextBridge.exposeInMainWorld('capture',{source:()=>ipcRenderer.invoke('source'),frame:m=>ipcRenderer.send('frame',m),failure:m=>ipcRenderer.send('failure',m)});

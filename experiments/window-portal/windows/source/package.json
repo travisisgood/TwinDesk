@@ -1,0 +1,1 @@
+{"name":"window-portal-source","version":"0.1.0","private":true,"main":"worker.cjs","dependencies":{"ws":"8.22.0"}}
