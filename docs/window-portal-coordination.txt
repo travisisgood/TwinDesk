@@ -1,0 +1,71 @@
+Window Portal shared progress and goals
+Updated 2026-11-15 by Windows; Mac review requested.
+
+Product goal
+Move existing windows between Windows and macOS by dragging across the desktop
+boundary. The destination presents independent native proxy windows over its own
+desktop, with source app icons and minimize/restore in its taskbar or Dock.
+Applications keep running on the source OS. Both directions have equal priority.
+Cover Explorer/Finder, Scarlett settings, and eventually REAPER FX/owned windows.
+No virtual displays. Existing mouse crossing must remain independent and usable.
+
+Source checkpoints (source parity does not imply identical native binaries)
+Windows standalone: window-only-poc 0033a84c9aed2c351f23c50e2238c64ce0db6fc6,
+  experiments/window-portal/windows.
+Mac standalone: mac-network-monitor 46ed633099cd1abf833b1d9a35b1ae1a3a783b9d,
+  mac/experiments/finder-portal.
+Relay: coordination-relay b226ff8562bbd78b6720a3061d40f34d8baaefc4.
+Each side owns its native directory. Review the other's actual committed source.
+Coordinate shared protocol edits before implementation. No TwinDesk integration
+or rebuild is part of the current experiment.
+
+Evidence and limits
+Windows: cross-process DWM cloak rejected; Chromium and direct WGC froze with
+fully offscreen WinForms. PrintWindow updated a synthetic WinForms window there,
+and BM_CLICK worked on a standard button. Real Explorer offscreen snapshots did
+not show a newly created file. Minimized Explorer has NOT yet been tested.
+Scarlett settings capture/input is NOT proven. Guardian restoration implemented;
+crash-restoration acceptance test remains pending.
+Mac reported and committed evidence: Finder minimized snapshots remain fresh,
+while SCStream freezes. Native viewer uses serialized snapshots; actual proxy
+click changes Name sort through AXPress with sampled minimized state retained.
+Windows reviewed Viewer.swift, Interaction.swift and README at the checkpoint;
+Windows cannot independently execute macOS tests. General keyboard, navigation,
+popups, arbitrary app input and continuous invisibility remain unproven.
+Relay: both active chats received requests automatically and acknowledged reading.
+Idle-chat wake remains unverified. Bounded listener sessions, no automatic restart,
+no recurring AI polling. Status and acknowledgment messages do not wake agents.
+
+Next work allocation
+Windows: test a disposable real Explorer window minimized (distinct from parked),
+create a unique file while minimized, inspect before/after content, sample IsIconic,
+and restore in finally. Treat empty/stale thumbnails as failures, not fresh frames.
+Only pursue hidden input after capture freshness is established.
+Mac: extend Finder tests to navigation and text using window-scoped mechanisms;
+record unsupported controls and whether source stays minimized. Validate cleanup
+on failure. Review the receiver proposal below before any network implementation.
+Both: publish exact commits and concise observed results, distinguish API success
+from actual app changes, and review peer changes before joint acceptance runs.
+
+Proposed isolated receiver transport -- NOT agreed or implemented
+Use a versioned, authenticated point-to-point session outside TwinDesk. Start with
+one selected window and bounded JPEG/PNG frames, latest-frame-only backpressure,
+and a small explicit message schema: hello/version/capabilities, window metadata
+(opaque ID, title, dimensions, icon), frame/sequence, input/sequence, result, close.
+Pin source SHAs and schema version in both test reports. Use an explicit one-time
+pairing secret locally; never publish it. Reject unauthenticated/oversized input.
+Window-scoped capabilities must declare supported actions; never silently fall
+back to global mouse/keyboard injection. Coordinates must account for scaling and
+letterboxing. No desktop capture or monitor creation. Receiver closes or marks
+stale on disconnect; source restores even on receiver failure. Native taskbar/Dock
+behavior belongs to the receiver shell, not to capture. Agree the concrete wire
+format and lifecycle before implementing either half.
+
+Joint acceptance gates
+1. Real source changes remain fresh while hidden/minimized on each OS.
+2. Window-scoped input causes observed changes without exposing source or stealing
+   the physical mouse; include text, menus and owned windows as separate cases.
+3. Isolated network receiver works in both directions with matching protocol.
+4. Destination minimize/restore and source app icon, disconnect recovery, then
+   automatic edge dragging without monitor cycling or KVM regression.
+Do not label partial capture or a single accessible control as seamless transfer.
