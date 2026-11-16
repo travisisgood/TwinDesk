@@ -1,0 +1,22 @@
+{
+  "closed": true,
+  "reason": "Receiver stopped",
+  "frames": 732,
+  "sourceCommit": "8adb557d25121d20dbe373be9ee7938688afea7d",
+  "receiverCommit": "0ec379513fc8bca5a39b98000fe4014f1cc44c20",
+  "distinctDecodedFrames": 2,
+  "distinctFrameLimit": 1024,
+  "evidenceError": null,
+  "appId": "win32.explorer",
+  "inputResults": 0,
+  "minimizeStates": [],
+  "localDrags": [],
+  "firstImageSHA256": "4ca5fba47bd424f5e621aad193ed5e8236b6640be754b14fbe5f71a1b330fbe6",
+  "finalImageSHA256": "f3de241ffb40f9913c1ac93f394529ccad80c205072837803054eb4d909d3f0d",
+  "baselineObservation": "BASELINE.txt visible; NETWORKPAIREDPROOF.txt absent",
+  "finalObservation": "BASELINE.txt and NETWORKPAIREDPROOF.txt both visible",
+  "visualEvidence": "Remote Explorer PNGs inspected after native decode acknowledgment; not Mac desktop screenshots",
+  "markerCreatedByWindowsUTC": "2026-11-16T03:08:40.2088301Z",
+  "sourceRecovery": "Awaiting independent Windows report",
+  "macDesktopLocked": true
+}
