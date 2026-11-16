@@ -1,0 +1,29 @@
+#!/bin/bash
+set -euo pipefail
+src="$(cd "$(dirname "$0")" && pwd)"
+out="${1:?Usage: build.sh absolute-output-directory}"
+mkdir -p "$out"
+out="$(cd "$out" && pwd)"
+app="$out/Finder Portal Probe.app"
+mkdir -p "$app/Contents/MacOS" "$out/module-cache"
+swiftc -parse-as-library -module-cache-path "$out/module-cache" "$src/Capture.swift" -o "$app/Contents/MacOS/FinderPortalCapture"
+cat > "$app/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>com.travismackinnon.finderportalprobe</string>
+<key>CFBundleExecutable</key><string>FinderPortalCapture</string>
+<key>CFBundleName</key><string>Finder Portal Probe</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>LSUIElement</key><true/>
+<key>NSScreenCaptureUsageDescription</key><string>Measure whether a dedicated Finder test window updates while out of sight.</string>
+</dict></plist>
+PLIST
+if [ -n "${MAC_IDENTITY:-}" ]; then
+  codesign --force --sign "$MAC_IDENTITY" --timestamp=none "$app"
+else
+  codesign --force --sign - "$app"
+fi
+codesign --verify --deep --strict "$app"
+printf '%s\n' "$app/Contents/MacOS/FinderPortalCapture"
