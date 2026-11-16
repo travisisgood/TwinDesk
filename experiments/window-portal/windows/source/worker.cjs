@@ -32,8 +32,16 @@ app.whenReady().then(async()=>{
  if(!config.fixture&&identity.processName!=='explorer')throw Error('Refusing non-Explorer source');
  stage('status');originalBounds=(await native('status')).bounds;
  const mon=config.backing;await native('park',{x:mon.x+24,y:mon.y+24});
- let status;
- for(let i=0;i<12;i++){status=await native('status');const b=status.bounds;if(b.x>=mon.x&&b.y>=mon.y&&b.x+b.width<=mon.x+mon.width&&b.y+b.height<=mon.y+mon.height)break;await new Promise(r=>setTimeout(r,100));}
+ let status,previousBounds,stableSamples=0;
+ // Cross-DPI Explorer moves apply a later suggested rectangle. Initial containment
+ // alone is insufficient: metadata must describe the settled captured window.
+ for(let i=0;i<15;i++){
+  await new Promise(r=>setTimeout(r,100));status=await native('status');
+  const encoded=JSON.stringify(status.bounds);
+  stableSamples=encoded===previousBounds?stableSamples+1:0;previousBounds=encoded;
+  if(i>=5&&stableSamples>=3)break;
+ }
+ if(stableSamples<3)throw Error('Source geometry did not stabilize after backing move');
  const b=status.bounds;
  if(!(b.x>=mon.x&&b.y>=mon.y&&b.x+b.width<=mon.x+mon.width&&b.y+b.height<=mon.y+mon.height))throw Error('Whole source window does not fit backing monitor; refusing partial placement');
  fs.writeFileSync(path.join(config.output,'source-placement.json'),JSON.stringify({bounds:b,monitor:mon}));
@@ -56,6 +64,7 @@ app.whenReady().then(async()=>{
  win.webContents.on('render-process-gone',(_e,d)=>{emit({error:'Capture renderer exited: '+d.reason});cleanup()});stage('renderer-load');await win.loadURL(require('node:url').pathToFileURL(path.join(__dirname,'index.html')).href);
 }).catch(e=>{emit({error:e.message});cleanup()});
 app.on('before-quit',()=>{helper?.stdin.end();fixture?.stdin.end();});
+
 
 
 
