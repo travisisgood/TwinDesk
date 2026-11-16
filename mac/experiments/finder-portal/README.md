@@ -276,3 +276,79 @@ through the relay; did not independently edit shared coordination or Windows fil
 Windows' source-display reuse and this experiment's retained holder are compatible
 in lifetime intent. Exact peer layout negotiation and isolated transport remain
 unagreed/unimplemented, so fixed right-edge placement is only a local test choice.
+
+## Standalone network endpoints (wire v1)
+
+The review amendments are accepted in `coordination-relay` at `ce24665`.
+`source.js` and `receiver.js` now implement that contract locally, using the
+existing Mac `ws` dependency; no root configuration or TwinDesk protocol changed.
+`source_worker.py` starts the signed helper only after successful authentication.
+The headless source creates a dedicated Finder fixture on the retained backing
+display; it never opens a local desktop viewer. Source metadata includes the real
+`com.apple.finder` bundle ID and a PNG generated from the installed Finder icon.
+
+Use an existing Node runtime (in Codex, `$CODEX_MCP_NODE_PATH`) and private JSON
+config files outside the repository. Example source config keys:
+
+```
+{capture: absolute signed FinderPortalCapture path,
+ output: private experiment output directory,
+ sourceCommit: full source build commit,
+ host: "127.0.0.1", port: 49731,
+ pairingFile: private local JSON path, durationSeconds: 120}
+```
+
+This is an illustrative field list, not literal JSON. Start with
+`node mac/experiments/finder-portal/source.js /private/config.json`.
+For LAN, explicitly set the local host address, `certFile` and `keyFile`.
+TLS 1.2+ and an exact SHA-256 DER certificate pin are mandatory. Self-signed
+certificates are accepted by the receiver only after exact pin comparison,
+before sending hello or its token; mismatches never fall back to unpinned TLS.
+The generated pairing file contains a random single-use 256-bit token and is
+written with mode 0600. Never print it or include it in a chat, log, or commit.
+
+Receiver config: `capture`, `pairingFile`, `sourceCommit` (receiver build), optional
+`resultFile`. Run `receiver.js` with that private config. It launches a borderless
+native AppKit window after metadata arrives, validates decoded image dimensions,
+and acknowledges only installed frames. The remote app's PNG becomes the Dock
+icon. Command-M minimizes locally; Command-W closes the receiver and returns the
+source. These shortcuts are local window actions, not source keystrokes. Search
+text/Return are the only keyboard capability; generic keyboard, window dragging,
+menus, and popup forwarding remain unimplemented.
+
+One outstanding frame, latest native image only, max 16 pending source inputs,
+strict sequence/identity/bounds validation, 2-second transport heartbeats and
+6-second liveness/frame-ACK deadlines are enforced. A token cannot be reused;
+reconnection is not automatic. Current endpoint accepts one authenticated session
+per explicit source launch. Display lifetime is separate from that connection:
+receiver close restores Finder but leaves the holder up until explicit source
+shutdown or its configured finite lifetime. Source duration defaults to 120s,
+maximum 900s; holder lifetime is source duration plus 30s. The holder's original
+standalone default remains 180s (configurable 30..3600s).
+
+Tests:
+
+```
+node --test mac/experiments/finder-portal/{wire,source}.test.js
+node mac/experiments/finder-portal/source-live-test.js CAPTURE OUTPUT COMMIT
+node mac/experiments/finder-portal/source-live-test.js CAPTURE OUTPUT COMMIT kill-worker
+node mac/experiments/finder-portal/native-loopback-test.js CAPTURE OUTPUT COMMIT tls
+node mac/experiments/finder-portal/native-loopback-test.js CAPTURE OUTPUT COMMIT wrong-pin
+```
+
+Actual pre-commit development validation on this Mac: 6 protocol/socket tests
+passed. Real Finder streamed 12 frames over authenticated loopback; the newly
+created NETWORKLIVEPROOF marker was visually absent then present. An AX click
+was dispatched with Finder still at backing coordinates (1480,60); disconnect
+restored (100,100). Killing the Python worker with SIGKILL also restored the
+source through its independent guardian. A real native receiver over pinned TLS
+decoded 16 frames, reported completed AppKit minimize then restore notifications,
+and source restoration passed. Wrong pin: 0 frames, no source fixture/capture,
+no token consumption. These are local tests, **not paired Windows acceptance**.
+An initial immediate-state minimize assertion failed; reporting now uses actual
+AppKit completion notifications, and the rerun passed.
+
+Outstanding: paired TLS exchange/Windows native receiver acceptance, independent
+controller-failure cases beyond the tested worker kill, negotiated physical layout,
+automatic edge dragging, general input, owned windows and production lifecycle.
+No claim that this experimental endpoint replaces TwinDesk or Deskflow yet.

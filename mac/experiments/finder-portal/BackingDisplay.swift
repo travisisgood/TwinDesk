@@ -18,6 +18,8 @@ import VirtualDisplayBridge
         }
     }
     @MainActor static func main() {
+        let seconds = CommandLine.arguments.count == 2 ? Int(CommandLine.arguments[1]) ?? 0 : 180
+        guard (30...3600).contains(seconds) else { emit(["error": "Duration must be 30..3600 seconds"]); return }
         let app = NSApplication.shared
         Task { @MainActor in
             let before = topology()
@@ -58,7 +60,7 @@ import VirtualDisplayBridge
             }
             emit(["ready": true, "displayID": created.displayID, "before": before, "topology": after])
             // Bounded experiment, not a service; EOF/timeout releases only our display.
-            Task { try? await Task.sleep(nanoseconds: 180_000_000_000); app.terminate(nil) }
+            Task { try? await Task.sleep(nanoseconds: UInt64(seconds) * 1_000_000_000); app.terminate(nil) }
             while let line = await Task.detached(operation: { readLine() }).value {
                 if line == "status" { emit(["displayID": created.displayID, "topology": topology()]) }
                 else if line == "quit" { break }

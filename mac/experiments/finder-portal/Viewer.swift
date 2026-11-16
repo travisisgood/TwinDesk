@@ -75,7 +75,7 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
         } }
         sink.failure = { [weak self] error in Task { @MainActor in self?.lastError = error } }
     }
-    func start() async throws {
+    func start(showWindow: Bool = true) async throws {
         let cfg = SCStreamConfiguration()
         cfg.width = Int(source.frame.width * 2); cfg.height = Int(source.frame.height * 2)
         cfg.minimumFrameInterval = CMTime(value: 1, timescale: 15)
@@ -87,7 +87,7 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
         try stream.addStreamOutput(sink, type: .screen, sampleHandlerQueue: DispatchQueue(label: "finder.portal.frames"))
         self.stream = stream
         try await stream.startCapture()
-        window.makeKeyAndOrderFront(nil)
+        if showWindow { window.makeKeyAndOrderFront(nil) }
         snapshotTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }

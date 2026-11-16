@@ -1,0 +1,12 @@
+'use strict';
+const test=require('node:test'), assert=require('node:assert/strict');
+const {SourceState,parse,png,frame}=require('./wire');
+const meta={windowId:'11111111-1111-4111-8111-111111111111',geometryRevision:1,appId:'com.apple.finder',title:'Fixture',logicalSize:{width:1,height:1},pixelSize:{width:1,height:1},iconPng:null,capabilities:['pressAt']};
+const image='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aP1sAAAAASUVORK5CYII=';
+const payload={pixelSize:{width:1,height:1},contentRect:{x:0,y:0,width:1,height:1},captureMode:'stream',png:image};
+const state=()=>new SourceState('a'.repeat(40),meta);
+test('one outstanding frame; no old/future ACK; monotonic frame sequence',()=>{let s=state();assert.equal(s.nextFrame(payload).seq,1);assert.equal(s.nextFrame(payload),null);assert.throws(()=>s.accept(s.envelope('frameAck',{windowId:meta.windowId,seq:2})));s.accept(s.envelope('frameAck',{windowId:meta.windowId,seq:1}));assert.equal(s.nextFrame(payload).seq,2)});
+test('input rejects replay, wrong session and unsent frame',()=>{let s=state();s.nextFrame(payload);const m=s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:1,geometryRevision:1,op:'pressAt',args:{x:.5,y:.5}});assert.equal(s.accept(m).kind,'input');assert.throws(()=>s.accept(m));assert.throws(()=>s.accept({...m,seq:2,sessionId:'wrong'}));assert.throws(()=>s.accept({...m,seq:2,frameSeq:9}));});
+test('stale geometry and unsupported capabilities do not dispatch',()=>{let s=state();s.nextFrame(payload);const m=s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:1,geometryRevision:2,op:'pressAt',args:{x:0,y:1}});assert.equal(s.accept(m).status,'rejected');assert.equal(s.accept({...m,seq:2,geometryRevision:1,op:'drag'}).status,'unsupported');});
+test('oversized/binary/control/nonfinite coordinates fail closed',()=>{assert.throws(()=>parse('{}',true));assert.throws(()=>parse(JSON.stringify({v:1,type:'ping',padding:'x'.repeat(16384)})));let s=state();s.nextFrame(payload);assert.throws(()=>s.accept(s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:1,geometryRevision:1,op:'pressAt',args:{x:NaN,y:0}})));});
+test('PNG bounds and content rect validated before decode',()=>{assert.equal(png(image).width,1);assert.throws(()=>png(image+'!'));let altered=Buffer.from(image,'base64');altered.writeUInt32BE(9000,16);assert.throws(()=>png(altered.toString('base64')));assert.throws(()=>frame({...payload,windowId:meta.windowId,geometryRevision:1,seq:1,contentRect:{x:1,y:0,width:1,height:1}},meta));});

@@ -1,0 +1,41 @@
+{
+  "realFinderLoopback": {
+    "mode": "normal",
+    "frames": 12,
+    "input": "dispatched",
+    "restored": true,
+    "appId": "com.apple.finder",
+    "iconPresent": true,
+    "sourceAfterInput": "1480, 60, 2280, 610, false",
+    "finalState": "100, 100, 900, 650, false"
+  },
+  "workerSIGKILL": {
+    "mode": "kill-worker",
+    "frames": 12,
+    "input": null,
+    "restored": true,
+    "appId": "com.apple.finder",
+    "iconPresent": true,
+    "killedWorker": true,
+    "finalState": "100, 100, 900, 650, false"
+  },
+  "nativePinnedTLS": {
+    "closed": true,
+    "reason": "Bounded receiver test finished",
+    "frames": 16,
+    "appId": "com.apple.finder",
+    "inputResults": 0,
+    "minimizeStates": [
+      true,
+      false
+    ]
+  },
+  "wrongPin": {
+    "closed": true,
+    "reason": "TLS certificate rejected",
+    "frames": 0,
+    "appId": null,
+    "inputResults": 0,
+    "minimizeStates": []
+  }
+}

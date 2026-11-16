@@ -1,3 +1,6 @@
+> Superseded by the mutually accepted wire v1 in coordination-relay ce24665.
+> Retained as design history; implementation follows wire v1, not this draft.
+
 # Isolated Window Portal transport review proposal
 
 DRAFT for Windows review. No network implementation or change to TwinDesk's

@@ -17,12 +17,14 @@ import CryptoKit
     }
     @MainActor static func run() async {
         do {
+            if CommandLine.arguments == [CommandLine.arguments[0], "--receiver"] { await RemoteReceiver.run(); return }
             if CommandLine.arguments.count == 1 {
                 // Opening the standalone bundle explicitly requests its normal OS grant.
                 emit(["screenRecording": CGRequestScreenCaptureAccess()])
                 return
             }
-            let viewerMode = CommandLine.arguments.contains("--viewer")
+            let sourceMode = CommandLine.arguments.contains("--source")
+            let viewerMode = CommandLine.arguments.contains("--viewer") || sourceMode
             let backingIndex = CommandLine.arguments.firstIndex(of: "--backing")
             if let index = backingIndex, index + 1 < CommandLine.arguments.count {
                 guard let id = UInt32(CommandLine.arguments[index + 1]), CGDisplayIsOnline(id) != 0,
@@ -61,9 +63,33 @@ import CryptoKit
             config.capturesAudio = false
             let rootAX = FinderAccess.window(pid: window.owningApplication!.processID, title: title)
             let viewer = viewerMode ? PortalViewer(source: window) : nil
-            try await viewer?.start()
+            try await viewer?.start(showWindow: !sourceMode)
             emit(["ready": true, "wid": window.windowID, "pid": window.owningApplication!.processID])
             while let path = await Task.detached(operation: { readLine() }).value {
+                if path == "@wire-metadata" {
+                    let icon = NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
+                    let small = NSImage(size: NSSize(width: 128, height: 128))
+                    small.lockFocus(); icon.draw(in: NSRect(x: 0, y: 0, width: 128, height: 128)); small.unlockFocus()
+                    let rep = NSBitmapImageRep(data: small.tiffRepresentation!)!
+                    emit(["appId": "com.apple.finder", "title": title,
+                          "logicalSize": ["width": Int(window.frame.width), "height": Int(window.frame.height)],
+                          "pixelSize": ["width": config.width, "height": config.height],
+                          "iconPng": rep.representation(using: .png, properties: [:])!.base64EncodedString(),
+                          "capabilities": ["pressAt", "setSearchText", "confirmSearch"]]); continue
+                }
+                if path == "@wire-frame", let viewer {
+                    guard let rootAX, FinderAccess.inputAllowed(rootAX),
+                          let actual = FinderAccess.frame(rootAX), actual.size == window.frame.size,
+                          viewer.lastError == nil else { emit(["error": "Source geometry/capture unavailable"]); continue }
+                    guard let image = viewer.image.image, let tiff = image.tiffRepresentation,
+                          let rep = NSBitmapImageRep(data: tiff), let data = rep.representation(using: .png, properties: [:]) else {
+                        emit(["pending": true]); continue
+                    }
+                    emit(["png": data.base64EncodedString(), "captureMode": "stream",
+                          "pixelSize": ["width": rep.pixelsWide, "height": rep.pixelsHigh],
+                          "contentRect": ["x": 0, "y": 0, "width": rep.pixelsWide, "height": rep.pixelsHigh],
+                          "nativeFrames": viewer.frames]); continue
+                }
                 if path == "@viewer-close", let viewer {
                     emit(["viewerClosing": true]); viewer.window.close(); continue
                 }
@@ -90,6 +116,12 @@ import CryptoKit
                 if path == "@confirm" {
                     guard let rootAX else { emit(["error": "Finder AX window unavailable"]); continue }
                     emit(FinderAccess.confirmSearch(window: rootAX)); continue
+                }
+                if path.hasPrefix("@text-json:") {
+                    guard let rootAX, let data = String(path.dropFirst(11)).data(using: .utf8),
+                          let values = try? JSONSerialization.jsonObject(with: data) as? [String: String],
+                          let text = values["text"], text.utf8.count <= 4096 else { emit(["error": "Invalid search text"]); continue }
+                    emit(FinderAccess.setSearchText(text, window: rootAX)); continue
                 }
                 if path.hasPrefix("@text:") {
                     guard let rootAX else { emit(["error": "Finder AX window unavailable"]); continue }
