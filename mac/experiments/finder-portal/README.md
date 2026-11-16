@@ -426,3 +426,16 @@ Protocol/socket coverage now also verifies queue overflow rejects the 17th input
 without teardown/replay, and an unacknowledged frame ends the session despite
 continuing valid heartbeats. Nine automated tests pass, including encrypted
 pairing authenticity and tamper rejection.
+
+### Windows fixture compatibility
+
+`peer-fixture-test.js WINDOWS_FIXTURE CAPTURE OUTPUT COMMIT` runs the unchanged
+Windows `experiments/window-portal/windows/receiver/fixture.cjs` against the real
+native Mac receiver. Resolve `ws` for the external fixture with
+`NODE_PATH="$PWD/mac/node_modules"`. The reviewed fixture came from
+`b81cabc58c1c69688ffb94eae61d0907066d6582` on `coordination-relay`.
+The local run passed: one authenticated hello, 16 decoded/acknowledged frames,
+`test.fixture` identity, and native minimize/restore completion. Result files are
+removed before each run so stale output cannot pass a new test. This synthetic
+loopback check does not establish real Windows capture, application interaction,
+or paired Windows-to-Mac acceptance.
