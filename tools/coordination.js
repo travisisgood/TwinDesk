@@ -48,7 +48,6 @@ async function main() {
   const minutes=cfg.durationMinutes??60;
   if(!Number.isFinite(minutes)||minutes<=0||minutes>120)throw Error('durationMinutes must be greater than zero and at most 120');
   const expiresAt=new Date(Date.now()+minutes*60000).toISOString();
-  const lifetime=setTimeout(()=>stop.abort(),minutes*60000);
   await fs.mkdir(path.dirname(cfg.stateFile),{recursive:true});
   const lockPath=cfg.stateFile+'.lock';
   try {const old=JSON.parse(await fs.readFile(lockPath,'utf8'));try{process.kill(old.pid,0);throw Error('Listener already running: '+old.pid);}catch(e){if(e.code!=='ESRCH')throw e;}await fs.unlink(lockPath);}
@@ -77,6 +76,7 @@ async function main() {
     await desktopNotify(cfg.desktopServer,cfg.threadId,prompt);
   }
   let failures=0;
+  const lifetime=setTimeout(()=>stop.abort(),minutes*60000);
   try {
     await desktopNotify(cfg.desktopServer,cfg.threadId);
     state.expiresAt=expiresAt;
