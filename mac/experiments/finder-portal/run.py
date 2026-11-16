@@ -67,7 +67,7 @@ def main():
                 capture.stdin.flush()
                 sample = receive(capture)
                 sample.update(phase=phase, index=index, marker=marker,
-                    markerSeen=marker in ''.join(sample.get('text', [])).upper().replace(' ', ''),
+                    markerSeen=None, # PNGs require visual verification; OCR is not on the capture path.
                     finderState=script(f'tell application "Finder" to get {{bounds, collapsed}} of Finder window id {wid}'))
                 results.append(sample)
                 print(json.dumps(sample), flush=True)

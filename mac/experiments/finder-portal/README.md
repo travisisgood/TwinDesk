@@ -46,14 +46,14 @@ remain available for inspection. No user files are removed.
 A separate Swift process selects the exact Finder title and bundle ID once, retains
 its `SCContentFilter(desktopIndependentWindow:)`, and takes successive
 `SCScreenshotManager.captureImage` snapshots. It never recaptures the whole screen.
-Each image is saved with SHA-256, Vision OCR text, current window listing/onscreen
+Each image is saved with SHA-256, current window listing/onscreen
 state, bounds, and intersection with existing displays.
 
 For visible, requested offscreen, minimized, and restored phases:
 
 1. Save a baseline before creating the phase-specific marker file.
 2. Create a uniquely named file while the source remains in that state.
-3. Save three more snapshots, separated by two seconds, and OCR the new filename.
+3. Save three more snapshots, separated by two seconds, and inspect the new filename in the PNGs.
 4. Restore the disposable source before moving to the next phase.
 
 A hash change alone is not proof. Inspect the PNGs and confirm the newly created
@@ -68,7 +68,7 @@ frame-rate measurement. A capture pass proves neither process-targeted mouse inp
 keyboard input, popups, source invisibility during input, nor arbitrary plugin
 support. Those need separate experiments. No input is injected here.
 
-## Actual Mac validation, 2026-11-15
+## Initial Mac validation, 2026-11-15
 
 - Compiled the standalone Swift capture executable successfully on macOS 27.2.
 - Python syntax and shell syntax checks passed.
@@ -85,3 +85,27 @@ support. Those need separate experiments. No input is injected here.
 Apple API references:
 - https://developer.apple.com/documentation/screencapturekit/sccontentfilter/init(desktopindependentwindow:)
 - https://developer.apple.com/documentation/screencapturekit/scscreenshotmanager/captureimage(contentfilter:configuration:completionhandler:)
+
+## Completed live run after permission grant, 2026-11-15
+
+Screen Recording access became active after the user restarted Codex. Finder
+AppleEvents then responded. The probe needed AppKit initialization before SCK;
+Vision OCR also stalled beyond the sample timeout, so it was removed from the
+capture path. Saved PNGs were inspected directly instead; `markerSeen: null`
+means no automated OCR assertion was made.
+
+The signed rebuild retained permission. One complete 16-snapshot run exited 0:
+
+| State | Observed result |
+| --- | --- |
+| Visible | New `VISIBLEPROOF.txt` appeared in the capture. |
+| Requested offscreen | Finder clamped x to -760 for an 800-point window, leaving 40 points visible. `OFFSCREENPROOF.txt` appeared, but **fully offscreen capture remains unproven**. |
+| Minimized | **Fresh content confirmed.** `MINIMIZEDPROOF.txt` was absent in minimized-0.png and present in minimized-2.png, created between those captures. All minimized samples reported Finder collapsed=true and SCK onScreen=false. No restoration occurred between the two captures. |
+| Restored | `RESTOREDPROOF.txt` appeared; Finder returned to {100,100,800,550}, collapsed=false. Normal cleanup succeeded. |
+
+Measured hashes and states are recorded in `observed-results.json`. Raw PNGs and
+full local results are retained in the workspace outputs/finder-portal-verified
+folder, not committed. This is one actual Finder list-view test on macOS 27.2,
+using periodic screenshot capture. It is not proof of continuous video performance,
+input into a minimized window, arbitrary applications, or network transfer.
+No input injection, TwinDesk build/integration, or virtual display was involved.

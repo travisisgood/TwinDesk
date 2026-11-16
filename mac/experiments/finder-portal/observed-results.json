@@ -1,0 +1,169 @@
+{
+  "method": "Actual Finder separate-process snapshot test; PNGs visually inspected, no OCR assertion",
+  "macOS": "27.2",
+  "samples": [
+    {
+      "phase": "visible",
+      "index": 0,
+      "frame": "{{100, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": true,
+      "sha256": "32fac7feed9687b03b2e9ba017325d22beb3ab0ff107764c76e6bd81ae7fb7f2",
+      "finderState": "100, 100, 900, 650, false"
+    },
+    {
+      "phase": "visible",
+      "index": 1,
+      "frame": "{{100, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": true,
+      "sha256": "3deb65047d9bdc4488f1d88f870c83959e52addd4bba35e21082ff184539fecb",
+      "finderState": "100, 100, 900, 650, false"
+    },
+    {
+      "phase": "visible",
+      "index": 2,
+      "frame": "{{100, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": true,
+      "sha256": "3deb65047d9bdc4488f1d88f870c83959e52addd4bba35e21082ff184539fecb",
+      "finderState": "100, 100, 900, 650, false"
+    },
+    {
+      "phase": "visible",
+      "index": 3,
+      "frame": "{{100, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": true,
+      "sha256": "3deb65047d9bdc4488f1d88f870c83959e52addd4bba35e21082ff184539fecb",
+      "finderState": "100, 100, 900, 650, false"
+    },
+    {
+      "phase": "offscreen",
+      "index": 0,
+      "frame": "{{-760, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": true,
+      "sha256": "33f494f3bcd19d1a4d31f6c3ca7171d06dd9b2868b1c009e0e77d2ad7a37c4cb",
+      "finderState": "-760, 100, 40, 650, false"
+    },
+    {
+      "phase": "offscreen",
+      "index": 1,
+      "frame": "{{-760, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": true,
+      "sha256": "c9dcba99d5b416e43184a48a10d9c214efe0da528f204545ef3edcce9d8fefba",
+      "finderState": "-760, 100, 40, 650, false"
+    },
+    {
+      "phase": "offscreen",
+      "index": 2,
+      "frame": "{{-760, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": true,
+      "sha256": "c9dcba99d5b416e43184a48a10d9c214efe0da528f204545ef3edcce9d8fefba",
+      "finderState": "-760, 100, 40, 650, false"
+    },
+    {
+      "phase": "offscreen",
+      "index": 3,
+      "frame": "{{-760, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": true,
+      "sha256": "c9dcba99d5b416e43184a48a10d9c214efe0da528f204545ef3edcce9d8fefba",
+      "finderState": "-760, 100, 40, 650, false"
+    },
+    {
+      "phase": "minimized",
+      "index": 0,
+      "frame": "{{100, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": false,
+      "sha256": "7e2e55744fba697caee7de4dc6708d69f8d7cc83c609c3699effc8973aaf0b53",
+      "finderState": "100, 100, 900, 650, true"
+    },
+    {
+      "phase": "minimized",
+      "index": 1,
+      "frame": "{{100, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": false,
+      "sha256": "e377fe89846dfcbb3bf5a5cb2c595410fa836d91d97269556bc9cd55909bb78e",
+      "finderState": "100, 100, 900, 650, true"
+    },
+    {
+      "phase": "minimized",
+      "index": 2,
+      "frame": "{{100, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": false,
+      "sha256": "e377fe89846dfcbb3bf5a5cb2c595410fa836d91d97269556bc9cd55909bb78e",
+      "finderState": "100, 100, 900, 650, true"
+    },
+    {
+      "phase": "minimized",
+      "index": 3,
+      "frame": "{{100, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": false,
+      "sha256": "e377fe89846dfcbb3bf5a5cb2c595410fa836d91d97269556bc9cd55909bb78e",
+      "finderState": "100, 100, 900, 650, true"
+    },
+    {
+      "phase": "restored",
+      "index": 0,
+      "frame": "{{100, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": true,
+      "sha256": "29703e4f356e932ede2e369d72cd812e061f1f85c877f26767b2c5e3e6376a44",
+      "finderState": "100, 100, 900, 650, false"
+    },
+    {
+      "phase": "restored",
+      "index": 1,
+      "frame": "{{100, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": true,
+      "sha256": "f79c8658c78351a7ff518343d67af03b98cd7d1df1712a702f9fef653c445cba",
+      "finderState": "100, 100, 900, 650, false"
+    },
+    {
+      "phase": "restored",
+      "index": 2,
+      "frame": "{{100, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": true,
+      "sha256": "f79c8658c78351a7ff518343d67af03b98cd7d1df1712a702f9fef653c445cba",
+      "finderState": "100, 100, 900, 650, false"
+    },
+    {
+      "phase": "restored",
+      "index": 3,
+      "frame": "{{100, 100}, {800, 550}}",
+      "intersectsDisplay": true,
+      "listed": true,
+      "onScreen": true,
+      "sha256": "f79c8658c78351a7ff518343d67af03b98cd7d1df1712a702f9fef653c445cba",
+      "finderState": "100, 100, 900, 650, false"
+    },
+    {
+      "restored": true
+    }
+  ]
+}

@@ -1,6 +1,5 @@
 import Cocoa
 import ScreenCaptureKit
-import Vision
 import CryptoKit
 
 // A separate-process Finder window is selected once and retained even when hidden.
@@ -11,7 +10,8 @@ import CryptoKit
         print(String(decoding: data, as: UTF8.self))
         fflush(stdout)
     }
-    static func main() async {
+    @MainActor static func main() async {
+        _ = NSApplication.shared // Initialize the WindowServer connection before ScreenCaptureKit.
         do {
             if CommandLine.arguments.count == 1 {
                 // Opening the standalone bundle explicitly requests its normal OS grant.
@@ -47,16 +47,12 @@ import CryptoKit
                     let rep = NSBitmapImageRep(cgImage: image)
                     let png = rep.representation(using: .png, properties: [:])!
                     try png.write(to: URL(fileURLWithPath: path))
-                    let request = VNRecognizeTextRequest()
-                    request.recognitionLevel = .accurate
-                    try VNImageRequestHandler(cgImage: image).perform([request])
-                    let words = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
                     let current = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
                     let now = current.windows.first { $0.windowID == window.windowID }
                     let frame = now?.frame ?? .null
                     let intersects = current.displays.contains { $0.frame.intersects(frame) }
                     emit(["png": path, "sha256": SHA256.hash(data: png).map { String(format: "%02x", $0) }.joined(),
-                          "text": words, "listed": now != nil, "onScreen": now?.isOnScreen ?? false,
+                          "verification": "Inspect saved PNG for the newly created filename", "listed": now != nil, "onScreen": now?.isOnScreen ?? false,
                           "intersectsDisplay": intersects, "frame": NSStringFromRect(frame)])
                 } catch { emit(["error": String(describing: error)]) }
             }
