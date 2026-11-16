@@ -1,6 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto');
 const {encrypt}=require('./pairing-envelope');
+const {decrypt}=require('./pairing-open');
 test('pairing envelope decrypts only with peer key and authenticated context',()=>{
  const keys=crypto.generateKeyPairSync('rsa',{modulusLength:3072});
  const pair={url:'wss://127.0.0.1:49731/portal',token:crypto.randomBytes(32).toString('hex'),certificateSha256:'a'.repeat(64)};
@@ -10,4 +11,6 @@ test('pairing envelope decrypts only with peer key and authenticated context',()
  const decode=aad=>{const cipher=crypto.createDecipheriv('aes-256-gcm',key,Buffer.from(e.iv,'base64'));cipher.setAAD(Buffer.from(aad));cipher.setAuthTag(Buffer.from(e.tag,'base64'));return Buffer.concat([cipher.update(Buffer.from(e.ciphertext,'base64')),cipher.final()]);};
  assert.deepEqual(JSON.parse(decode('WindowPortal pairing v1')), {url:pair.url,token:pair.token,certSha256:pair.certificateSha256});
  assert.throws(()=>decode('wrong context'));
+ assert.deepEqual(decrypt(e,keys.privateKey),pair);
+ assert.throws(()=>decrypt({...e,tag:Buffer.alloc(16).toString('base64')},keys.privateKey));
 });
