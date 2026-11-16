@@ -45,6 +45,10 @@ async function main() {
     console.log(JSON.stringify({peerReady:status.ready,desktop:await desktopNotify(cfg.desktopServer,cfg.threadId)}));return;
   }
   if(command!=='listen')throw Error('Unknown command');
+  const minutes=cfg.durationMinutes??60;
+  if(!Number.isFinite(minutes)||minutes<=0||minutes>120)throw Error('durationMinutes must be greater than zero and at most 120');
+  const expiresAt=new Date(Date.now()+minutes*60000).toISOString();
+  const lifetime=setTimeout(()=>stop.abort(),minutes*60000);
   await fs.mkdir(path.dirname(cfg.stateFile),{recursive:true});
   const lockPath=cfg.stateFile+'.lock';
   try {const old=JSON.parse(await fs.readFile(lockPath,'utf8'));try{process.kill(old.pid,0);throw Error('Listener already running: '+old.pid);}catch(e){if(e.code!=='ESRCH')throw e;}await fs.unlink(lockPath);}
@@ -75,7 +79,8 @@ async function main() {
   let failures=0;
   try {
     await desktopNotify(cfg.desktopServer,cfg.threadId);
-    console.log('Listener started. Local long polling only; AI wakes only for new request messages. PID '+process.pid);
+    state.expiresAt=expiresAt;
+    console.log('Listener started. Local long polling only; AI wakes only for new requests. PID '+process.pid+'; expires '+expiresAt);
     while(!stop.signal.aborted) {
       try {
         const c=await connection();
@@ -91,6 +96,6 @@ async function main() {
         failures++;await delay(Math.min(15000,1000*2**Math.min(failures,4)));
       }
     }
-  } finally {state.health='stopped';await save();await fs.unlink(lockPath).catch(()=>{});}
+  } finally {clearTimeout(lifetime);state.health='stopped';await save();await fs.unlink(lockPath).catch(()=>{});}
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1});

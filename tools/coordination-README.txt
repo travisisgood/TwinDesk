@@ -11,7 +11,8 @@ Create a PRIVATE local JSON config outside the repository:
   "threadId": "actual local Codex chat UUID",
   "connectionFile": "absolute path to running TwinDesk agent-messenger.json",
   "desktopServer": "absolute path to installed codex-app-tools/server.mjs",
-  "stateFile": "absolute private path to relay-state.json"
+  "stateFile": "absolute private path to relay-state.json",
+  "durationMinutes": 60
 }
 
 Launch from a local Codex tool execution environment: it must inherit
@@ -36,7 +37,11 @@ Delivery states:
 - acknowledged: receiving Codex explicitly ran ack after seeing the message.
 - notification uncertain: call failed/timed out; do not retry automatically.
 
-The listener has no five-minute expiry. Network retries are ordinary local code
+The listener has an explicit session lifetime (default 60 minutes, maximum 120).
+It stops at expiry and never restarts itself. The saved state records expiresAt.
+An indefinite hidden launch was rejected by local automatic approval review;
+do not remove this lifecycle or add a scheduler to bypass that restriction.
+Network retries are ordinary local code
 and consume no model usage. New requests may consume a model turn. Normal
 statuses, receipts, acknowledgments, duplicate requests and old plain messenger
 messages do not wake a model. There are no timer-triggered model calls.
