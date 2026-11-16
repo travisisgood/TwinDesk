@@ -439,3 +439,10 @@ The local run passed: one authenticated hello, 16 decoded/acknowledged frames,
 removed before each run so stale output cannot pass a new test. This synthetic
 loopback check does not establish real Windows capture, application interaction,
 or paired Windows-to-Mac acceptance.
+
+Receiver result files now retain the source's advertised full commit and the
+receiver commit separately, plus the count of distinct compressed PNG hashes
+whose native decoding completed (bounded to 1024 unique hashes). The unchanged
+Windows fixture produced 16 distinct decoded frames in the 16-frame test.
+Different hashes are supporting transport evidence, not proof of a specific
+application change: paired acceptance still requires inspecting the content.

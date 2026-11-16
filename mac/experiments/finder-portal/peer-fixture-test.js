@@ -17,6 +17,7 @@ async function main(){
   const r=JSON.parse(fs.readFileSync(resultFile));
   if(r.frames!==16||r.appId!=='test.fixture'||JSON.stringify(r.minimizeStates)!=='[true,false]')throw Error('Peer fixture receiver failed');
   if(source.stats.hello!==1||source.stats.frames!==16)throw Error('Peer fixture exchange failed');
+  if(r.sourceCommit!=='f'.repeat(40)||r.receiverCommit!==commit||r.distinctDecodedFrames<2)throw Error('Decoded frame evidence failed');
   console.log(JSON.stringify({localFixtureOnly:true,receiver:r,source:{hellos:source.stats.hello,frames:source.stats.frames}}));
  }finally{receiver?.close('Fixture test finished');source.close();fs.rmSync(path.join(output,'pairing.json'),{force:true});}
 }
