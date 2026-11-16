@@ -38,7 +38,14 @@ class Native {
   static TextBox input;
   static long Number(Dictionary<string,object> c,string key) { return Convert.ToInt64(c[key]); }
   static void Write(object value){ Console.WriteLine(json.Serialize(value));Console.Out.Flush(); }
-  static void Restore() { if(target!=IntPtr.Zero && IsWindow(target)){int off=0;DwmSetWindowAttribute(target,13,ref off,4);SetWindowPos(target,IntPtr.Zero,originalX,originalY,0,0,0x4015);} }
+  static void RestorePosition(IntPtr h,int x,int y) {
+    SetWindowPos(h,IntPtr.Zero,x,y,0,0,0x4015);
+    // Explorer may apply WM_DPICHANGED's suggested rectangle on the first move.
+    // Reapply the saved position after that transition; never resize its content.
+    Thread.Sleep(200);
+    if(IsWindow(h))SetWindowPos(h,IntPtr.Zero,x,y,0,0,0x4015);
+  }
+  static void Restore() { if(target!=IntPtr.Zero && IsWindow(target)){int off=0;DwmSetWindowAttribute(target,13,ref off,4);RestorePosition(target,originalX,originalY);} }
   static RECT Frame(){ RECT r; if(DwmGetWindowAttribute(target,9,out r,16)!=0)GetWindowRect(target,out r);return r; }
   static object Command(Dictionary<string,object> c){
     string cmd=(string)c["cmd"];
@@ -113,11 +120,12 @@ class Native {
       }return;
     }
     if(args.Length==5 && args[0]=="watch"){
+      Dpi(); // Saved coordinates are physical pixels, including on mixed-DPI desktops.
       IntPtr h=new IntPtr(long.Parse(args[2]));
       var done=new ManualResetEvent(false);
       new Thread(()=>{Console.ReadLine();done.Set();}){IsBackground=true}.Start();
       try{var owner=Process.GetProcessById(int.Parse(args[1]));while(!owner.HasExited&&!done.WaitOne(200)){} }catch{}
-      if(IsWindow(h)){int off=0;DwmSetWindowAttribute(h,13,ref off,4);SetWindowPos(h,IntPtr.Zero,int.Parse(args[3]),int.Parse(args[4]),0,0,0x4015);}return;
+      if(IsWindow(h)){int off=0;DwmSetWindowAttribute(h,13,ref off,4);RestorePosition(h,int.Parse(args[3]),int.Parse(args[4]));}return;
     }
     Dpi();Application.EnableVisualStyles();
     form=new Form{Text="WindowPortal Test Source",ClientSize=new Size(440,230),StartPosition=FormStartPosition.Manual,Location=new Point(Screen.PrimaryScreen.WorkingArea.Left+60,Screen.PrimaryScreen.WorkingArea.Top+60)};
