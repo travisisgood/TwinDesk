@@ -58,7 +58,7 @@ function connect(config){
   if(!session){check(m.type==='welcome'&&UUID.test(m.sessionId)&&SHA.test(m.sourceCommit)&&m.heartbeatMs===2000&&m.disconnectMs===6000,'Invalid welcome');session=m.sessionId;clearTimeout(handshake);last=Date.now();heartbeat=setInterval(()=>{if(Date.now()-last>=6000||(pendingFrame&&Date.now()-pendingFrame.at>=6000)){close('Liveness timeout');return;}send({type:'ping',nonce:++nonce});},2000);return;}
   check(m.sessionId===session,'Wrong session');
   if(m.type==='window'){
-   metadata(m);check(!window||(m.windowId===window.windowId&&m.geometryRevision>window.geometryRevision&&!pendingFrame),'Invalid metadata revision');
+   metadata(m);check(window?(m.windowId===window.windowId&&m.geometryRevision===window.geometryRevision+1&&!pendingFrame):m.geometryRevision===1,'Invalid metadata revision');
    window=m;if(!child)startNative();native(m);
   }else if(m.type==='frame'){
    check(window&&!pendingFrame&&m.seq>lastFrame,'Unexpected frame');frame(m,window);lastFrame=m.seq;pendingFrame={seq:m.seq,at:Date.now()};native(m);
