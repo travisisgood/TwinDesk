@@ -5,6 +5,7 @@ app.setPath('userData',path.join(__dirname,'profile'));
 app.setAppUserModelId('WindowPortal.StandaloneReceiver');
 let win,session,ending=false,frames=0;
 const configPath=process.argv.find(a=>a.startsWith('--config='))?.slice(9);
+const proofDir=process.argv.find(a=>a.startsWith('--proof-dir='))?.slice(12);
 // A GUI process can outlive the launching shell's stdout/stderr pipes. Logging
 // must never throw EPIPE or bring down an otherwise healthy remote window.
 function log(event,extra={}){try{fs.appendFileSync(path.join(__dirname,'receiver-events.jsonl'),JSON.stringify({at:new Date().toISOString(),event,...extra})+'\n');}catch{}}
@@ -40,14 +41,18 @@ app.whenReady().then(async()=>{
  session.on('frame',(m,bytes)=>{
   const decoded=nativeImage.createFromBuffer(bytes),s=decoded.getSize();
   if(decoded.isEmpty()||s.width!==m.pixelSize.width||s.height!==m.pixelSize.height)return end('PNG decoder dimensions mismatch');
+  if(proofDir&&[1,60,180].includes(m.seq)){fs.mkdirSync(proofDir,{recursive:true});fs.writeFileSync(path.join(proofDir,'source-frame-'+m.seq+'.png'),bytes);}
   win.webContents.send('frame',{seq:m.seq,image:'data:image/png;base64,'+m.png,pixelSize:m.pixelSize,contentRect:m.contentRect});
  });
- session.on('inputResult',m=>win.webContents.send('notice',m.status+': '+m.detail));
+ session.on('inputResult',m=>{
+  win.webContents.send('notice',m.status+': '+m.detail);log('input-result',{seq:m.seq,status:m.status});
+  if(proofDir)setTimeout(async()=>{if(!win.isDestroyed()){const image=await win.webContents.capturePage();fs.writeFileSync(path.join(proofDir,'after-input-'+m.seq+'.png'),image.toPNG());}},700);
+ });
  session.on('ended',reason=>{if(!ending){win.webContents.send('disconnected',reason);log('disconnected',{reason,frames});}});
  // Explicit bounded smoke mode only; ordinary receiver lifetime is user-owned.
  const smoke=Number(process.argv.find(a=>a.startsWith('--smoke-seconds='))?.split('=')[1]);
- if(smoke>0&&smoke<=120){
-  const proof=process.argv.find(a=>a.startsWith('--proof-dir='))?.slice(12);
+ if(smoke>0&&smoke<=600){
+  const proof=proofDir;
   if(proof){
    fs.mkdirSync(proof,{recursive:true});
    setTimeout(async()=>{if(!win.isDestroyed()){const image=await win.webContents.capturePage();fs.writeFileSync(path.join(proof,'receiver.png'),image.toPNG());log('proof',{frames});}},4000);
