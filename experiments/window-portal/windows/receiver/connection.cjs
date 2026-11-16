@@ -44,7 +44,7 @@ function connect(config){
  const ack=protocol.displayedFrame.bind(protocol);protocol.displayedFrame=seq=>{ack(seq);pendingSince=0;};
  protocol.on('closed',()=>end('Source returned the window'));
  ws.on('open',()=>ws.send(JSON.stringify({v:1,type:'hello',role:'receiver',token:config.token,sourceCommit:config.sourceCommit})));
- ws.on('message',(raw,binary)=>{try{check(!binary,'Binary frames unsupported');protocol.receive(raw.toString('utf8'));last=Date.now();}catch(e){end(e.message)}});
+ ws.on('message',(raw,binary)=>{try{check(!binary,'Binary frames unsupported');protocol.receive(new TextDecoder('utf-8',{fatal:true}).decode(raw));last=Date.now();}catch(e){end(e.message)}});
  ws.on('error',()=>end('Connection failed'));ws.on('close',()=>end('Disconnected'));
  protocol.end=end;return protocol;
 }

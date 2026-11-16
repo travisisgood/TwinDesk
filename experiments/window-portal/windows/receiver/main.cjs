@@ -43,7 +43,7 @@ app.whenReady().then(async()=>{
   win.webContents.send('frame',{seq:m.seq,image:'data:image/png;base64,'+m.png,pixelSize:m.pixelSize,contentRect:m.contentRect});
  });
  session.on('inputResult',m=>win.webContents.send('notice',m.status+': '+m.detail));
- session.on('ended',reason=>{if(!ending){ending=true;win.webContents.send('disconnected',reason);log('disconnected',{reason,frames});}});
+ session.on('ended',reason=>{if(!ending){win.webContents.send('disconnected',reason);log('disconnected',{reason,frames});}});
  // Explicit bounded smoke mode only; ordinary receiver lifetime is user-owned.
  const smoke=Number(process.argv.find(a=>a.startsWith('--smoke-seconds='))?.split('=')[1]);
  if(smoke>0&&smoke<=120){
