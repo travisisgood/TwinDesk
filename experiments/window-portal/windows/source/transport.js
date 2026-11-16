@@ -10,7 +10,7 @@ class Pipe {
     child.stdout.setEncoding('utf8');child.stdout.on('data',chunk=>{
       this.buffer+=chunk;
       if(Buffer.byteLength(this.buffer)>16*1024*1024){this.fail(new Error('Native response too large'));child.kill();return;}
-      for(let i;(i=this.buffer.indexOf('\n'))>=0;){const line=this.buffer.slice(0,i);this.buffer=this.buffer.slice(i+1);try{const row=JSON.parse(line);const waiter=this.waiters.shift();if(waiter)waiter.resolve(row);else if(this.rows.length<2)this.rows.push(row);else throw Error('Unexpected native output');}catch(e){this.fail(e);}}
+      for(let i;(i=this.buffer.indexOf('\n'))>=0;){const line=this.buffer.slice(0,i);this.buffer=this.buffer.slice(i+1);try{if(!line.trim())continue;const row=JSON.parse(line);const waiter=this.waiters.shift();if(waiter)waiter.resolve(row);else if(this.rows.length<2)this.rows.push(row);else throw Error('Unexpected native output');}catch(e){this.fail(e);}}
     });
     child.on('error',e=>this.fail(e));child.on('exit',()=>this.fail(Error('Native process exited')));
     child.stdin.on('error',e=>this.fail(e));
@@ -124,7 +124,7 @@ async function start(config,{workerFactory=startWorker}={}){
  let stopping=null;
  const stop=()=>{
   if(stopping)return stopping;closing=true;
-  stopping=(async()=>{clearTimeout(lifetime);if(active)await active.end('Backing session ended');for(const client of wss.clients)client.terminate();await new Promise(r=>wss.close(r));await new Promise(r=>server.close(r));await stopChild(holder?.child);fs.rmSync(config.pairingFile,{force:true});})();return stopping;
+  stopping=(async()=>{clearTimeout(lifetime);if(active)await active.end('Backing session ended');for(const client of wss.clients)client.terminate();await new Promise(r=>wss.close(r));await new Promise(r=>server.close(r));await stopChild(holder?.child);try{if(JSON.parse(fs.readFileSync(config.pairingFile,'utf8')).token===token)fs.rmSync(config.pairingFile,{force:true});}catch{}})();return stopping;
  };
  const lifetime=setTimeout(stop,duration*1000);
  return {stop,port:address.port,get used(){return used;}};

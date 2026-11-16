@@ -19,7 +19,8 @@ async function main(){
  const workerFactory=()=>{
   const workerConfig=path.join(config.output,'worker-local.json');
   fs.writeFileSync(workerConfig,JSON.stringify({nativeHelper:config.nativeHelper,fixture:!!config.fixture,sourceTitle:config.sourceTitle,backing:display,output:config.output}));
-  const child=spawn(config.electron,[__dirname,'--worker-config='+workerConfig],{stdio:['pipe','pipe','ignore'],windowsHide:true});
+  const errLog=fs.openSync(path.join(config.output,'worker-stderr.log'),'a');
+  const child=spawn(config.electron,[__dirname,'--worker-config='+workerConfig],{stdio:['pipe','pipe',errLog],windowsHide:true});fs.closeSync(errLog);
   worker=new Pipe(child);return worker;
  };
  // Mac transport's injected display/worker hooks keep its wire behavior identical;

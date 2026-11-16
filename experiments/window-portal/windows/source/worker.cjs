@@ -3,7 +3,7 @@ const {app,BrowserWindow,desktopCapturer,ipcMain}=require('electron'),fs=require
 const config=JSON.parse(fs.readFileSync(process.argv.find(a=>a.startsWith('--worker-config=')).slice(16),'utf8'));
 app.setPath('userData',path.join(config.output,'worker-profile'));
 let helper,fixture,win,selected,latest,sourceInfo,next=0,closed=false,clicks=0;const pending=new Map();
-function emit(m){try{process.stdout.write(JSON.stringify(m)+'\n');}catch{cleanup()}}
+function emit(m){if(m.error)fs.appendFileSync(path.join(config.output,'worker-errors.jsonl'),JSON.stringify({error:m.error})+'\n');try{process.stdout.write(JSON.stringify(m)+'\n');}catch{cleanup()}}
 process.stdout.on('error',()=>cleanup());
 function native(cmd,args={}){return new Promise((resolve,reject)=>{const id=++next,timer=setTimeout(()=>{pending.delete(id);reject(Error('Native helper deadline'));},3000);pending.set(id,{resolve,reject,timer});helper.stdin.write(JSON.stringify({id,cmd,...args})+'\n');})}
 function startNative(args){
