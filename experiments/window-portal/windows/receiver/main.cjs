@@ -5,7 +5,11 @@ app.setPath('userData',path.join(__dirname,'profile'));
 app.setAppUserModelId('WindowPortal.StandaloneReceiver');
 let win,session,ending=false,frames=0;
 const configPath=process.argv.find(a=>a.startsWith('--config='))?.slice(9);
-function log(event,extra={}){console.log(JSON.stringify({event,...extra}));}
+// A GUI process can outlive the launching shell's stdout/stderr pipes. Logging
+// must never throw EPIPE or bring down an otherwise healthy remote window.
+function log(event,extra={}){try{fs.appendFileSync(path.join(__dirname,'receiver-events.jsonl'),JSON.stringify({at:new Date().toISOString(),event,...extra})+'\n');}catch{}}
+process.stdout.on('error',e=>{if(e.code!=='EPIPE')log('stdout-error',{code:e.code})});
+process.stderr.on('error',e=>{if(e.code!=='EPIPE')log('stderr-error',{code:e.code})});
 function end(reason){if(ending)return;ending=true;session?.end(reason);log('closed',{reason,frames});app.quit();}
 app.whenReady().then(async()=>{
  if(!configPath)throw Error('Pass --config=<private pairing JSON path>');
