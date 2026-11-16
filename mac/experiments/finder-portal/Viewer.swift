@@ -133,5 +133,5 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
         lastInput = FinderAccess.press(target, window: root)
     }
     func stop() async { snapshotTask?.cancel(); snapshotTask = nil; try? await stream?.stopCapture(); window.orderOut(nil) }
-    func windowWillClose(_ notification: Notification) { Task { await stop() } }
+    func windowWillClose(_ notification: Notification) { Task { await stop(); NSApp.terminate(nil) } }
 }

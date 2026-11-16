@@ -20,6 +20,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--hold', type=int, default=0, choices=range(0,61), help='Keep the minimized live viewer available for up to 60 seconds')
     parser.add_argument('--click', help='Normalized x,y point routed through the viewer click handler')
+    parser.add_argument('--close-viewer', action='store_true', help='Verify normal proxy close restores its source')
+    parser.add_argument('--raw-sort', action='store_true', help='Diagnostic only: test one process-targeted click on the fixture Name header')
+    parser.add_argument('--resize', help='Resize only the proxy content to width,height while minimized')
     parser.add_argument('--local-minimize', action='store_true', help='Minimize and restore the receiver window while the source stays minimized')
     parser.add_argument('--script-child', action='store_true', help='Test Finder-specific target scripting for a disposable child folder')
     parser.add_argument('--open-child', action='store_true', help='Create and AXOpen only a disposable child folder')
@@ -79,6 +82,11 @@ def main():
                     capture.stdin.write(('@viewer-minimize' if index == 1 else '@viewer-restore') + '\n'); capture.stdin.flush()
                     results.append({'viewerAction': receive(capture)})
                 time.sleep(2)
+                if capture.poll() is not None:
+                    if capture.returncode == 0:
+                        results.append({'viewerClosed': True})
+                        return
+                    raise RuntimeError('Capture helper failed; restoring source')
                 path = out / f'{phase}-{index}.png'
                 capture.stdin.write(str(path) + '\n')
                 capture.stdin.flush()
@@ -90,6 +98,18 @@ def main():
                 if args.viewer and phase == 'minimized' and index == 0:
                     capture.stdin.write('@axdump\n'); capture.stdin.flush()
                     (out / 'minimized-ax.json').write_text(json.dumps(receive(capture), indent=2))
+                    if args.close_viewer:
+                        capture.stdin.write('@viewer-close\n'); capture.stdin.flush()
+                        results.append(receive(capture))
+                    if args.raw_sort:
+                        capture.stdin.write('@raw-sort\n'); capture.stdin.flush()
+                        raw = receive(capture)
+                        results.append({'rawSort': raw})
+                        (out / 'raw-sort.json').write_text(json.dumps(raw, indent=2))
+                    if args.resize:
+                        if '\n' in args.resize or '\r' in args.resize: raise ValueError('Invalid resize')
+                        capture.stdin.write('@viewer-resize:' + args.resize + '\n'); capture.stdin.flush()
+                        results.append({'resize': receive(capture)})
                     if args.script_child:
                         script('tell application "Finder" to set target of Finder window id ' + wid + ' to POSIX file ' + json.dumps(str(folder / 'PortalChild')))
                         results.append({'scriptNavigation': True, 'stateAfter': script('tell application "Finder" to get {name, collapsed} of Finder window id ' + wid)})

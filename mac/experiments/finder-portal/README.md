@@ -191,3 +191,24 @@ true -> false while every source sample remained collapsed=true/onScreen=false.
 Fallback frames advanced from 10 to 28; cleanup restored the source. The disabled
 AXOpen command returned its capability error without exposing Finder. This tests
 local receiver window state, not a paired Windows taskbar/Dock interaction.
+
+## Aspect ratio, normal close, and raw-input diagnostic
+
+A 500x700-point proxy displayed the 800x550 source with letterboxing. Actual CUA
+clicking its scaled Name header changed ascending to descending order; source
+remained offscreen/minimized in the after-manual capture. Margin clicks are
+rejected by the image bounds calculation. Use `--resize 500,700 --hold 45` for
+this bounded manual test.
+
+`--close-viewer` now exits the native helper when its proxy closes. The controller
+detects that normal exit and restores the source; an actual close test exited 0
+with viewerClosed=true and restored=true. The controller also watches for helper
+exit during the bounded interactive hold.
+
+A separate `--raw-sort` diagnostic posted one balanced left down/up pair with
+CGEvent.postToPid and both explicit window-under-pointer fields targeting the
+fixture. Finder remained minimized and the measured physical cursor position did
+not move, but **sort order did not change**. This raw-input path failed the action
+test; it is not a normal viewer capability and is never a fallback for AX input.
+It says nothing about raw keyboard support. The source code is retained solely
+as a reproducible bounded diagnostic.

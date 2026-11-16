@@ -1,0 +1,106 @@
+{
+  "rawSort": {
+    "after": {
+      "actions": [
+        "AXPress"
+      ],
+      "AXDescription": "Name",
+      "AXMinimized": false,
+      "AXRole": "AXButton",
+      "AXValue": "AXAscendingSortDirection",
+      "frame": "{{269, 152}, {222, 28}}"
+    },
+    "before": {
+      "actions": [
+        "AXPress"
+      ],
+      "AXDescription": "Name",
+      "AXMinimized": false,
+      "AXRole": "AXButton",
+      "AXValue": "AXAscendingSortDirection",
+      "frame": "{{269, 152}, {222, 28}}"
+    },
+    "cursorAfter": "{0, 609.42999267578125}",
+    "cursorBefore": "{0, 609.42999267578125}",
+    "method": "CGEvent.postToPid plus explicit window fields",
+    "minimizedAfter": true
+  },
+  "letterbox": [
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 10,
+      "streamError": ""
+    },
+    {
+      "resize": {
+        "viewerSize": [
+          500,
+          700
+        ]
+      }
+    },
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 17,
+      "streamError": ""
+    },
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 24,
+      "streamError": ""
+    },
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 31,
+      "streamError": ""
+    },
+    {
+      "onScreen": false,
+      "lastInput": {
+        "AXError": 0,
+        "element": {
+          "actions": [
+            "AXPress"
+          ],
+          "AXDescription": "Name",
+          "AXMinimized": false,
+          "AXRole": "AXButton",
+          "AXValue": "AXDescendingSortDirection",
+          "frame": "{{269, 152}, {222, 28}}"
+        },
+        "minimizedAfter": true
+      },
+      "snapshotFrames": 162,
+      "streamError": ""
+    },
+    {
+      "restored": true
+    }
+  ],
+  "close": [
+    {
+      "onScreen": false,
+      "finderState": "100, 100, 900, 650, true",
+      "lastInput": {},
+      "snapshotFrames": 10,
+      "streamError": ""
+    },
+    {
+      "viewerClosing": true
+    },
+    {
+      "viewerClosed": true
+    },
+    {
+      "restored": true
+    }
+  ]
+}

@@ -55,6 +55,19 @@ import CryptoKit
             try await viewer?.start()
             emit(["ready": true, "wid": window.windowID, "pid": window.owningApplication!.processID])
             while let path = await Task.detached(operation: { readLine() }).value {
+                if path == "@viewer-close", let viewer {
+                    emit(["viewerClosing": true]); viewer.window.close(); continue
+                }
+                if path == "@raw-sort" {
+                    guard let rootAX else { emit(["error": "Finder AX window unavailable"]); continue }
+                    emit(await RawInputProbe.sort(window: rootAX, wid: window.windowID, pid: window.owningApplication!.processID)); continue
+                }
+                if path.hasPrefix("@viewer-resize:"), let viewer {
+                    let sizes = path.dropFirst(15).split(separator: ",").compactMap { Double($0) }
+                    guard sizes.count == 2, sizes.allSatisfy({ $0.isFinite && (300...1600).contains($0) }) else { emit(["error": "Invalid viewer size"]); continue }
+                    viewer.window.setContentSize(NSSize(width: sizes[0], height: sizes[1]))
+                    emit(["viewerSize": sizes]); continue
+                }
                 if path == "@viewer-minimize" || path == "@viewer-restore" {
                     guard let viewer else { emit(["error": "Viewer is not enabled"]); continue }
                     if path == "@viewer-minimize" { viewer.window.miniaturize(nil) }
