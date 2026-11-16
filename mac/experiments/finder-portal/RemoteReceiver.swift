@@ -40,8 +40,8 @@ import Cocoa
         let quit = NSMenuItem(title: "Quit Window Portal Receiver", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp; appMenu.addItem(quit); appItem.submenu = appMenu; menu.addItem(appItem)
         let windowItem = NSMenuItem(); let windowMenu = NSMenu(title: "Window")
-        let minimize = NSMenuItem(title: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
-        minimize.target = window; windowMenu.addItem(minimize)
+        let minimize = NSMenuItem(title: "Minimize", action: #selector(RemoteReceiver.minimizeLocal), keyEquivalent: "m")
+        minimize.target = self; windowMenu.addItem(minimize)
         let close = NSMenuItem(title: "Return to Source", action: #selector(RemoteReceiver.returnSource), keyEquivalent: "w")
         close.target = self; windowMenu.addItem(close)
         windowItem.submenu = windowMenu; menu.addItem(windowItem)
@@ -60,6 +60,9 @@ import Cocoa
         }
         image.key = { [weak self] event in self?.key(event) }
     }
+    // performMiniaturize relies on standard title-bar controls; this borderless
+    // receiver deliberately has none. Use the direct AppKit operation instead.
+    @objc func minimizeLocal() { window.miniaturize(nil) }
     @objc func returnSource() { window.close() }
     func layoutCaption() {
         caption.frame = NSRect(x: image.bounds.width * 0.35, y: max(0, image.bounds.height - 8), width: image.bounds.width * 0.30, height: 8)
@@ -98,7 +101,9 @@ import Cocoa
             }
             if let size = m["logicalSize"] as? [String: Double], let w = size["width"], let h = size["height"], w > 0, h > 0 {
                 let screen = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1000, height: 700)
-                let scale = min(1, min(screen.width / w, screen.height / h))
+                // Windows capture coordinates are not macOS points. Give small
+                // sources a usable local viewing size without resizing the source.
+                let scale = min(max(1, 900 / w), min(screen.width * 0.9 / w, screen.height * 0.9 / h))
                 window.setContentSize(NSSize(width: w * scale, height: h * scale)); layoutCaption()
             }
         } else if type == "frame" {

@@ -454,3 +454,14 @@ the directory/files are created with private permissions. These are remote sourc
 image artifacts, not screenshots of the Mac desktop. Leave this option unset for
 ordinary sessions. They can establish source content changes while the Mac is
 locked, but cannot verify native Dock appearance or interactive receiver behavior.
+
+November 16 Dock attempt: paired Explorer source `64680e7` / receiver `3d8041a`
+delivered 5066 frames, but the receiver recorded no minimize events despite menu
+and shortcut attempts. User saw a small window; Dock/icon acceptance did not pass.
+The session ended at the source's scheduled cutoff, not a demonstrated minimize
+failure or source recovery triggered by minimize. The next candidate routes the
+menu directly to `miniaturize` instead of `performMiniaturize`, and gives small
+sources a preferred 900-point local width bounded by 90% of the available screen.
+Source size and protocol coordinates are unchanged. Signed build passes; actual
+menu/Dock behavior remains pending. A local UI check was interrupted before its
+menu action could be verified and is not counted as a pass.
