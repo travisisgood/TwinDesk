@@ -17,6 +17,7 @@ class Native {
   [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr h,int a,out RECT v,int size);
   [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr h,int a,out int v,int size);
   [DllImport("user32.dll")] static extern bool IsWindow(IntPtr h);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h,out uint pid);
   [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h,out RECT r);
   [DllImport("user32.dll")] static extern bool ScreenToClient(IntPtr h,ref POINT p);
   [DllImport("user32.dll")] static extern IntPtr ChildWindowFromPointEx(IntPtr h,POINT p,uint flags);
@@ -50,7 +51,8 @@ class Native {
       var info=new ProcessStartInfo(Application.ExecutablePath,"watch "+Process.GetCurrentProcess().Id+" "+target.ToInt64()+" "+originalX+" "+originalY);
       info.UseShellExecute=false;info.CreateNoWindow=true;info.RedirectStandardInput=true;
       guard=Process.Start(info);
-      return new {wid=target.ToInt64()};
+      uint pid;GetWindowThreadProcessId(target,out pid);
+      return new {wid=target.ToInt64(),processName=Process.GetProcessById((int)pid).ProcessName};
     }
     if(cmd=="status"){
       int cloaked=0;if(target!=IntPtr.Zero)DwmGetWindowAttribute(target,14,out cloaked,4);

@@ -5,7 +5,7 @@ const run=promisify(execFile),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function main(){
  const config=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
  if(!config.kvmProfile||!config.nativeHelper||!config.electron||!config.displayProbe)throw Error('Explicit local helper/runtime/KVM profile paths required');
- if(!config.fixture&&!config.sourceTitle)throw Error('Choose a fixture or an exact existing source window title');
+ if(config.fixture||!Number.isSafeInteger(config.sourceWid))throw Error('Explorer-only testing requires an exact locally selected Explorer window handle');
  const backing=new Backing({list:async()=>JSON.parse((await run(config.displayProbe,[],{windowsHide:true,timeout:5000})).stdout),enable:()=>run('schtasks.exe',['/run','/tn','\\MacShare\\Extend on'],{windowsHide:true,timeout:15000})});
  const display=await backing.acquire(),requestId=crypto.randomUUID();
  const lease=path.join(config.kvmProfile,'portal-backing-lease.json'),ack=path.join(config.kvmProfile,'portal-backing-ack.json');
@@ -19,7 +19,7 @@ async function main(){
  const workerFactory=()=>{
   const workerConfig=path.join(config.output,'worker-local.json');
   const pipe='\\\\.\\pipe\\WindowPortal-'+crypto.randomUUID(),server=require('node:net').createServer();
-  fs.writeFileSync(workerConfig,JSON.stringify({pipe,nativeHelper:config.nativeHelper,fixture:!!config.fixture,sourceTitle:config.sourceTitle,backing:display,output:config.output}));
+  fs.writeFileSync(workerConfig,JSON.stringify({pipe,nativeHelper:config.nativeHelper,fixture:false,sourceWid:config.sourceWid,sourceTitle:config.sourceTitle,backing:display,output:config.output}));
   let child;
   const ready=new Promise((resolve,reject)=>{
    const deadline=setTimeout(()=>{server.close();reject(Error('Capture IPC deadline'));},10000);

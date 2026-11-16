@@ -23,11 +23,12 @@ app.whenReady().then(async()=>{
  let source;
  for(let i=0;i<12&&!source;i++){
   const list=await desktopCapturer.getSources({types:['window'],thumbnailSize:{width:0,height:0},fetchWindowIcons:true});
-  const matches=list.filter(s=>fixtureId?s.id.startsWith('window:'+fixtureId+':'):s.name===config.sourceTitle);
+  const matches=list.filter(s=>(fixtureId||config.sourceWid)?s.id.startsWith('window:'+(fixtureId||config.sourceWid)+':'):s.name===config.sourceTitle);
   if(matches.length>1)throw Error('Source window title is ambiguous');source=matches[0];if(!source)await new Promise(r=>setTimeout(r,300));
  }
  if(!source)throw Error('Selected source window not found');
- const wid=Number(/^window:(\d+):/.exec(source.id)[1]);await native('select',{wid});selected=wid;
+ const wid=Number(/^window:(\d+):/.exec(source.id)[1]);const identity=await native('select',{wid});selected=wid;
+ if(!config.fixture&&identity.processName!=='explorer')throw Error('Refusing non-Explorer source');
  originalBounds=(await native('status')).bounds;
  const mon=config.backing;await native('park',{x:mon.x+24,y:mon.y+24});
  let status;
@@ -40,7 +41,7 @@ app.whenReady().then(async()=>{
  ipcMain.handle('source',()=>sourceInfo);
  ipcMain.on('frame',(_e,frame)=>{
   latest=frame;
-  if(first){first=false;emit({windowId:require('node:crypto').randomUUID(),geometryRevision:1,appId:config.fixture?'win32.WindowPortalFixture':'win32.SelectedWindow',title:sourceInfo.title,logicalSize:sourceInfo.logicalSize,pixelSize:frame.pixelSize,iconPng:sourceInfo.iconPng,capabilities:config.fixture?['pressAt']:[]});}
+  if(first){first=false;emit({windowId:require('node:crypto').randomUUID(),geometryRevision:1,appId:config.fixture?'win32.WindowPortalFixture':'win32.explorer',title:sourceInfo.title,logicalSize:sourceInfo.logicalSize,pixelSize:frame.pixelSize,iconPng:sourceInfo.iconPng,capabilities:config.fixture?['pressAt']:[]});}
  });
  ipcMain.on('failure',(_e,message)=>{emit({error:String(message).slice(0,300)});cleanup()});
  let queue=Promise.resolve();
