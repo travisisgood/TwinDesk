@@ -1,0 +1,111 @@
+Window Portal wire v1 -- concrete proposal for Mac agreement
+Windows checkpoint 1aa368a; Mac checkpoint reviewed b3861fb.
+Status: proposed, not yet accepted by both peers. No LAN implementation yet.
+
+Scope and ownership
+One selected source window and one borderless receiver per connection. Mac owns
+its native source and receiver; Windows owns its native source and receiver.
+Both use this contract. No TwinDesk protocol changes. First paired milestone may
+be Finder -> Windows, but Windows -> Mac uses the identical wire contract.
+No generic input is claimed where only Accessibility/control actions work.
+
+Connection and pairing
+Source listens; receiver connects to ws://127.0.0.1:<port>/portal for local tests
+or wss://<explicit-address>:<port>/portal on LAN. Default experimental port 49731;
+configurable explicitly, no automatic scanning. Disable WebSocket compression.
+LAN requires TLS1.2+ and the exact SHA256 DER certificate pin exchanged out of
+band. No accept-any-certificate mode. Source issues a random 256-bit single-use
+secret with five-minute expiry, accepted only over the pinned TLS connection;
+store neither secret nor token in logs/repo. Failed auth never captures/parks a
+window or exposes metadata. Loopback binding only until LAN pairing is tested.
+
+UTF-8 JSON text messages, no binary messages in v1. All post-welcome messages
+include {v:1,type,sessionId}. IDs are UUID strings. Sequence numbers are positive
+safe integers <=2^53-1 and strictly increasing separately for frames and inputs.
+Reject wrong versions/types/IDs, nonfinite numbers and malformed fields.
+
+Receiver -> source, first message within five seconds:
+ {v:1,type:"hello",role:"receiver",token:<secret>,sourceCommit:<40hex>}
+Source -> receiver after auth:
+ {v:1,type:"welcome",sessionId:<uuid>,sourceCommit:<40hex>,heartbeatMs:2000,
+  disconnectMs:6000}
+Source sends window metadata before any frame:
+ {v:1,type:"window",sessionId,windowId:<uuid>,geometryRevision:1,
+  appId:<stable app identifier>,title:<string>,
+  logicalSize:{width,height},pixelSize:{width,height},
+  iconPng:<base64 or null>,capabilities:[<operation names>]}
+Metadata changes increment geometryRevision; windowId remains stable for session.
+Never transmit native handles, executable paths or script bodies.
+
+Source -> receiver frame:
+ {v:1,type:"frame",sessionId,windowId,geometryRevision,seq,
+  pixelSize:{width,height},contentRect:{x,y,width,height},
+  captureMode:"stream"|"snapshot",png:<base64>}
+contentRect is the exact source-window image rectangle in encoded pixel units,
+excluding capture padding. Its extent must fit pixelSize and must be nonzero.
+Receiver applies further letterboxing locally. Content may include the source
+title bar, but clicks on source window-management buttons are not forwarded in v1.
+Receiver replies {v:1,type:"frameAck",sessionId,windowId,seq} only after decode
+and installing the image. One unacknowledged frame max; retain only the newest
+pending frame. ACK old/unknown seq is an error. When receiver is minimized, ACK
+after validation and replacement of its latest image, without displaying it;
+minimize/restore never parks/restores source or changes the backing display.
+
+Receiver -> source input:
+ {v:1,type:"input",sessionId,windowId,geometryRevision,seq,frameSeq,
+  op:"pressAt",args:{x:<0..1>,y:<0..1>}}
+x/y normalized to contentRect after removing receiver letterboxing, origin top
+left. Other v1 operations: setSearchText {text:<string <=4096 UTF8 bytes>},
+confirmSearch {}. Only send operations explicitly advertised in capabilities.
+Source rejects unknown ops, stale geometryRevision, frameSeq never sent in this
+session, and non-increasing input seq. frameSeq need not be the latest frame:
+streaming can advance during a click, but the geometry revision must match.
+Process input serially; bounded queue max16, reject overflow. No automatic replay.
+Source -> receiver:
+ {v:1,type:"inputResult",sessionId,windowId,seq,
+  status:"dispatched"|"verified"|"unsupported"|"rejected"|"failed",
+  detail:<bounded string>}
+An API success is dispatched, not verified. Only observed application state
+changes justify verified. No global injection fallback. Finder navigation/raw
+keys/dragging/popup actions require a later agreed capability, not scripts.
+
+Bounds
+Control <=16KiB UTF8, except window metadata <=768KiB (icon). Frame envelope
+<=12MiB UTF8; decoded compressed PNG <=8MiB; dimensions 1..4096, area <=8million
+pixels. Icon <=512KiB compressed, dimensions <=512 each. Validate base64 and PNG
+IHDR before decoding, then validate actual decoder output dimensions. Title
+<=4096 UTF8 bytes, appId <=512, detail <=1024. Reject oversized frames/metadata;
+do not silently resize source to fit protocol limits. Sender may downscale
+capture while preserving logicalSize/content mapping. Reject invalid messages
+and close session; fail restoration must be reported locally.
+
+Liveness and teardown
+Both send {v:1,type:"ping",sessionId,nonce:<integer>} every two seconds; reply
+{v:1,type:"pong",sessionId,nonce} promptly. Six seconds without any valid inbound
+traffic, capture loss, source destruction, decode failure or explicit receiver
+close ends session. A six-second frame-ACK timeout also ends session. This is
+ordinary transport code, not AI polling. Stale receiver stops accepting input.
+Close message: {v:1,type:"close",sessionId,reason:<bounded string>}.
+Receiver close means return source, NEVER close the source application.
+Restore source through independent guardian even if controller dies. Leave the
+backing display intact; only explicit end of backing session may remove it,
+after all sources restored. Reconnect starts new IDs and never auto-reparks.
+
+Layout (separate from the per-window transport)
+The backing rectangle matches the peer's usable desktop coordinate arrangement
+in source OS coordinates. Do not equate raw Windows pixels to macOS points.
+Initial pair tests use explicit saved rectangles and scales, not automatic edge
+drag: {revision,sourceBacking:{x,y,width,height,units:"physicalPixels"|"points"},
+ destination:{x,y,width,height,units:"physicalPixels"|"points"}}.
+Map source relative coordinates proportionally to destination rectangle, including
+negative origins. Logical window size and encoded image size remain separate.
+Freeze layout during a window session; geometry/layout changes must restore
+windows or explicitly renegotiate before accepting input. Do not reposition or
+resize the backing monitor on a frame, input, receiver minimize or reconnect.
+Exact adjacent desktop layout and automatic edge dragging are later tests.
+
+Review requested
+Mac should accept this v1 field contract or return exact corrections before
+either side starts networking. Both run malformed-message, backpressure,
+disconnect/guardian and mapping tests, then record exact source SHAs, wire version,
+layout and observed results in one paired acceptance report.
