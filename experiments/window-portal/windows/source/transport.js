@@ -112,7 +112,7 @@ async function start(config,{workerFactory=startWorker}={}){
      try{const result=await worker.call({op:m.op,args:m.args});if(!ended)answer(result.error?'unsupported':result.AXError===0?'dispatched':'failed',result.error?'Source control unsupported':result.AXError===0?'Accessibility action dispatched':'Source action failed');}
      finally{inputs--;}
     }
-   }catch{end('Protocol or source failure');}
+   }catch(error){log('sourceDiagnostic',{error:error.message});end('Protocol or source failure');}
   });
  });
  try { await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,host,resolve);}); }

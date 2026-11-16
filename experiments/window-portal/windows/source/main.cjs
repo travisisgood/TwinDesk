@@ -18,10 +18,19 @@ async function main(){
  let worker;
  const workerFactory=()=>{
   const workerConfig=path.join(config.output,'worker-local.json');
-  fs.writeFileSync(workerConfig,JSON.stringify({nativeHelper:config.nativeHelper,fixture:!!config.fixture,sourceTitle:config.sourceTitle,backing:display,output:config.output}));
+  const pipe='\\\\.\\pipe\\WindowPortal-'+crypto.randomUUID(),server=require('node:net').createServer();
+  fs.writeFileSync(workerConfig,JSON.stringify({pipe,nativeHelper:config.nativeHelper,fixture:!!config.fixture,sourceTitle:config.sourceTitle,backing:display,output:config.output}));
+  let child;
+  const ready=new Promise((resolve,reject)=>{
+   const deadline=setTimeout(()=>{server.close();reject(Error('Capture IPC deadline'));},10000);
+   server.once('error',e=>{clearTimeout(deadline);reject(e)});
+   server.once('connection',socket=>{clearTimeout(deadline);server.close();child.stdin=socket;child.stdout=socket;resolve(new Pipe(child));});
+  });
+  server.listen(pipe);
   const errLog=fs.openSync(path.join(config.output,'worker-stderr.log'),'a');
-  const child=spawn(config.electron,[__dirname,'--worker-config='+workerConfig],{stdio:['pipe','pipe',errLog],windowsHide:true});fs.closeSync(errLog);
-  worker=new Pipe(child);return worker;
+  child=spawn(config.electron,[__dirname,'--worker-config='+workerConfig],{stdio:['pipe','ignore',errLog],windowsHide:true});fs.closeSync(errLog);
+  child.once('exit',()=>server.close());
+  worker={child,read:()=>ready.then(p=>p.read()),call:m=>ready.then(p=>p.call(m))};return worker;
  };
  // Mac transport's injected display/worker hooks keep its wire behavior identical;
  // Windows owns display setup and recovery, so no Mac holder is constructed.

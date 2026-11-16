@@ -3,8 +3,9 @@ const {app,BrowserWindow,desktopCapturer,ipcMain}=require('electron'),fs=require
 const config=JSON.parse(fs.readFileSync(process.argv.find(a=>a.startsWith('--worker-config=')).slice(16),'utf8'));
 app.setPath('userData',path.join(config.output,'worker-profile'));
 let helper,fixture,win,selected,latest,sourceInfo,next=0,closed=false,clicks=0;const pending=new Map();
-function emit(m){if(m.error)fs.appendFileSync(path.join(config.output,'worker-errors.jsonl'),JSON.stringify({error:m.error})+'\n');try{process.stdout.write(JSON.stringify(m)+'\n');}catch{cleanup()}}
-process.stdout.on('error',()=>cleanup());
+const transport=require('node:net').createConnection(config.pipe);
+transport.on('error',()=>cleanup());transport.on('close',()=>cleanup());
+function emit(m){if(m.error)fs.appendFileSync(path.join(config.output,'worker-errors.jsonl'),JSON.stringify({error:m.error})+'\n');try{transport.write(JSON.stringify(m)+'\n');}catch{cleanup()}}
 function native(cmd,args={}){return new Promise((resolve,reject)=>{const id=++next,timer=setTimeout(()=>{pending.delete(id);reject(Error('Native helper deadline'));},3000);pending.set(id,{resolve,reject,timer});helper.stdin.write(JSON.stringify({id,cmd,...args})+'\n');})}
 function startNative(args){
  const child=spawn(config.nativeHelper,args,{stdio:['pipe','pipe','ignore'],windowsHide:args.includes('controller')});
@@ -42,13 +43,13 @@ app.whenReady().then(async()=>{
  });
  ipcMain.on('failure',(_e,message)=>{emit({error:String(message).slice(0,300)});cleanup()});
  let queue=Promise.resolve();
- readline.createInterface({input:process.stdin}).on('line',line=>{queue=queue.then(async()=>{
+ readline.createInterface({input:transport}).on('line',line=>{queue=queue.then(async()=>{
   const m=JSON.parse(line);
   if(m.op==='frame'){if(!latest){emit({pending:true});return;}emit(latest);return;}
   if(m.op==='pressAt'&&config.fixture){const before=clicks;const r=await native('click',m.args);await new Promise(r=>setTimeout(r,200));fs.appendFileSync(path.join(config.output,'input-evidence.jsonl'),JSON.stringify({before,after:clicks,route:r.route})+'\n');emit({AXError:0});return;}
   emit({error:'Unsupported Windows source operation'});
  }).catch(e=>{emit({error:e.message});cleanup()});}).on('close',cleanup);
  win=new BrowserWindow({show:false,width:800,height:600,webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,backgroundThrottling:false}});
- win.webContents.on('render-process-gone',cleanup);await win.loadFile('index.html');
+ win.webContents.on('render-process-gone',(_e,d)=>{emit({error:'Capture renderer exited: '+d.reason});cleanup()});await win.loadURL(require('node:url').pathToFileURL(path.join(__dirname,'index.html')).href);
 }).catch(e=>{emit({error:e.message});cleanup()});
 app.on('before-quit',()=>{helper?.stdin.end();fixture?.stdin.end();});
