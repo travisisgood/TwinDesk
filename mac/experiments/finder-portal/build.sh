@@ -28,5 +28,21 @@ else
   codesign --force --sign - "$app/Contents/MacOS/FinderPortalBacking"
   codesign --force --sign - "$app"
 fi
+receiver="$out/Window Portal Receiver.app"
+mkdir -p "$receiver/Contents/MacOS"
+cp "$app/Contents/MacOS/FinderPortalCapture" "$receiver/Contents/MacOS/WindowPortalReceiver"
+cat > "$receiver/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>com.travismackinnon.windowportalreceiver</string>
+<key>CFBundleExecutable</key><string>WindowPortalReceiver</string>
+<key>CFBundleName</key><string>Window Portal Receiver</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleVersion</key><string>1</string>
+</dict></plist>
+PLIST
+codesign --force --sign "${MAC_IDENTITY:--}" --timestamp=none "$receiver"
+codesign --verify --deep --strict "$receiver"
 codesign --verify --deep --strict "$app"
 printf '%s\n' "$app/Contents/MacOS/FinderPortalCapture"

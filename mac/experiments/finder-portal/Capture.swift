@@ -17,7 +17,7 @@ import CryptoKit
     }
     @MainActor static func run() async {
         do {
-            if CommandLine.arguments == [CommandLine.arguments[0], "--receiver"] { await RemoteReceiver.run(); return }
+            if Bundle.main.bundleIdentifier == "com.travismackinnon.windowportalreceiver" || CommandLine.arguments == [CommandLine.arguments[0], "--receiver"] { await RemoteReceiver.run(); return }
             if CommandLine.arguments.count == 1 {
                 // Opening the standalone bundle explicitly requests its normal OS grant.
                 emit(["screenRecording": CGRequestScreenCaptureAccess()])
@@ -62,7 +62,7 @@ import CryptoKit
             config.scalesToFit = true
             config.capturesAudio = false
             let rootAX = FinderAccess.window(pid: window.owningApplication!.processID, title: title)
-            let viewer = viewerMode ? PortalViewer(source: window) : nil
+            let viewer = viewerMode ? PortalViewer(source: window, presentsWindow: !sourceMode) : nil
             try await viewer?.start(showWindow: !sourceMode)
             emit(["ready": true, "wid": window.windowID, "pid": window.owningApplication!.processID])
             while let path = await Task.detached(operation: { readLine() }).value {

@@ -1,0 +1,21 @@
+{
+  "closed": true,
+  "reason": "Bounded receiver test finished",
+  "frames": 600,
+  "appId": "com.apple.finder",
+  "inputResults": 0,
+  "minimizeStates": [],
+  "localDrags": [
+    {
+      "before": "{{160, 120}, {800, 550}}",
+      "after": "{{260, 70}, {800, 550}}"
+    }
+  ],
+  "sourceRecovery": {
+    "restored": true,
+    "state": "100, 100, 900, 650, false"
+  },
+  "actualCUADrag": true,
+  "earlierPerformDragTest": "No movement; replaced by local mouse drag tracking",
+  "dockShortcutManualTest": "Not verified: bounded test ended before follow-up UI inspection"
+}

@@ -55,12 +55,12 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
     var replaceSearch = false
     let source: SCWindow
     lazy var sourceAX: AXUIElement? = FinderAccess.window(pid: source.owningApplication!.processID, title: source.title ?? "")
-    init(source: SCWindow) {
+    init(source: SCWindow, presentsWindow: Bool = true) {
         self.source = source
         window = PortalWindow(contentRect: NSRect(x: 160, y: 120, width: 800, height: 550), styleMask: FinderAccess.backingDisplayID == nil ? [.titled, .closable, .miniaturizable, .resizable] : [.borderless, .miniaturizable, .resizable], backing: .buffered, defer: false)
         super.init()
-        NSApp.setActivationPolicy(.regular)
-        NSApp.applicationIconImage = NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
+        NSApp.setActivationPolicy(presentsWindow ? .regular : .accessory)
+        if presentsWindow { NSApp.applicationIconImage = NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app") }
         window.title = "Finder Portal — search and sorting"
         window.isReleasedWhenClosed = false
         window.delegate = self

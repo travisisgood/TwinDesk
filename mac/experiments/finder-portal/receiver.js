@@ -1,5 +1,5 @@
 'use strict';
-const fs=require('node:fs'),crypto=require('node:crypto'),{spawn}=require('node:child_process');
+const fs=require('node:fs'),crypto=require('node:crypto'),path=require('node:path'),{spawn}=require('node:child_process');
 const https=require('node:https'),tls=require('node:tls');
 const WebSocket=require('ws');const {parse,check,SHA,UUID,metadata,frame}=require('./wire');
 function connect(config){
@@ -29,22 +29,23 @@ function connect(config){
  }
  const ws=new WebSocket(pair.url,{agent,perMessageDeflate:false,maxPayload:12*1024*1024,handshakeTimeout:5000,followRedirects:false});
  let session=null,window=null,child=null,buffer='',last=Date.now(),lastFrame=0,pendingFrame=null,inputSeq=0,closed=false,heartbeat=null,nonce=0;
- const inputs=new Set();let frames=0;const minimizeStates=[];
+ const inputs=new Set();let frames=0;const minimizeStates=[],localDrags=[];
  const log=m=>{if(config.resultFile)fs.writeFileSync(config.resultFile,JSON.stringify(m,null,2));};
  const send=m=>{if(ws.readyState===1)ws.send(JSON.stringify({v:1,sessionId:session,...m}));};
  const close=reason=>{
   if(closed)return;closed=true;clearInterval(heartbeat);clearTimeout(handshake);
   if(session)send({type:'close',reason});ws.close();agent?.destroy();const timer=setTimeout(()=>ws.terminate(),1000);timer.unref();
   if(child){child.stdin.end();const timer=setTimeout(()=>child.kill(),2000);timer.unref();}
-  log({closed:true,reason,frames,appId:window?.appId||null,inputResults:inputSeq-inputs.size,minimizeStates});
+  log({closed:true,reason,frames,appId:window?.appId||null,inputResults:inputSeq-inputs.size,minimizeStates,localDrags});
  };
  const handshake=setTimeout(()=>close('Handshake timeout'),5000);
  const native=m=>{check(child&&!child.killed,'Native receiver unavailable');check(child.stdin.writableLength<16*1024*1024,'Native decoder backpressure');child.stdin.write(JSON.stringify(m)+'\n');};
  const startNative=()=>{
-  child=spawn(config.capture,['--receiver'],{stdio:['pipe','pipe','inherit']});child.stdout.setEncoding('utf8');
+  child=spawn(config.receiver||path.join(path.dirname(config.capture),'../../../Window Portal Receiver.app/Contents/MacOS/WindowPortalReceiver'),['--receiver'],{stdio:['pipe','pipe','inherit']});child.stdout.setEncoding('utf8');
   child.stdout.on('data',chunk=>{try{buffer+=chunk;check(buffer.length<=65536,'Native response too large');for(let i;(i=buffer.indexOf('\n'))>=0;){const m=JSON.parse(buffer.slice(0,i));buffer=buffer.slice(i+1);
    if(closed)continue;
    if(m.event==='error'||m.event==='close'){close('Native receiver closed');return;}
+   if(m.event==='localDrag')localDrags.push({before:m.before,after:m.after});
    if(m.event==='minimized')minimizeStates.push(m.value);
    if(m.event==='frameAck'){
     check(pendingFrame&&m.seq===pendingFrame.seq&&m.width===window.pixelSize.width&&m.height===window.pixelSize.height,'Native decoded frame mismatch');

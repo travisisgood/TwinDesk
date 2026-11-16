@@ -393,3 +393,36 @@ unchanged. Real `backing_test.py --search-focus` passed: AX focus returned succe
 backingAfter stayed true, query text and results appeared in the captured window,
 and normal return/re-park/receiver-close restoration still passed. The paired
 checkpoint predates this fix, so do not retroactively attribute it to that run.
+
+### Native receiver shell
+
+`build.sh` also produces `Window Portal Receiver.app`, with stable bundle ID
+`com.travismackinnon.windowportalreceiver` and the same signing identity. It only
+decodes received images and needs no Screen Recording grant. `receiver.js` finds
+this sibling bundle automatically, or accepts an explicit `receiver` executable
+path. The capture app retains its existing identity/grants; headless source mode
+uses accessory activation and does not add a duplicate Dock icon.
+
+The receiver has normal app activation and Window-menu Minimize/Return to Source
+commands. Its invisible centered 30%-width, 8-point-high top strip supports local
+receiver dragging, matching the Windows prototype caption region. This repositions
+the proxy only; it does not move the source or backing display and is not automatic
+edge crossing. Local drag before/after frames are recorded in receiver test results.
+The standalone receiver's separate identity also prevents UI automation from
+confusing it with the source's headless process.
+
+Actual native receiver shell test: after selecting the visible app by absolute
+bundle path, CUA dragged its caption. Native event telemetry measured origin
+(160,120) → (260,70), size unchanged at 800×550. The stream completed 600 frames,
+no source input was sent, and the source restoration check passed. The first
+`performDrag` approach had returned without moving the window; explicit local
+mouse tracking corrected it. Several short test runs ended before UI selection;
+those were not counted as drag passes. A later manual Dock-shortcut follow-up
+also outlived its bounded test and is not claimed as a verified UI shortcut.
+Native minimize/restore completion is separately covered by the TLS test.
+`receiver-shell-results.json` records measured movement and recovery.
+
+Protocol/socket coverage now also verifies queue overflow rejects the 17th input
+without teardown/replay, and an unacknowledged frame ends the session despite
+continuing valid heartbeats. Nine automated tests pass, including encrypted
+pairing authenticity and tamper rejection.
