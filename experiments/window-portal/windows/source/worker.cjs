@@ -7,7 +7,7 @@ function emit(m){if(m.error)fs.appendFileSync(path.join(config.output,'worker-er
 process.stdout.on('error',()=>cleanup());
 function native(cmd,args={}){return new Promise((resolve,reject)=>{const id=++next,timer=setTimeout(()=>{pending.delete(id);reject(Error('Native helper deadline'));},3000);pending.set(id,{resolve,reject,timer});helper.stdin.write(JSON.stringify({id,cmd,...args})+'\n');})}
 function startNative(args){
- const child=spawn(config.nativeHelper,args,{stdio:['pipe','pipe','ignore'],windowsHide:true});
+ const child=spawn(config.nativeHelper,args,{stdio:['pipe','pipe','ignore'],windowsHide:args.includes('controller')});
  child.stdin.on('error',()=>cleanup());
  const ready=new Promise((resolve,reject)=>{
   child.once('error',reject);
