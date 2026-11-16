@@ -1,0 +1,31 @@
+{
+  "wireVersion": 1,
+  "run": "Finder-to-Windows-01",
+  "sourcePlatform": "mac",
+  "sourceCommit": "15d6498b06bb526354963e9438a9c2f29cc42529",
+  "receiverPlatform": "windows",
+  "receiverCommit": "73ec108d00acee6bad7783753f4dc301df24e4cf",
+  "transport": "LAN WebSocket over pinned TLS",
+  "authentication": "single-use token delivered encrypted, never published",
+  "startedAt": "2026-11-16T01:44:47.879Z",
+  "endedAt": "2026-11-16T01:46:47.840Z",
+  "displayedFrames": 691,
+  "receiverMinimizeAtFrame": 15,
+  "receiverRestoreAtFrame": 27,
+  "receiverWasMinimized": true,
+  "closeReason": "Bounded receiver test complete",
+  "macIndependentSourceReturn": {
+    "reported": true,
+    "bounds": [100, 100, 900, 650],
+    "minimized": false
+  },
+  "userScreenshotConfirmsFinderOverWindowsDesktop": true,
+  "notYetVerified": [
+    "New marker visually present in received frame",
+    "Input causing observed remote application change",
+    "Finder taskbar icon visually checked",
+    "Physical KVM exclusion with corrected backing layout",
+    "Inverse Windows-to-Mac transfer",
+    "Automatic edge dragging"
+  ]
+}
