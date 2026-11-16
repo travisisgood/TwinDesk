@@ -19,7 +19,7 @@ async function main(){
  const workerFactory=()=>{
   const workerConfig=path.join(config.output,'worker-local.json');
   const pipe='\\\\.\\pipe\\WindowPortal-'+crypto.randomUUID(),server=require('node:net').createServer();
-  fs.writeFileSync(workerConfig,JSON.stringify({pipe,nativeHelper:config.nativeHelper,fixture:false,sourceWid:config.sourceWid,sourceTitle:config.sourceTitle,backing:display,output:config.output}));
+  fs.writeFileSync(workerConfig,JSON.stringify({pipe,nativeHelper:config.nativeHelper,explorerInput:config.explorerInput,fixture:false,sourceWid:config.sourceWid,sourceTitle:config.sourceTitle,backing:display,output:config.output}));
   let child;
   const ready=new Promise((resolve,reject)=>{
    const deadline=setTimeout(()=>{server.close();reject(Error('Capture IPC deadline'));},10000);
@@ -41,3 +41,4 @@ async function main(){
  console.log(JSON.stringify({listening:true,port:service.port,display:display.name,sourceCommit:config.sourceCommit}));
 }
 main().catch(e=>{console.error('Windows source failed: '+e.message);process.exitCode=1;});
+

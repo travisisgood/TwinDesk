@@ -46,11 +46,13 @@ app.whenReady().then(async()=>{
  if(!(b.x>=mon.x&&b.y>=mon.y&&b.x+b.width<=mon.x+mon.width&&b.y+b.height<=mon.y+mon.height))throw Error('Whole source window does not fit backing monitor; refusing partial placement');
  fs.writeFileSync(path.join(config.output,'source-placement.json'),JSON.stringify({bounds:b,monitor:mon}));
  sourceInfo={sourceId:source.id,title:source.name,iconPng:source.appIcon&&!source.appIcon.isEmpty()?source.appIcon.resize({width:128,height:128}).toPNG().toString('base64'):null,logicalSize:{width:b.width,height:b.height}};
+ const explorerInput=new (require('./explorer-input.cjs'))(config.explorerInput,wid);const controls=await explorerInput.inspect();const supportsPress=Array.isArray(controls.headers)&&controls.headers.length>0;
+ fs.writeFileSync(path.join(config.output,'source-input-controls.json'),JSON.stringify(controls));
  stage('placement-complete');let first=true;
  ipcMain.handle('source',()=>sourceInfo);
  ipcMain.on('frame',(_e,frame)=>{
   latest=frame;if(first)stage('first-frame');
-  if(first){first=false;emit({windowId:require('node:crypto').randomUUID(),geometryRevision:1,appId:config.fixture?'win32.WindowPortalFixture':'win32.explorer',title:sourceInfo.title,logicalSize:sourceInfo.logicalSize,pixelSize:frame.pixelSize,iconPng:sourceInfo.iconPng,capabilities:config.fixture?['pressAt']:[]});}
+  if(first){first=false;emit({windowId:require('node:crypto').randomUUID(),geometryRevision:1,appId:config.fixture?'win32.WindowPortalFixture':'win32.explorer',title:sourceInfo.title,logicalSize:sourceInfo.logicalSize,pixelSize:frame.pixelSize,iconPng:sourceInfo.iconPng,capabilities:(config.fixture||supportsPress)?['pressAt']:[]});}
  });
  ipcMain.on('failure',(_e,message)=>{emit({error:String(message).slice(0,300)});cleanup()});
  let queue=Promise.resolve();
@@ -58,12 +60,14 @@ app.whenReady().then(async()=>{
   const m=JSON.parse(line);
   if(m.op==='frame'){if(!latest){emit({pending:true});return;}emit(latest);return;}
   if(m.op==='pressAt'&&config.fixture){const before=clicks;const r=await native('click',m.args);await new Promise(r=>setTimeout(r,200));fs.appendFileSync(path.join(config.output,'input-evidence.jsonl'),JSON.stringify({before,after:clicks,route:r.route})+'\n');emit({AXError:0});return;}
+  if(m.op==='pressAt'&&supportsPress){const result=await explorerInput.press(m.args||{});fs.appendFileSync(path.join(config.output,'input-evidence.jsonl'),JSON.stringify({at:new Date().toISOString(),...result})+'\n');emit(result.dispatched?{AXError:0}:{error:result.error||'Unsupported Explorer action'});return;}
   emit({error:'Unsupported Windows source operation'});
  }).catch(e=>{emit({error:e.message});cleanup()});}).on('close',cleanup);
  win=new BrowserWindow({show:false,width:800,height:600,webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,backgroundThrottling:false}});
  win.webContents.on('render-process-gone',(_e,d)=>{emit({error:'Capture renderer exited: '+d.reason});cleanup()});stage('renderer-load');await win.loadURL(require('node:url').pathToFileURL(path.join(__dirname,'index.html')).href);
 }).catch(e=>{emit({error:e.message});cleanup()});
 app.on('before-quit',()=>{helper?.stdin.end();fixture?.stdin.end();});
+
 
 
 

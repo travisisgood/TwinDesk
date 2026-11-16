@@ -1,0 +1,4 @@
+const test=require('node:test'),assert=require('node:assert/strict'),Input=require('./explorer-input.cjs');
+test('reject invalid coordinates without starting helper',async()=>{let called=false;const i=new Input('helper',42,()=>{called=true});for(const p of [{x:NaN,y:0},{x:0,y:Infinity},{x:-.1,y:0},{x:0,y:1.1}])assert.ok((await i.press(p)).error);assert.equal(called,false);});
+test('scope invocation to selected HWND and bound helper execution',async()=>{const i=new Input('helper',42,async(exe,args,options)=>{assert.deepEqual(args,['press','42','0.2','0.4']);assert.equal(options.timeout,2000);assert.equal(options.maxBuffer,65536);return {stdout:'{"dispatched":true}'};});assert.equal((await i.press({x:.2,y:.4})).dispatched,true);});
+test('helper failure is unsupported input, not a source crash',async()=>{const i=new Input('helper',42,async()=>{throw Error('timeout')});assert.ok((await i.inspect()).error);});

@@ -35,3 +35,19 @@ image inspected. The fixture occupied482x301 fully inside1440x900 backing displa
 These are local results, not yet Windows->Mac paired acceptance or Explorer input.
 
 
+
+Explorer input (optional): run build-input.ps1 and supply explorerInput pointing
+at the built ExplorerInput.exe in the private source config. It validates the
+selected HWND belongs to Explorer and invokes supported column headers only;
+Windows11 Name split-button is recognized. No global mouse or keyboard injection.
+Input capability is advertised only when inspect finds supported controls. Other
+points return unsupported without stopping capture. Helper runs are bounded2sec.
+This is scoped sort interaction, NOT general Explorer mouse/keyboard support.
+
+Local proof: dedicated Explorer in Details mode with BASELINE.txt and
+ZZZ-sort-proof.txt, parked on backing. Worker pressAt returned AXError0; independent
+Shell SortColumns changed from prop:System.ItemNameDisplay; to
+prop:-System.ItemNameDisplay;. Captured before/after PNGs visually confirm row
+order reversal. Original position100,100 restored; width/height rounded down1px
+across DPI918x664 ->917x663. This input path has not yet been paired on Mac.
+Run adapter checks: node --test explorer-input.test.cjs.
