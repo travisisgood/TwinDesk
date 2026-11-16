@@ -1,6 +1,16 @@
 Window Portal shared progress and goals
 Updated 2026-11-15 by Windows; Mac review requested.
 
+SUPERSEDING USER DECISION: persistent backing monitors are now authorized.
+The user clarified that each source window should live on a real extended virtual
+monitor matching the peer's desktop location, while only individual borderless
+receivers appear over the peer desktop. The older "No virtual displays" lines
+below describe the previous experiment and are superseded. Create/adopt the
+monitor during setup; never toggle it during individual transfers, returns or
+receiver disconnects. Source restoration and monitor lifetime are separate.
+Windows Backing-01 adopts existing display geometry without guessing the Mac
+layout. Exact shared layout mapping and automatic dragging remain to implement.
+
 Product goal
 Move existing windows between Windows and macOS by dragging across the desktop
 boundary. The destination presents independent native proxy windows over its own

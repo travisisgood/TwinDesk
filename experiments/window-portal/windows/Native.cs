@@ -23,6 +23,8 @@ class Native {
   [DllImport("user32.dll")] static extern bool PostMessage(IntPtr h,uint m,IntPtr w,IntPtr l);
   [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT p);
   [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
+  [DllImport("user32.dll")] static extern bool SetProcessDpiAwarenessContext(IntPtr context);
+  static void Dpi(){try{if(SetProcessDpiAwarenessContext(new IntPtr(-4)))return;}catch{}SetProcessDPIAware();}
   [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int w,int height,uint flags);
   [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern int GetClassName(IntPtr h,StringBuilder s,int n);
   [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr h,IntPtr dc,uint flags);
@@ -65,7 +67,9 @@ class Native {
     }
     if(cmd=="park"){
       Rectangle desktop=SystemInformation.VirtualScreen;
-      if(!SetWindowPos(target,IntPtr.Zero,desktop.Right+200,desktop.Top+40,0,0,0x4015))throw new Exception("Could not move source offscreen");
+      int px=c.ContainsKey("x")?(int)Number(c,"x"):desktop.Right+200;
+      int py=c.ContainsKey("y")?(int)Number(c,"y"):desktop.Top+40;
+      if(!SetWindowPos(target,IntPtr.Zero,px,py,0,0,0x4015))throw new Exception("Could not move source");
       return new{queued=true};
     }
     if(cmd=="click"){
@@ -92,7 +96,7 @@ class Native {
   }
   [STAThread] static void Main(string[] args){
     if(args.Length==2 && args[0]=="print"){
-      SetProcessDPIAware();IntPtr h=new IntPtr(long.Parse(args[1]));RECT r,v;
+      Dpi();IntPtr h=new IntPtr(long.Parse(args[1]));RECT r,v;
       if(!IsWindow(h)||!GetWindowRect(h,out r))return;
       int w=r.R-r.L,height=r.B-r.T;if(w<=0||height<=0||(long)w*height>16000000)return;
       using(var bitmap=new Bitmap(w,height))using(var g=Graphics.FromImage(bitmap)){
@@ -112,7 +116,7 @@ class Native {
       try{var owner=Process.GetProcessById(int.Parse(args[1]));while(!owner.HasExited&&!done.WaitOne(200)){} }catch{}
       if(IsWindow(h)){int off=0;DwmSetWindowAttribute(h,13,ref off,4);SetWindowPos(h,IntPtr.Zero,int.Parse(args[3]),int.Parse(args[4]),0,0,0x4015);}return;
     }
-    SetProcessDPIAware();Application.EnableVisualStyles();
+    Dpi();Application.EnableVisualStyles();
     form=new Form{Text="WindowPortal Test Source",ClientSize=new Size(440,230),StartPosition=FormStartPosition.Manual,Location=new Point(Screen.PrimaryScreen.WorkingArea.Left+60,Screen.PrimaryScreen.WorkingArea.Top+60)};
     var label=new Label{Location=new Point(15,15),Size=new Size(400,45),Font=new Font("Segoe UI",18)};
     var button=new Button{Text="Test click (0)",Location=new Point(20,75),Size=new Size(190,42)};

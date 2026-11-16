@@ -1,0 +1,34 @@
+Backing monitor experiment 01
+
+User-authorized revision: a persistent extended virtual monitor holds source
+windows; destination proxies show only those windows, not the source desktop.
+This isolated local probe does not yet implement network receivers or edge drag.
+
+Build Native.cs as documented in README. Build Display.cs and DisplayProbe.cs
+together with csc /target:exe /r:System.Web.Extensions.dll
+/out:WindowPortal.DisplayProbe.exe. Display.cs is reused GPL TwinDesk code;
+the new executable ONLY enumerates displays, without starting KVM/input hooks.
+
+Run Electron with --self-test --backing-probe for the separate-process synthetic
+window test. --explorer-probe --backing-probe selects the dedicated Explorer test
+fixture. The inherited result label "offscreen" means on-backing-monitor in this
+mode; the native.backing field records the actual monitor. Do not confuse this
+with the old fully-off-desktop experiment.
+
+BackingMonitor adopts an existing Virtual Display Driver display or invokes the
+already-installed Extend on task once during setup. It never installs drivers,
+changes resolutions, guesses peer coordinates, disables the display, or retries
+topology changes after a source failure. Window restore does not remove it.
+Display geometry is checked during the probe. Existing source guardian restores
+the source window; this experiment does not alter the running TwinDesk build.
+
+Live initial setup found DISPLAY34 at (3840,0), 1440x900. This is the current
+Windows layout, NOT verification that it matches the user's Mac arrangement.
+Two completed synthetic runs retained fresh Chromium and native WGC frames on
+the backing monitor (8 distinct Chromium and 7 native samples in the second run).
+Source restored afterward; monitor geometry stayed stable. Initial PrintWindow
+and input failed under mixed DPI; helper changed to per-monitor-v2 awareness.
+Backing probe deadline is 120 seconds. Real Explorer/Scarlett remain separate tests.
+
+Three lifecycle tests pass: reuse without enable, concurrent setup enables once,
+and topology loss fails without cycling. No network/Scarlett compatibility claim.

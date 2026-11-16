@@ -5,6 +5,9 @@ const path=require('node:path'),fs=require('node:fs');
 app.setPath('userData',path.join(__dirname,'profile'));
 let helper,external,wgc,wgcStatus={},win,next=0,selected,fixture,fixturePoint,fixtureClicks=0;
 const pending=new Map();
+let backing;
+const backingProbe=process.argv.includes('--backing-probe');
+const execFileAsync=require('node:util').promisify(require('node:child_process').execFile);
 function native(cmd,args={}){return new Promise((resolve,reject)=>{
   const id=++next,timer=setTimeout(()=>{pending.delete(id);reject(Error('Native request timed out'))},3000);
   pending.set(id,{resolve,reject,timer});helper.stdin.write(JSON.stringify({cmd,id,...args})+'\n');
@@ -30,6 +33,15 @@ app.whenReady().then(async()=>{
   });
   helper.on('exit',()=>{for(const p of pending.values()){clearTimeout(p.timer);p.reject(Error('Native helper exited'))}pending.clear();if(win&&!win.isDestroyed())win.webContents.send('helper-lost')});
   await ready;
+  if(backingProbe){
+    const Backing=require('./backing-monitor.cjs');
+    backing=new Backing({
+      list:async()=>JSON.parse((await execFileAsync(path.join(__dirname,'WindowPortal.DisplayProbe.exe'),[],{windowsHide:true,timeout:5000})).stdout),
+      enable:()=>execFileAsync('schtasks.exe',['/run','/tn','\\MacShare\\Extend on'],{windowsHide:true,timeout:15000})
+    });
+    const monitor=await backing.acquire();
+    fs.appendFileSync(path.join(__dirname,'results.jsonl'),JSON.stringify({phase:'backing-ready',monitor})+'\n');
+  }
   if(process.argv.includes('--self-test')||process.argv.includes('--demo')){
     external=spawn(path.join(__dirname,'WindowPortal.Native.exe'),[],{windowsHide:false,stdio:['pipe','pipe','ignore']});
     await new Promise((resolve,reject)=>{
@@ -54,7 +66,7 @@ app.whenReady().then(async()=>{
     win.setTitle('WindowPortal — '+source.name);if(source.appIcon&&!source.appIcon.isEmpty())win.setIcon(source.appIcon);
     return selected;
   });
-  ipcMain.handle('native',async(_e,cmd,args)=>{if(!['status','cloak','park','restore','click','text'].includes(cmd))throw Error('Unsupported action');const result=await native(cmd,args);if(cmd==='status'){if(external)result.clicks=fixtureClicks;result.wgc=wgcStatus;}return result});
+  ipcMain.handle('native',async(_e,cmd,args)=>{if(!['status','cloak','park','restore','click','text'].includes(cmd))throw Error('Unsupported action');if(backing&&cmd==='park'){const m=await backing.verify();args={x:m.x+24,y:m.y+24};}const result=await native(cmd,args);if(cmd==='status'){if(external)result.clicks=fixtureClicks;result.wgc=wgcStatus;if(backing)result.backing=await backing.verify();}return result});
   ipcMain.handle('mode',()=>({selfTest:process.argv.includes('--self-test'),scarlettProbe:process.argv.includes('--scarlett-probe'),explorerProbe:process.argv.includes('--explorer-probe'),demo:process.argv.includes('--demo'),fixture,fixturePoint}));
   ipcMain.handle('snapshot',()=>printFrame());
   ipcMain.handle('explorer-mutation',()=>{
@@ -76,4 +88,4 @@ app.whenReady().then(async()=>{
   await win.loadFile('index.html');
 });
 app.on('before-quit',()=>{if(helper&&!helper.killed)helper.stdin.end();if(external&&!external.killed)external.stdin.end();if(wgc)wgc.kill()});
-setTimeout(()=>{if(process.argv.includes('--self-test')||process.argv.includes('--scarlett-probe')||process.argv.includes('--explorer-probe'))app.quit()},45000).unref();
+setTimeout(()=>{if(process.argv.includes('--self-test')||process.argv.includes('--scarlett-probe')||process.argv.includes('--explorer-probe'))app.quit()},backingProbe?120000:45000).unref();
