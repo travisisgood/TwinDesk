@@ -1,0 +1,384 @@
+{
+  "realFinder": true,
+  "probes": [
+    {
+      "activationRequested": false,
+      "after": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "appActiveDuring": false,
+      "appKitWindowEvent": false,
+      "backingAfter": true,
+      "before": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "bottomLocal": false,
+      "cursorAfter": "{0, 885}",
+      "cursorBefore": "{0, 885}",
+      "experimentalWindowTag": false,
+      "explicitWindowLocation": false,
+      "focusAXError": 0,
+      "focusRequested": false,
+      "method": "CGEvent.postToPid plus explicit window fields",
+      "minimizedAfter": false,
+      "skyRoute": false,
+      "command": "@raw-sort",
+      "sourceBoundsBefore": "-1240, 60, -440, 610",
+      "sourceBoundsAfter": "-1240, 60, -440, 610"
+    },
+    {
+      "activationRequested": false,
+      "after": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "appActiveDuring": false,
+      "appKitWindowEvent": false,
+      "backingAfter": true,
+      "before": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "bottomLocal": false,
+      "cursorAfter": "{0, 885}",
+      "cursorBefore": "{0, 885}",
+      "experimentalWindowTag": false,
+      "explicitWindowLocation": false,
+      "focusAXError": 0,
+      "focusRequested": true,
+      "method": "CGEvent.postToPid plus explicit window fields",
+      "minimizedAfter": false,
+      "skyRoute": false,
+      "command": "@raw-focus-sort",
+      "sourceBoundsBefore": "-1240, 60, -440, 610",
+      "sourceBoundsAfter": "-1240, 60, -440, 610"
+    },
+    {
+      "activationRequested": false,
+      "after": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "appActiveDuring": false,
+      "appKitWindowEvent": true,
+      "backingAfter": true,
+      "before": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "bottomLocal": false,
+      "cursorAfter": "{0, 885}",
+      "cursorBefore": "{0, 885}",
+      "experimentalWindowTag": false,
+      "explicitWindowLocation": false,
+      "focusAXError": 0,
+      "focusRequested": false,
+      "method": "CGEvent.postToPid plus explicit window fields",
+      "minimizedAfter": false,
+      "skyRoute": false,
+      "command": "@raw-appkit-sort",
+      "sourceBoundsBefore": "-1240, 60, -440, 610",
+      "sourceBoundsAfter": "-1240, 60, -440, 610"
+    },
+    {
+      "activationRequested": false,
+      "after": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "appActiveDuring": false,
+      "appKitWindowEvent": true,
+      "backingAfter": true,
+      "before": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "bottomLocal": false,
+      "cursorAfter": "{0, 885}",
+      "cursorBefore": "{0, 885}",
+      "experimentalWindowTag": true,
+      "explicitWindowLocation": false,
+      "focusAXError": 0,
+      "focusRequested": false,
+      "method": "CGEvent.postToPid plus explicit window fields",
+      "minimizedAfter": false,
+      "skyRoute": false,
+      "command": "@raw-tagged-sort",
+      "sourceBoundsBefore": "-1240, 60, -440, 610",
+      "sourceBoundsAfter": "-1240, 60, -440, 610"
+    },
+    {
+      "activationRequested": false,
+      "after": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "appActiveDuring": false,
+      "appKitWindowEvent": true,
+      "backingAfter": true,
+      "before": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "bottomLocal": false,
+      "cursorAfter": "{0, 885}",
+      "cursorBefore": "{0, 885}",
+      "experimentalWindowTag": true,
+      "explicitWindowLocation": true,
+      "focusAXError": 0,
+      "focusRequested": false,
+      "method": "CGEvent.postToPid plus explicit window fields",
+      "minimizedAfter": false,
+      "skyRoute": false,
+      "command": "@raw-location-sort",
+      "sourceBoundsBefore": "-1240, 60, -440, 610",
+      "sourceBoundsAfter": "-1240, 60, -440, 610"
+    },
+    {
+      "activationRequested": false,
+      "after": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "appActiveDuring": false,
+      "appKitWindowEvent": true,
+      "backingAfter": true,
+      "before": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "bottomLocal": false,
+      "cursorAfter": "{0, 885}",
+      "cursorBefore": "{0, 885}",
+      "experimentalWindowTag": true,
+      "explicitWindowLocation": true,
+      "focusAXError": 0,
+      "focusRequested": false,
+      "method": "CGEvent.postToPid plus explicit window fields",
+      "minimizedAfter": false,
+      "skyRoute": true,
+      "command": "@raw-sky-sort",
+      "sourceBoundsBefore": "-1240, 60, -440, 610",
+      "sourceBoundsAfter": "-1240, 60, -440, 610"
+    },
+    {
+      "activationRequested": false,
+      "after": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "appActiveDuring": false,
+      "appKitWindowEvent": true,
+      "backingAfter": true,
+      "before": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "bottomLocal": true,
+      "cursorAfter": "{0, 885}",
+      "cursorBefore": "{0, 885}",
+      "experimentalWindowTag": true,
+      "explicitWindowLocation": true,
+      "focusAXError": 0,
+      "focusRequested": false,
+      "method": "CGEvent.postToPid plus explicit window fields",
+      "minimizedAfter": false,
+      "skyRoute": false,
+      "command": "@raw-bottom-sort",
+      "sourceBoundsBefore": "-1240, 60, -440, 610",
+      "sourceBoundsAfter": "-1240, 60, -440, 610"
+    },
+    {
+      "activationRequested": true,
+      "after": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "appActiveDuring": true,
+      "appKitWindowEvent": true,
+      "backingAfter": true,
+      "before": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "bottomLocal": true,
+      "cursorAfter": "{0, 885}",
+      "cursorBefore": "{0, 885}",
+      "experimentalWindowTag": true,
+      "explicitWindowLocation": true,
+      "focusAXError": 0,
+      "focusRequested": true,
+      "method": "CGEvent.postToPid plus explicit window fields",
+      "minimizedAfter": false,
+      "skyRoute": false,
+      "command": "@raw-active-sort",
+      "sourceBoundsBefore": "-1240, 60, -440, 610",
+      "sourceBoundsAfter": "-1240, 60, -440, 610"
+    }
+  ],
+  "display": {
+    "before": [
+      {
+        "height": 900,
+        "id": 1,
+        "width": 1440,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "displayID": 46,
+    "physicalMap": [
+      "{{0, 0}, {1440, 900}}"
+    ],
+    "pixelHeight": 1800,
+    "pixelWidth": 2560,
+    "ready": true,
+    "topology": [
+      {
+        "height": 900,
+        "id": 1,
+        "width": 1440,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 900,
+        "id": 46,
+        "width": 1280,
+        "x": -1280,
+        "y": 0
+      }
+    ]
+  },
+  "semanticPositiveControl": {
+    "AXError": 0,
+    "element": {
+      "actions": [
+        "AXPress"
+      ],
+      "AXDescription": "Name",
+      "AXMinimized": false,
+      "AXRole": "AXButton",
+      "AXValue": "AXDescendingSortDirection",
+      "frame": "{{-1071, 112}, {222, 28}}"
+    },
+    "minimizedAfter": false
+  },
+  "headersAfterPositiveControl": [
+    {
+      "actions": [
+        "AXPress"
+      ],
+      "AXDescription": "Name",
+      "AXMinimized": false,
+      "AXRole": "AXButton",
+      "AXValue": "AXDescendingSortDirection",
+      "frame": "{{-1071, 112}, {222, 28}}"
+    }
+  ],
+  "recovery": {
+    "restored": true,
+    "state": "100, 100, 900, 650, false"
+  },
+  "fixtureClosed": true,
+  "platform": "macOS 27.2",
+  "conclusion": "Eight native click variants did not change Finder sorting. Semantic positive control changed ascending to descending. Native input remains unproven."
+}

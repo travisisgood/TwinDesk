@@ -108,9 +108,13 @@ import CryptoKit
                 if path == "@viewer-close", let viewer {
                     emit(["viewerClosing": true]); viewer.window.close(); continue
                 }
-                if path == "@raw-sort" {
+                if ["@raw-sort", "@raw-focus-sort", "@raw-appkit-sort", "@raw-tagged-sort", "@raw-location-sort", "@raw-sky-sort", "@raw-bottom-sort", "@raw-active-sort"].contains(path) {
                     guard let rootAX else { emit(["error": "Finder AX window unavailable"]); continue }
-                    emit(await RawInputProbe.sort(window: rootAX, wid: window.windowID, pid: window.owningApplication!.processID)); continue
+                    let location = ["@raw-location-sort", "@raw-sky-sort", "@raw-bottom-sort", "@raw-active-sort"].contains(path)
+                    let tagged = path == "@raw-tagged-sort" || location
+                    emit(await RawInputProbe.sort(window: rootAX, wid: window.windowID, pid: window.owningApplication!.processID,
+                        focus: path == "@raw-focus-sort" || path == "@raw-active-sort", appKit: path == "@raw-appkit-sort" || tagged,
+                        tagged: tagged, windowLocation: location, skyRoute: path == "@raw-sky-sort", bottomLocal: path == "@raw-bottom-sort" || path == "@raw-active-sort", activate: path == "@raw-active-sort")); continue
                 }
                 if path.hasPrefix("@viewer-resize:"), let viewer {
                     let sizes = path.dropFirst(15).split(separator: ",").compactMap { Double($0) }

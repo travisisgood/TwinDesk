@@ -533,3 +533,38 @@ drag-region DOM nodes for the next attempt; screenshot-to-DIP coordinate mapping
 also needs checking at its 150% scale. Mac independently verified source recovery
 at the scheduled cutoff: (100,100), 800×550, not minimized. Source logs now retain
 the exact advertised drag rectangles/revisions for comparison with receiver hits.
+
+
+## Native pointer diagnostics and drag checkpoint (2026-11-16)
+
+Windows relayed the user's successful native Finder title-text drag in
+WINDOWS_USER_TITLE_DRAG_PASS_81: source `8e62c220d1086f828c6856fb30afd65ef011f439`,
+receiver `049dd7f`. This supersedes the inconclusive automated drag attempt above;
+it does not establish controls, natural edge transfer or arbitrary window support.
+
+`native-pointer-test.py CAPTURE FRESH_OUTPUT` runs a bounded real Finder fixture
+on its own backing display, then verifies physical restoration and closes only
+that fixture. `native-pointer-results.json` records eight negative pointer probes:
+raw PID events, AX window focus, AppKit window-number events, explicit window tags,
+window-local location, window-server PID routing, opposite local Y origin, and
+app activation plus focused window. None changed the Name sort direction. Source
+bounds and cursor were unchanged in every probe. A separate AXPress positive
+control changed ascending to descending, validating the observation. The active
+app probe restores the previously active app; no source is moved physical to
+inject input. These are diagnostics only, never advertised capabilities.
+
+Some variants dynamically resolve private APIs and fail closed if absent. They
+are not a proposed production dependency. The window-location declaration is
+also present in [WebKit's test SPI header](https://github.com/WebKit/WebKit/blob/main/Tools/TestRunnerShared/spi/CoreGraphicsTestSPI.h).
+The AppKit coordinate distinction is documented in
+[Chromium's event test utility](https://chromium.googlesource.com/chromium/src/+/720dadbc215c229ce100bc408edb3aee03b0697e/ui/events/test/cocoa_test_event_utils.mm).
+Neither source establishes that Finder accepts this route on a backing display.
+
+Signed standalone source/receiver build passed; 12 existing transport/geometry/
+pairing tests passed with loopback socket permission. Full TwinDesk was not rebuilt.
+Normal pointer, wheel, dragging, key and text capabilities remain unimplemented.
+The next useful input investigation is receiver-side native event observation to
+separate event delivery from AppKit focus/hit-testing, followed by actual Finder
+selection/navigation; more successful semantic header clicks are not sufficient.
+See `handoff-coordination.md` for the Windows primitive review and pending broker
+contract. No shared, Windows or main TwinDesk wire files were changed.
