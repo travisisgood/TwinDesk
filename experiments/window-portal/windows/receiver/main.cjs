@@ -7,6 +7,13 @@ const motion=new MotionGate((op,args)=>{const seq=session.input(op,args);inputTi
 app.setPath('userData',path.join(__dirname,'profile'));
 app.setAppUserModelId('WindowPortal.StandaloneReceiver');
 let win,session,ending=false,frames=0,presented=false;
+let bootstrap,bootstrapTimer,authenticatedSourceCommit,bootstrapReady=false;
+function reportBootstrapFrame(){
+ if(!bootstrap||bootstrapReady||!session?.displayed)return;
+ if(authenticatedSourceCommit!==bootstrap.expectedSourceCommit)return end('Bootstrap source commit mismatch');
+ bootstrapReady=true;
+ process.send({type:'portal-decoded',requestId:bootstrap.requestId,sourceCommit:authenticatedSourceCommit,sessionId:session.session,windowId:session.window.windowId,geometryRevision:session.window.geometryRevision,frameSeq:session.displayed,hidden:!win.isVisible()});
+}
 let desiredResize,resizeTimer,resizeDeadline,appliedSize,resizeReadyAt=0,lastResizeSeq,releasedForResize;
 function interactionState(){win?.webContents.send('interaction-state',{blocked:!!session?.resizePending});}
 function releaseRemoteInput(){
@@ -31,10 +38,19 @@ const proofDir=process.argv.find(a=>a.startsWith('--proof-dir='))?.slice(12);
 function log(event,extra={}){try{fs.appendFileSync(path.join(__dirname,'receiver-events.jsonl'),JSON.stringify({at:new Date().toISOString(),event,...extra})+'\n');}catch{}}
 process.stdout.on('error',e=>{if(e.code!=='EPIPE')log('stdout-error',{code:e.code})});
 process.stderr.on('error',e=>{if(e.code!=='EPIPE')log('stderr-error',{code:e.code})});
-function end(reason){if(ending)return;ending=true;clearTimeout(resizeTimer);clearTimeout(resizeDeadline);releaseRemoteInput();session?.end(reason);log('closed',{reason,frames});app.quit();}
+function end(reason){if(ending)return;ending=true;clearTimeout(bootstrapTimer);clearTimeout(resizeTimer);clearTimeout(resizeDeadline);releaseRemoteInput();session?.end(reason);log('closed',{reason,frames});app.quit();}
 app.whenReady().then(async()=>{
  if(!configPath)throw Error('Pass --config=<private pairing JSON path>');
  const config=JSON.parse(fs.readFileSync(configPath,'utf8'));
+ if(config.bootstrap){
+  bootstrap=config.bootstrap;
+  if(typeof process.send!=='function'||!process.connected||!Number.isInteger(bootstrap.ttlMs)||bootstrap.ttlMs<1||bootstrap.ttlMs>5000||!/^[a-f0-9-]{36}$/.test(bootstrap.requestId||'')||!/^[a-f0-9]{40}$/.test(bootstrap.expectedSourceCommit||''))throw Error('Invalid local bootstrap configuration');
+  bootstrapTimer=setTimeout(()=>end('Hidden bootstrap deadline'),bootstrap.ttlMs);
+  process.once('disconnect',()=>end('Local bootstrap broker disconnected'));
+  // No show/commit command yet: native held-drag ownership must be wired before
+  // a broker can reveal a parked source. Abort is safe at any bootstrap stage.
+  process.on('message',m=>{if(m?.type==='portal-abort'&&m.requestId===bootstrap.requestId)end('Bootstrap aborted');});
+ }
  win=new BrowserWindow({width:800,height:550,frame:false,show:false,resizable:true,minimizable:true,skipTaskbar:false,title:'Window Portal — connecting',webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,backgroundThrottling:false}});
  win.setMenu(null);
  win.on('blur',releaseRemoteInput);
@@ -61,19 +77,19 @@ app.whenReady().then(async()=>{
   {label:'Search in source',enabled:!!session?.window?.capabilities.includes('setSearchText'),click:()=>win.webContents.send('search')},
   {label:'Return window to source',click:()=>end('Receiver closed; return source')}
  ]).popup({window:win});});
- ipcMain.on('frame-displayed',(e,seq)=>{if(e.sender!==win.webContents)return;try{session.displayedFrame(seq);interactionState();if(!session.resizePending)clearTimeout(resizeDeadline);flushResize();frames++;if(frames===1||frames%30===0)log('frame-displayed',{seq,frames});}catch{end('Invalid renderer acknowledgment')}});
+ ipcMain.on('frame-displayed',(e,seq)=>{if(e.sender!==win.webContents)return;try{session.displayedFrame(seq);reportBootstrapFrame();interactionState();if(!session.resizePending)clearTimeout(resizeDeadline);flushResize();frames++;if(frames===1||frames%30===0)log('frame-displayed',{seq,frames});}catch{end('Invalid renderer acknowledgment')}});
  ipcMain.on('decode-failed',()=>end('Receiver could not decode frame'));
  ipcMain.on('input',(e,op,args)=>{if(e.sender!==win.webContents)return;try{motion.input(op,args)}catch(error){if(op==='pointer'||op==='key')releaseRemoteInput();win.webContents.send('notice',error.message)}});
  ipcMain.on('local',(e,action)=>{if(e.sender!==win.webContents)return;if(action==='minimize')win.minimize();else if(action==='close')end('Receiver closed; return source');else if(action==='zoom'&&session?.window?.capabilities.includes('resize')){if(win.isMaximized())win.unmaximize();else win.maximize();}});
- await win.loadFile('index.html');win.show();
+ await win.loadFile('index.html');if(!bootstrap)win.show();
  session=connect(config);
- session.on('welcome',m=>log('authenticated',{sourceCommit:m.sourceCommit,receiverCommit:config.sourceCommit}));
+ session.on('welcome',m=>{authenticatedSourceCommit=m.sourceCommit;log('authenticated',{sourceCommit:m.sourceCommit,receiverCommit:config.sourceCommit});});
  session.on('window',m=>{
   motion.clear();
   win.setTitle(m.title+' — Window Portal');
   if(m.iconPng){const icon=nativeImage.createFromBuffer(Buffer.from(m.iconPng,'base64'));if(icon.isEmpty())return end('Invalid icon');win.setIcon(icon);}
   applySourceSize(m.logicalSize);
-  if(!presented){presented=true;win.show();win.focus();}
+  if(!presented&&!bootstrap){presented=true;win.show();win.focus();}
   win.webContents.send('metadata',{capabilities:m.capabilities,logicalSize:m.logicalSize,geometryRevision:m.geometryRevision,dragRegions:m.dragRegions,windowControls:m.windowControls});
   log('window',{windowId:m.windowId,geometryRevision:m.geometryRevision,logicalSize:m.logicalSize,pixelSize:m.pixelSize,receiverScale:screen.getDisplayMatching(win.getBounds()).scaleFactor,capabilities:m.capabilities,dragRegions:m.dragRegions});
  });
