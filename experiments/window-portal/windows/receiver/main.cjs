@@ -1,12 +1,16 @@
 const {app,BrowserWindow,ipcMain,nativeImage,Menu,screen}=require('electron');
 const fs=require('node:fs'),path=require('node:path');
 const {connect}=require('./connection.cjs');
+const {MotionGate}=require('./motion-gate.cjs');
+const inputTimings=new Map();
+const motion=new MotionGate((op,args)=>{const seq=session.input(op,args);inputTimings.set(seq,{op,phase:args.phase,at:performance.now()});return seq;});
 app.setPath('userData',path.join(__dirname,'profile'));
 app.setAppUserModelId('WindowPortal.StandaloneReceiver');
 let win,session,ending=false,frames=0,presented=false;
 let desiredResize,resizeTimer,resizeDeadline,appliedSize,resizeReadyAt=0,lastResizeSeq,releasedForResize;
 function interactionState(){win?.webContents.send('interaction-state',{blocked:!!session?.resizePending});}
 function releaseRemoteInput(){
+ motion.clear();
  if(session&&!session.closed&&session.window?.capabilities.includes('releaseAll')&&!session.releaseSeq){try{session.input('releaseAll',{});}catch{}}
 }
 function applySourceSize(size){
@@ -52,12 +56,13 @@ app.whenReady().then(async()=>{
  ]).popup({window:win});});
  ipcMain.on('frame-displayed',(e,seq)=>{if(e.sender!==win.webContents)return;try{session.displayedFrame(seq);interactionState();if(!session.resizePending)clearTimeout(resizeDeadline);flushResize();frames++;if(frames===1||frames%30===0)log('frame-displayed',{seq,frames});}catch{end('Invalid renderer acknowledgment')}});
  ipcMain.on('decode-failed',()=>end('Receiver could not decode frame'));
- ipcMain.on('input',(e,op,args)=>{if(e.sender!==win.webContents)return;try{session.input(op,args)}catch(error){if(op==='pointer'||op==='key')releaseRemoteInput();win.webContents.send('notice',error.message)}});
+ ipcMain.on('input',(e,op,args)=>{if(e.sender!==win.webContents)return;try{motion.input(op,args)}catch(error){if(op==='pointer'||op==='key')releaseRemoteInput();win.webContents.send('notice',error.message)}});
  ipcMain.on('local',(e,action)=>{if(e.sender!==win.webContents)return;if(action==='minimize')win.minimize();else if(action==='close')end('Receiver closed; return source')});
  await win.loadFile('index.html');win.show();
  session=connect(config);
  session.on('welcome',m=>log('authenticated',{sourceCommit:m.sourceCommit,receiverCommit:config.sourceCommit}));
  session.on('window',m=>{
+  motion.clear();
   win.setTitle(m.title+' — Window Portal');
   if(m.iconPng){const icon=nativeImage.createFromBuffer(Buffer.from(m.iconPng,'base64'));if(icon.isEmpty())return end('Invalid icon');win.setIcon(icon);}
   applySourceSize(m.logicalSize);
@@ -72,9 +77,13 @@ app.whenReady().then(async()=>{
   win.webContents.send('frame',{seq:m.seq,image:'data:image/png;base64,'+m.png,pixelSize:m.pixelSize,contentRect:m.contentRect});
  });
  session.on('inputResult',m=>{
+  const timing=inputTimings.get(m.seq);inputTimings.delete(m.seq);
+  try{motion.acknowledged(m.seq);}catch{motion.clear();}
   interactionState();if(!session.resizePending){clearTimeout(resizeDeadline);if(m.seq===lastResizeSeq&&['rejected','unsupported','failed'].includes(m.status))applySourceSize(session.window.logicalSize);flushResize();}
-  win.webContents.send('notice',m.status+': '+m.detail);log('input-result',{seq:m.seq,status:m.status});
-  if(proofDir)setTimeout(async()=>{if(!win.isDestroyed()){const image=await win.webContents.capturePage();fs.writeFileSync(path.join(proofDir,'after-input-'+m.seq+'.png'),image.toPNG());}},700);
+  if(!['dispatched','verified'].includes(m.status))win.webContents.send('notice',m.status+': '+m.detail);
+  if(timing?.phase!=='move')log('input-result',{seq:m.seq,status:m.status,op:timing?.op,phase:timing?.phase,roundTripMs:timing?Math.round(performance.now()-timing.at):undefined});
+  // proofDir captures bounded initial frames only. Per-input screenshots made
+  // ordinary pointer use perform hundreds of PNG encodes and synchronous writes.
  });
  session.on('ended',reason=>{if(!ending){win.webContents.send('disconnected',reason);log('disconnected',{reason,frames});}});
  // Explicit bounded smoke mode only; ordinary receiver lifetime is user-owned.

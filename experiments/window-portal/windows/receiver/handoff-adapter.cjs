@@ -24,7 +24,7 @@ class HandoffAdapter {
    // A retry may acknowledge the previous commit, but must never move a window
    // or synthesize another button down. A new ownership epoch invalidates it.
    const done=this.completed;
-   if(done&&m.id===done.id&&m.sequence===done.sequence&&m.dragId===done.dragId&&m.ownershipEpoch===done.ownershipEpoch-1&&c.ownershipEpoch===done.ownershipEpoch)
+   if(done&&m.id===done.id&&m.sequence===done.sequence&&m.dragId===done.dragId&&m.geometryRevision===done.geometryRevision&&m.frameSeq===done.frameSeq&&c.geometryRevision===done.geometryRevision&&m.ownershipEpoch===done.ownershipEpoch-1&&c.ownershipEpoch===done.ownershipEpoch)
     return PREFIX+JSON.stringify(done);
    const r=this.ready;
    if(!r||m.id!==r.id||m.sequence!==r.sequence||m.dragId!==r.dragId||m.ownershipEpoch!==r.ownershipEpoch||m.frameSeq!==r.frameSeq)throw Error('Commit does not match ready');
