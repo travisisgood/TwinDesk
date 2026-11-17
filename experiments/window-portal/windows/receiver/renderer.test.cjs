@@ -29,3 +29,16 @@ test('ordinary pointer pairs do not duplicate semantic clicks or replay queued m
  v.listeners.pointerup({...e,clientX:-1});assert.equal(sent.at(-1).op,'releaseAll');
  v.listeners.pointercancel();assert.equal(sent.at(-1).op,'releaseAll');
 });
+
+test('document-focused keyboard routes text once and pairs navigation keys',async()=>{
+ const handlers={},events={},elements={},sent=[];
+ function element(){return {hidden:true,style:{},children:[],clientWidth:800,clientHeight:550,addEventListener(){},replaceChildren(){this.children=[]},append(e){this.children.push(e)},getBoundingClientRect(){return {left:0,top:0,width:800,height:550}}};}
+ for(const id of ['frame','notice','search','viewport','drag'])elements[id]=element();
+ const ctx={window:{portal:{on:(n,f)=>handlers[n]=f,input:(op,args)=>sent.push({op,args}),local(){},displayed(){},failed(){}},addEventListener(){}},document:{getElementById:id=>elements[id],createElement:element,addEventListener:(n,f)=>(events[n]??=[]).push(f)},PortalGeometry:require('./geometry.js'),Image:class{async decode(){}},ResizeObserver:class{observe(){}},requestAnimationFrame(){}};
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'renderer.js'),'utf8'),ctx);
+ handlers.metadata({logicalSize:{width:800,height:550},capabilities:['key','text','releaseAll']});
+ const fire=(type,patch)=>{const e={key:'a',code:'KeyA',target:{closest:()=>null},preventDefault(){},...patch};for(const fn of events[type]||[])fn(e);};
+ fire('keydown',{});fire('keyup',{});fire('keydown',{key:'ArrowDown',code:'ArrowDown'});fire('keyup',{key:'ArrowDown',code:'ArrowDown'});
+ assert.deepEqual(sent.map(s=>s.op),['text','key','key']);assert.equal(sent[1].args.usage,81);assert.equal(sent[2].args.phase,'up');
+ elements.search.hidden=false;fire('keydown',{});assert.equal(sent.length,3);
+});

@@ -48,12 +48,12 @@ const hid={Enter:40,Escape:41,Backspace:42,Tab:43,Space:44,Minus:45,Equal:46,Bra
 for(let i=0;i<26;i++)hid['Key'+String.fromCharCode(65+i)]=4+i;
 for(let i=1;i<=9;i++)hid['Digit'+i]=29+i;hid.Digit0=39;
 for(let i=1;i<=12;i++)hid['F'+i]=57+i;
-viewport.addEventListener('keydown',e=>{
- if(!connected||blocked||e.isComposing)return;
+document.addEventListener('keydown',e=>{
+ if(!connected||blocked||e.isComposing||!form.hidden||e.target?.closest('button,input,textarea'))return;
  if(e.ctrlKey&&e.shiftKey&&['m','q'].includes(e.key.toLowerCase()))return;
  if(capabilities.includes('text')&&e.key.length===1&&!e.ctrlKey&&!e.altKey&&!e.metaKey){e.preventDefault();api.input('text',{text:e.key});return;}
  const usage=hid[e.code];if(capabilities.includes('key')&&usage){e.preventDefault();heldKeys.add(usage);api.input('key',{phase:'down',usage});}
 });
-viewport.addEventListener('keyup',e=>{const usage=hid[e.code];if(heldKeys.delete(usage)&&connected){e.preventDefault();if(!blocked)api.input('key',{phase:'up',usage});else if(capabilities.includes('releaseAll'))api.input('releaseAll',{});}});
-viewport.addEventListener('compositionend',e=>{if(connected&&!blocked&&capabilities.includes('text')&&e.data)api.input('text',{text:e.data});});
+document.addEventListener('keyup',e=>{const usage=hid[e.code];if(heldKeys.delete(usage)&&connected){e.preventDefault();if(!blocked)api.input('key',{phase:'up',usage});else if(capabilities.includes('releaseAll'))api.input('releaseAll',{});}});
+document.addEventListener('compositionend',e=>{if(connected&&!blocked&&form.hidden&&!e.target?.closest('button,input,textarea')&&capabilities.includes('text')&&e.data)api.input('text',{text:e.data});});
 window.addEventListener('blur',()=>{heldKeys.clear();pendingMove=null;});

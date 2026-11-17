@@ -14,7 +14,7 @@ function reportBootstrapFrame(){
  bootstrapReady=true;
  process.send({type:'portal-decoded',requestId:bootstrap.requestId,sourceCommit:authenticatedSourceCommit,sessionId:session.session,windowId:session.window.windowId,geometryRevision:session.window.geometryRevision,frameSeq:session.displayed,hidden:!win.isVisible()});
 }
-let desiredResize,resizeTimer,resizeDeadline,appliedSize,resizeReadyAt=0,lastResizeSeq,releasedForResize;
+let desiredResize,resizeTimer,resizeDeadline,appliedSize,resizeReadyAt=0,lastResizeSeq,releasedForResize,applyingSourceSize=false;
 function interactionState(){win?.webContents.send('interaction-state',{blocked:!!session?.resizePending});}
 function releaseRemoteInput(){
  motion.clear();
@@ -22,7 +22,9 @@ function releaseRemoteInput(){
 }
 function applySourceSize(size){
  appliedSize=[Math.round(size.width),Math.round(size.height)];
- win.setContentSize(...appliedSize);
+ applyingSourceSize=true;
+ try{win.setContentSize(...appliedSize);appliedSize=win.getContentSize();}
+ finally{applyingSourceSize=false;}
 }
 function flushResize(){
  if(Date.now()<resizeReadyAt||!desiredResize||!session?.displayed||session.resizePending||session.inputs.size||session.pending||!session.window.capabilities.includes('resize'))return;
@@ -53,8 +55,10 @@ app.whenReady().then(async()=>{
  }
  win=new BrowserWindow({width:800,height:550,frame:false,show:false,resizable:true,minimizable:true,skipTaskbar:false,title:'Window Portal — connecting',webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,backgroundThrottling:false}});
  win.setMenu(null);
+ win.on('focus',()=>win.webContents.focus());
  win.on('blur',releaseRemoteInput);
  function queueResize(){
+  if(applyingSourceSize)return;
   if(!session?.window)return;
   const [width,height]=win.getContentSize();
   if(appliedSize&&width===appliedSize[0]&&height===appliedSize[1]){desiredResize=null;return;}
