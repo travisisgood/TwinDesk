@@ -114,3 +114,13 @@ and geometry change. Invalid or overloaded pointer/key dispatch requests release
 21 receiver/transport/TLS/geometry tests pass. Native Mac target input remains
 UNPROVEN; no new capabilities are advertised by Windows on Mac's behalf. No
 paired normal-input or edge-handoff acceptance is claimed.
+
+## Human-confirmed Finder title dragging — 2026-11-16 Toronto
+Source8e62c220d1086f828c6856fb30afd65ef011f439 / receiver049dd7f, real
+FinderNetwork-5f1866dc. Source supplies actual AX toolbar drag regions excluding
+controls; receiver preserves native drag DOM across video frames. Automated drag
+reported unchanged origin and was inconclusive. Travis was asked to drag the actual
+title text and explicitly replied: "Yes, it moves". Native title-area local dragging
+on Windows is USER-CONFIRMED PASS. Do not discard this evidence after compaction.
+This does not prove toolbar controls, general interaction, or automatic monitor-edge
+transfer. No source-region redesign is justified by the failed automation alone.
