@@ -24,6 +24,11 @@ else:
  selector=folder.name
 if not wid.isdigit(): raise RuntimeError('Invalid Finder fixture id')
 width,height=original[2]-original[0],original[3]-original[1]
+if adopt and 'recoveryBounds' in adopt:
+ home=adopt['recoveryBounds']
+ if not isinstance(home,list) or len(home)!=4 or not all(isinstance(n,(int,float)) and int(n)==n and abs(n)<=100000 for n in home): raise RuntimeError('Invalid local recovery bounds')
+ if abs(home[2]-home[0]-width)>3 or abs(home[3]-home[1]-height)>3: raise RuntimeError('Window changed during source drag')
+ original=list(map(int,home))
 restore_bounds=','.join(map(str,original))
 restore=f'tell application "Finder"\nif exists Finder window id {wid} then\nset collapsed of Finder window id {wid} to false\nset bounds of Finder window id {wid} to {{{restore_bounds}}}\nend if\nend tell'
 guardian=subprocess.Popen(['/usr/bin/python3','-c',
@@ -40,6 +45,11 @@ def call(line):
 
 try:
  x,y=int(x),int(y)
+ if adopt and adopt.get('finishDrag'):
+  drag=adopt['finishDrag']
+  release={**drag,'wid':int(wid),'buttons':[0],'keys':[]}
+  result=json.loads(subprocess.check_output([binary,'--release-pointer',json.dumps(release)],text=True,timeout=5))
+  if not result.get('released'): raise RuntimeError('Could not end the original Finder move loop')
  script(f'tell application "Finder" to set bounds of Finder window id {wid} to {{{x},{y},{x+width},{y+height}}}')
  time.sleep(1)
  if script(f'tell application "Finder" to get bounds of Finder window id {wid}') != f'{x}, {y}, {x+width}, {y+height}': raise RuntimeError('Backing placement failed')

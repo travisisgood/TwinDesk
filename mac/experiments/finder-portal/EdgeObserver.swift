@@ -6,6 +6,7 @@ import CryptoKit
     private let side: String
     private var candidate: (wid: Int, pid: Int, frame: CGRect, anchor: CGPoint, display: CGRect, displayID: UInt32, owner: String, layout: String)?
     private var offered = false
+    private var lastLayout = ""
     init(side: String) { self.side = side }
     private func displays() -> [(UInt32, CGRect)] {
         var ids = [CGDirectDisplayID](repeating: 0, count: 32), count: UInt32 = 0
@@ -32,6 +33,7 @@ import CryptoKit
                 guard let raw = FinderAccess.value(hit, kAXWindowAttribute), CFGetTypeID(raw) == AXUIElementGetTypeID() else { return }
                 window = (raw as! AXUIElement)
             }
+            AXUIElementSetMessagingTimeout(window,0.08)
             var pid: pid_t = 0; AXUIElementGetPid(window, &pid)
             guard NSRunningApplication(processIdentifier: pid)?.bundleIdentifier == "com.apple.finder",
                   let frame = FinderAccess.frame(window), point.y >= frame.minY+4, point.y < frame.minY+52,
@@ -72,10 +74,25 @@ import CryptoKit
         guard let tap = CGEvent.tapCreate(tap:.cghidEventTap,place:.headInsertEventTap,options:.listenOnly,eventsOfInterest:mask,callback:{ _,type,event,info in
             guard let info else { return Unmanaged.passUnretained(event) }
             let observer=Unmanaged<EdgeObserver>.fromOpaque(info).takeUnretainedValue()
-            MainActor.assumeIsolated { observer.observe(type,event) }
+            MainActor.assumeIsolated {
+                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                    Probe.emit(["error":"Edge observation was disabled; abort any pending transfer"])
+                } else { observer.observe(type,event) }
+            }
             return Unmanaged.passUnretained(event)
         },userInfo:Unmanaged.passUnretained(observer).toOpaque()), let source=CFMachPortCreateRunLoopSource(kCFAllocatorDefault,tap,0) else { Probe.emit(["error":"Normal input observation permission unavailable"]); return }
         CFRunLoopAddSource(CFRunLoopGetMain(),source,.commonModes)
+        observer.lastLayout=observer.layout()
+        let topologyTimer=Timer.scheduledTimer(withTimeInterval:0.25,repeats:true) { _ in
+            MainActor.assumeIsolated {
+                let current=observer.layout()
+                if current != observer.lastLayout {
+                    observer.lastLayout=current;observer.candidate=nil;observer.offered=false
+                    Probe.emit(["event":"layoutChanged","layoutRevision":current])
+                }
+            }
+        }
+        defer { topologyTimer.invalidate() }
         Probe.emit(["ready":true,"observerOnly":true,"side":side,"layoutRevision":observer.layout()])
         try? await Task.sleep(nanoseconds:UInt64(seconds)*1_000_000_000)
         CFRunLoopRemoveSource(CFRunLoopGetMain(),source,.commonModes);CFMachPortInvalidate(tap)

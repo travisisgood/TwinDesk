@@ -80,7 +80,7 @@ async function start(config,{workerFactory=startWorker}={}){
      check(!used&&!active&&Date.now()<expires&&received.length===expected.length&&crypto.timingSafeEqual(received,expected),'Authentication rejected');
      used=true;clearTimeout(helloTimer);log('authenticated',{receiverCommit:m.sourceCommit});
      const initial={windowId:crypto.randomUUID(),geometryRevision:1,appId:'com.apple.finder',title:'Finder',logicalSize:{width:800,height:550},pixelSize:{width:1600,height:1100},iconPng:null,capabilities:['pressAt','setSearchText','confirmSearch']};
-     state=new SourceState(config.sourceCommit,initial);active={ws,end};send(state.welcome());last=Date.now();
+     state=new SourceState(config.sourceCommit,initial);active={ws,end,state,acknowledgedFrameSeq:0};send(state.welcome());last=Date.now();
      timer=setInterval(()=>{
       if(ended)return;
       if(Date.now()-last>=6000||(state.outstanding&&Date.now()-state.outstanding.at>=6000)){end('Liveness timeout');return;}
@@ -104,6 +104,7 @@ async function start(config,{workerFactory=startWorker}={}){
      };pump();return;
     }
     check(!ended,'Session closed');const action=state.accept(m);last=Date.now();
+    if(action.kind==='ack'&&active?.ws===ws)active.acknowledgedFrameSeq=m.seq;
     if(action.kind==='ack'&&(m.seq===1||m.seq%100===0))log('frameAcknowledged',{seq:m.seq});
     if(action.kind==='ping'){send(state.envelope('pong',{nonce:m.nonce}));return;}
     if(action.kind==='close'){end('Receiver closed');return;}
@@ -160,7 +161,7 @@ async function start(config,{workerFactory=startWorker}={}){
   stopping=(async()=>{clearTimeout(lifetime);if(active)await active.end('Backing session ended');for(const client of wss.clients)client.terminate();await new Promise(r=>wss.close(r));await new Promise(r=>server.close(r));await stopChild(holder?.child);fs.rmSync(config.pairingFile,{force:true});})();return stopping;
  };
  const lifetime=setTimeout(stop,duration*1000);
- return {stop,port:address.port,get used(){return used;}};
+ return {stop,port:address.port,get used(){return used;},get context(){return active ? {sessionId:active.state.id,windowId:active.state.window.windowId,geometryRevision:active.state.window.geometryRevision,acknowledgedFrameSeq:active.acknowledgedFrameSeq} : null;}};
 }
 module.exports={start,Pipe};
 if(require.main===module){

@@ -16,6 +16,9 @@ test('real loopback socket authenticates before worker, enforces ACK and stops w
   const c=client(pair.url);await once(c.ws,'open');c.ws.send(JSON.stringify({v:1,type:'hello',role:'receiver',token:pair.token,sourceCommit:'b'.repeat(40)}));
   assert.equal((await c.read()).type,'welcome');const w=await c.read(),f=await c.read();assert.equal(w.type,'window');assert.equal(f.type,'frame');assert.equal(launches,1);
   c.ws.send(JSON.stringify({v:1,type:'input',sessionId:f.sessionId,windowId:f.windowId,geometryRevision:1,seq:1,frameSeq:f.seq,op:'pressAt',args:{x:.5,y:.5}}));assert.equal((await c.read()).status,'dispatched');
+  assert.equal(service.context.acknowledgedFrameSeq,0);
+  c.ws.send(JSON.stringify({v:1,type:'frameAck',sessionId:f.sessionId,windowId:f.windowId,seq:f.seq}));
+  const next=await c.read();assert.equal(next.type,'frame');assert.equal(service.context.acknowledgedFrameSeq,f.seq);assert.equal(service.context.sessionId,f.sessionId);
   const exited=once(child,'exit');c.ws.close();await once(c.ws,'close');await exited;
   const reused=client(pair.url);await once(reused.ws,'open');reused.ws.send(JSON.stringify({v:1,type:'hello',role:'receiver',token:pair.token,sourceCommit:'b'.repeat(40)}));await once(reused.ws,'close');assert.equal(launches,1);
  }finally{await service.stop();fs.rmSync(output,{recursive:true,force:true});}

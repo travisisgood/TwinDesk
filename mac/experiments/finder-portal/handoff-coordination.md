@@ -1,4 +1,4 @@
-# Agreed standalone edge handoff (not implemented)
+# Standalone edge handoff (paired activation pending)
 
 Windows accepted this schema in WINDOWS_HANDOFF_REVIEW_ACCEPT_86. Its updated
 primitive reportedly has seven tests passing; the broker, live KVM adapter and
@@ -49,3 +49,44 @@ anchor and held state before cancelling its native move loop. Do not wire the
 standalone transfer into the legacy move-window handler until paired broker and
 rollback tests pass. Windows owns receiver placement and pointer continuation.
 No shared files or main TwinDesk wire changes are implemented here.
+
+
+## Mac source broker candidate
+
+`edge-broker.js` is a finite, explicitly launched local runtime, separate from
+TwinDesk. It warms one backing display, adopts an existing Finder window only
+after its normal title drag reaches the configured physical edge, and sends
+`PORTAL_SESSION1 open` through the authenticated local messenger. Pairing is
+encrypted to the locally configured Windows public key. It never sends credentials
+in logs, runs received commands, or invokes a model. It ignores outbound echoes
+and starts at the current message cursor; loss of peer/history aborts recovery.
+
+Its private config requires `connectionFile`, `settingsFile`, `peerPublicKey`,
+`output`, `durationSeconds` (30..3540), `side`, and `source` (the existing TLS source
+config with capture path, exact sourceCommit, host/port and cert/key files). The
+broker verifies legacy Apps > Move windows is off and side matches KVM. That
+legacy switch was disabled through the normal Mac UI; KM remains enabled.
+Do not enable a second display owner while the current paired source is active.
+
+Open includes requestId, monotonic sequence persisted per local messenger
+instance, sourceCommit, encryptedPairing, appId, ttlMs, sourceLayoutRevision, and
+pointerOwner. Topology fingerprints map to increasing integer revisions. The
+source checks sessionReady against its authenticated source identity and actually
+received frame ACK before offering the agreed handoff. Stale identity/layout,
+release before commit, timeout, capture loss and disconnect stop the source; a
+late asynchronous startup is closed without publishing pairing. A local injected
+up when Windows owns the physical mouse is deferred to Windows' real held-button
+check, because KVM ends its injected Mac drag when returning the pointer.
+
+The source worker can end the original Finder move loop with one PID/window-
+targeted up before parking, and preserve the drag-start home bounds for recovery.
+No down is synthesized for that operation. This native path still needs a real
+held-drag test; the earlier emergency-release API test does not prove drag handoff.
+
+Twenty-two automated tests pass, including source-authoritative ACK state and
+five source transaction/cancellation tests. Signed edge candidate build passed.
+The observer and broker remain unvalidated for paired natural dragging. Windows
+6db6bb6 currently rejects pointerOwner=windows and lacks correlated cancel in its
+bootstrap gate; these were sent as review103. Native receiver held-drag ownership
+and staged show are still required before activation. Main TwinDesk/shared wire
+and Windows files remain untouched.
