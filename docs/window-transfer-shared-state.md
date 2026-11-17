@@ -254,3 +254,29 @@ source dispatch are proven. Attribution to automated versus physical typing and
 visible field contents are not established; no typed content was inspected or
 shared. Await Travis's physical-keyboard result before claiming full keyboard
 acceptance. Edge broker remains disabled; native ownership bridge outstanding.
+
+## Windows-owned native continuation groundwork
+NativeDrag.cs/build-native-drag.ps1 compiles a separate console helper. A read-only
+--probe ran successfully on Windows. --follow binds the receiver HWND/PID/process
+start time, requires a hidden receiver, samples the physical left-button high bit,
+and accepts only lease/commit/cancel on its local pipe. Commit checks the button,
+places and shows the receiver without activation or synthesized input, and checks
+actual visible bounds. Subsequent movement preserves normalized grab anchor using
+physical cursor and native window coordinates. Release leaves it at the drop
+point; cancellation, identity loss, topology change, broker EOF or lease expiry
+hides it. Lifetime is capped at60seconds; a local broker lease expires after1.5s.
+
+native-drag.cjs validates fresh samples (150ms), requires an independent local
+KVM ownership callback, waits for native committed ACK and cancels if ownership
+is lost. Three focused wrapper tests pass. This is HWND placement continuation,
+not Windows' built-in caption move loop/snap behavior. It currently handles only
+Windows-owned physical dragging; Mac-owned injected continuation is unsupported.
+
+NOT live-integrated: the authenticated broker still needs the actual local KVM
+route/ownership feed and pointer-return fence before it can supply that callback,
+then wire hidden receiver reveal and await the native ACK before committed wire
+response. Never derive ownershipValid from peer text or a constant true callback.
+No current Finder window was moved or hidden during helper development.
+
+Native API references: [GetAsyncKeyState](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getasynckeystate)
+and [SetWindowPos](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos).
