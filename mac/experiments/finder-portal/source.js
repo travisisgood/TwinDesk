@@ -88,13 +88,13 @@ async function start(config,{workerFactory=startWorker}={}){
      const meta=await worker.read();
      if(ended){await stopChild(worker.child);return;}
      state.window={...meta,windowId:initial.windowId,geometryRevision:1};metadata(state.window);
-     send(state.envelope('window',state.window));ready=true;log('metadataReady',{appId:state.window.appId});
+     send(state.envelope('window',state.window));ready=true;log('metadataReady',{appId:state.window.appId,revision:state.window.geometryRevision,dragRegions:state.window.dragRegions??[]});
      const pump=async()=>{
       if(ended)return;
       if(!state.outstanding&&!frameBusy&&!resizing){
        frameBusy=true;
        try{const result=await worker.call({op:'frame'});if(ended)return;check(!result.error,'Native capture failure');
-        if(result.metadata){send(state.updateGeometry(result.metadata));log('dragGeometryChanged',{revision:state.window.geometryRevision});}
+        if(result.metadata){send(state.updateGeometry(result.metadata));log('dragGeometryChanged',{revision:state.window.geometryRevision,dragRegions:state.window.dragRegions??[]});}
         else if(!result.pending){const {nativeFrames,...payload}=result;send(state.nextFrame(payload));}
        }catch{end('Capture failure');}finally{frameBusy=false;}
       }

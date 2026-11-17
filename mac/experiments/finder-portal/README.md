@@ -525,3 +525,11 @@ overlap. `drag-local-results.json` records that result. Twelve automated tests
 pass. This does not establish paired native titlebar dragging, automatic edge
 handoff, or matching regions for arbitrary applications. Windows performs the
 next receiver drag test; the Mac source-side edge detector remains Mac-owned work.
+
+First paired drag attempt (`ed99bef` source / `eafa4e2` Windows receiver) delivered
+400+ acknowledged frames but Windows reported unchanged receiver bounds after its
+CUA drag. No drag pass is claimed. Windows fixed per-frame replacement of native
+drag-region DOM nodes for the next attempt; screenshot-to-DIP coordinate mapping
+also needs checking at its 150% scale. Mac independently verified source recovery
+at the scheduled cutoff: (100,100), 800×550, not minimized. Source logs now retain
+the exact advertised drag rectangles/revisions for comparison with receiver hits.
