@@ -47,6 +47,7 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
     var stream: SCStream?
     var captureBusy = false
     private var ownedWindowIDs: [CGWindowID] = []
+    private var popupRefreshGeneration: Int?
     var latestFrame: CGImage?
     var captureConfig: SCStreamConfiguration?
     var frames = 0
@@ -92,17 +93,31 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
             return wid
         }.sorted()
     }
-    func refreshOwnedWindows() async throws {
-        guard ProcessInfo.processInfo.environment["FINDER_CHILD_CAPTURE"] == "1",let displayID=FinderAccess.backingDisplayID else { return }
+    func refreshOwnedWindows() {
+        guard ProcessInfo.processInfo.environment["FINDER_CHILD_CAPTURE"] == "1",let displayID=FinderAccess.backingDisplayID,
+              popupRefreshGeneration == nil,let stream else { return }
         let ids=popupIDs();guard ids != ownedWindowIDs else { return }
-        let content=try await SCShareableContent.excludingDesktopWindows(true,onScreenWindowsOnly:false)
-        guard let display=content.displays.first(where:{$0.displayID==displayID}) else { throw NSError(domain:"Backing display missing",code:1) }
-        let windows=[source]+content.windows.filter { ids.contains($0.windowID) && $0.owningApplication?.processID==source.owningApplication?.processID }
-        try await stream?.updateContentFilter(SCContentFilter(display:display,including:windows))
-        ownedWindowIDs=ids
+        let generation=captureGeneration, source=self.source
+        popupRefreshGeneration=generation
+        // Enumeration/filter updates can take hundreds of milliseconds. They
+        // must not hold the request/reply pipe ahead of a mouse-up or key-up.
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { if self.popupRefreshGeneration==generation { self.popupRefreshGeneration=nil } }
+            do {
+                let content=try await SCShareableContent.excludingDesktopWindows(true,onScreenWindowsOnly:false)
+                guard self.captureGeneration==generation else { return }
+                guard let display=content.displays.first(where:{$0.displayID==displayID}) else { throw NSError(domain:"Backing display missing",code:1) }
+                let windows=[source]+content.windows.filter { ids.contains($0.windowID) && $0.owningApplication?.processID==source.owningApplication?.processID }
+                try await stream.updateContentFilter(SCContentFilter(display:display,including:windows))
+                guard self.captureGeneration==generation else { return }
+                self.ownedWindowIDs=ids
+            } catch { if self.captureGeneration==generation { self.lastError="Owned popup filter failed: \(error)" } }
+        }
     }
     func start(showWindow: Bool = true, pixelScale: Double = 2) async throws {
         captureGeneration += 1
+        popupRefreshGeneration = nil
         latestFrame = nil
         let generation = captureGeneration
         let cfg = SCStreamConfiguration()

@@ -699,3 +699,15 @@ parked at40,60, allowing at most1240x840; receiver maximize may exceed it. That
 requires coordinated backing-size negotiation or an explicit fit policy, not a
 claim of successful source resizing. Natural cross-edge bootstrap remains work
 in progress. Main TwinDesk/shared files and Windows source are unchanged.
+
+
+### Nonblocking popup filter refresh
+
+Owned-popup enumeration/filter updates now run asynchronously with capture-
+generation guards instead of holding the native frame request/reply pipe. Resize
+invalidates old refresh work; failures still terminate capture rather than broaden
+its allowlist. This targets the 200–400ms input stalls observed around menu changes.
+Signed build passed. An eight-second read-only probe of the existing paired source
+returned 470 requests (one fresh frame while idle), mean5.3ms/p95 6.9ms, without
+changing focus or content. It does **not** measure popup transition latency or
+paired input improvement; those remain live acceptance checks.

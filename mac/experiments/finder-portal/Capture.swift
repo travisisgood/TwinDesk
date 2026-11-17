@@ -128,7 +128,7 @@ import ImageIO
                           let actual = FinderAccess.frame(rootAX), actual.size == viewer.logicalSize,
                           viewer.lastError == nil else { emit(["error": "Source geometry/capture unavailable"]); continue }
                     nativePointer?.heartbeat()
-                    try await viewer.refreshOwnedWindows()
+                    viewer.refreshOwnedWindows()
                     guard viewer.frames != lastPublishedNativeFrame else { emit(["pending":true]);continue }
                     if FinderAccess.dragRegions(rootAX) != publishedDragRegions {
                         nativePointer?.releaseAll()
