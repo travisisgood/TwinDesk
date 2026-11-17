@@ -1,16 +1,17 @@
 const api=window.portal,img=document.getElementById('frame'),notice=document.getElementById('notice'),form=document.getElementById('search'),viewport=document.getElementById('viewport'),drag=document.getElementById('drag');
-let current,metadata,capabilities=[],connected=true,loading=false,blocked=false;
+let current,metadata,capabilities=[],connected=true,loading=false,blocked=false,dragLayoutKey=null;
 function redraw(){
  if(!current||!metadata)return;
  const v={width:viewport.clientWidth,height:viewport.clientHeight},c=current.contentRect,b=PortalGeometry.layout(v,c);
  Object.assign(img.style,{width:current.pixelSize.width*b.scale+'px',height:current.pixelSize.height*b.scale+'px',left:b.x-c.x*b.scale+'px',top:b.y-c.y*b.scale+'px'});
  img.style.clipPath=`inset(${100*c.y/current.pixelSize.height}% ${100*(current.pixelSize.width-c.x-c.width)/current.pixelSize.width}% ${100*(current.pixelSize.height-c.y-c.height)/current.pixelSize.height}% ${100*c.x/current.pixelSize.width}%)`;
- drag.replaceChildren();
+ const layoutKey=JSON.stringify({v,c,logical:metadata.logicalSize,regions:metadata.dragRegions,blocked,revision:metadata.geometryRevision});
+ if(layoutKey===dragLayoutKey)return;dragLayoutKey=layoutKey;drag.replaceChildren();
  if(blocked)return;
  const regions=capabilities.includes('sourceDragRegions')?(metadata.dragRegions||[]):[{x:metadata.logicalSize.width*.35,y:0,width:metadata.logicalSize.width*.3,height:8}];
  for(const r of regions){const b=PortalGeometry.region(r,metadata.logicalSize,v,c),el=document.createElement('div');el.className='drag-region';Object.assign(el.style,{left:b.x+'px',top:b.y+'px',width:b.width+'px',height:b.height+'px'});drag.append(el);}
 }
-api.on('metadata',m=>{metadata=m;capabilities=m.capabilities;current=null;pendingMove=null;heldKeys.clear();drag.replaceChildren();});
+api.on('metadata',m=>{metadata=m;capabilities=m.capabilities;current=null;pendingMove=null;heldKeys.clear();dragLayoutKey=null;drag.replaceChildren();});
 api.on('interaction-state',m=>{blocked=m.blocked;if(blocked)pendingMove=null;redraw();});
 api.on('frame',async m=>{
  if(loading){api.failed();return;}loading=true;

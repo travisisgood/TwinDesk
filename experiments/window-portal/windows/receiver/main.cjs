@@ -62,8 +62,8 @@ app.whenReady().then(async()=>{
   if(m.iconPng){const icon=nativeImage.createFromBuffer(Buffer.from(m.iconPng,'base64'));if(icon.isEmpty())return end('Invalid icon');win.setIcon(icon);}
   applySourceSize(m.logicalSize);
   if(!presented){presented=true;win.show();win.focus();}
-  win.webContents.send('metadata',{capabilities:m.capabilities,logicalSize:m.logicalSize,dragRegions:m.dragRegions});
-  log('window',{windowId:m.windowId,geometryRevision:m.geometryRevision,logicalSize:m.logicalSize,pixelSize:m.pixelSize,receiverScale:screen.getDisplayMatching(win.getBounds()).scaleFactor,capabilities:m.capabilities});
+  win.webContents.send('metadata',{capabilities:m.capabilities,logicalSize:m.logicalSize,geometryRevision:m.geometryRevision,dragRegions:m.dragRegions});
+  log('window',{windowId:m.windowId,geometryRevision:m.geometryRevision,logicalSize:m.logicalSize,pixelSize:m.pixelSize,receiverScale:screen.getDisplayMatching(win.getBounds()).scaleFactor,capabilities:m.capabilities,dragRegions:m.dragRegions});
  });
  session.on('frame',(m,bytes)=>{
   const decoded=nativeImage.createFromBuffer(bytes),s=decoded.getSize();
