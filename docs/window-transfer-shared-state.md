@@ -155,3 +155,16 @@ recovery remain broker integration requirements, not implemented by this primiti
 Lost commit ACK must fail closed/release/recover, never infer two owners. Reverse
 crossing starts a fresh offer/drag for the same source window. Normal Finder input
 still unproven; Mac probes have not changed state and no general caps are enabled.
+
+## Native Finder pointer readiness
+Mac03285ac reports ordinary CGEvent Alpha selection, replacement by Beta, and
+doubleclick opening PortalChild with source bounds/cursor unchanged and previous
+app restored. This is source-local proof, NOT paired receiver acceptance yet.
+Mac must integrate focus lease, owned button release, stale-geometry handling,
+disconnect/helper-exit recovery before advertising pointer/releaseAll.
+Windows renderer regression now confirms down/up are not duplicated as pressAt,
+no modifier is fabricated, queued old movement is discarded around button events,
+and outside release/cancel sends releaseAll.16 focused protocol/renderer tests pass.
+Doubleclick contract currently has no clickCount field: source derives click count
+from same-button timing and target point unless both peers agree an extension.
+Wheel/key/text and natural monitor-edge handoff remain unverified/unfinished.

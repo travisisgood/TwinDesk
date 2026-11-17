@@ -13,3 +13,18 @@ test('native title drag elements survive frame refresh and change only with layo
  handlers['interaction-state']({blocked:false});assert.notEqual(elements.drag.children[0],original);
 });
 
+
+test('ordinary pointer pairs do not duplicate semantic clicks or replay queued movement',async()=>{
+ const handlers={},elements={},sent=[],raf=[];
+ function element(){return {style:{},children:[],listeners:{},clientWidth:800,clientHeight:550,addEventListener(n,f){this.listeners[n]=f;},replaceChildren(){this.children=[];},append(e){this.children.push(e);},getBoundingClientRect(){return {left:0,top:0,width:800,height:550};},focus(){},setPointerCapture(){},hasPointerCapture(){return false;}};}
+ for(const id of ['frame','notice','search','viewport','drag'])elements[id]=element();
+ const context={window:{portal:{on:(n,f)=>handlers[n]=f,displayed(){},failed(){throw Error('decode failed')},input:(op,args)=>sent.push({op,args}),local(){}},addEventListener(){}},document:{getElementById:id=>elements[id],createElement:()=>element(),addEventListener(){}},PortalGeometry:require('./geometry.js'),Image:class{async decode(){}},ResizeObserver:class{observe(){}},requestAnimationFrame:f=>raf.push(f)};
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'renderer.js'),'utf8'),context);
+ handlers.metadata({logicalSize:{width:800,height:550},capabilities:['pointer','pressAt','releaseAll']});
+ await handlers.frame({seq:1,image:'test',pixelSize:{width:1600,height:1100},contentRect:{x:0,y:0,width:1600,height:1100}});
+ const v=elements.viewport,e={clientX:400,clientY:275,button:0,pointerId:1,target:{closest:()=>null},preventDefault(){}};
+ v.listeners.pointermove({...e,clientX:100});v.listeners.pointerdown(e);v.listeners.pointerup(e);for(const f of raf)f();v.onclick(e);
+ assert.equal(sent.length,2);assert.equal(sent[0].op,'pointer');assert.equal(sent[0].args.phase,'down');assert.equal(sent[0].args.x,.5);assert.equal(sent[0].args.button,0);assert.equal(sent[1].args.phase,'up');assert.equal('modifiers' in sent[0].args,false);
+ v.listeners.pointerup({...e,clientX:-1});assert.equal(sent.at(-1).op,'releaseAll');
+ v.listeners.pointercancel();assert.equal(sent.at(-1).op,'releaseAll');
+});
