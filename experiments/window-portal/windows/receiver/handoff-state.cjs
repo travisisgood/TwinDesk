@@ -28,7 +28,7 @@ class HandoffState {
  }
  commit(id,context){
   const p=this.pending;check(p&&p.id===id,'Unknown handoff');
-  if(this.now()>=p.offer.expiresAt||!context.pointerHeld||JSON.stringify(context.display)!==p.layout||context.geometryRevision!==p.offer.geometryRevision){this.abort(id);throw Error('Handoff expired or context changed');}
+  if(context.sessionId!==p.offer.sessionId||context.windowId!==p.offer.windowId||this.now()>=p.offer.expiresAt||!context.pointerHeld||JSON.stringify(context.display)!==p.layout||context.geometryRevision!==p.offer.geometryRevision){this.abort(id);throw Error('Handoff expired or context changed');}
   check(context.firstFrameDisplayed===true,'Destination frame not displayed');
   this.finish(id);return p.result;
  }
