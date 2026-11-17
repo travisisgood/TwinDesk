@@ -21,8 +21,8 @@ function flushResize(){
  if(Date.now()<resizeReadyAt||!desiredResize||!session?.displayed||session.resizePending||session.inputs.size||session.pending||!session.window.capabilities.includes('resize'))return;
  if(session.window.capabilities.includes('releaseAll')&&releasedForResize!==desiredResize){releasedForResize=desiredResize;releaseRemoteInput();return;}
  const args=desiredResize;desiredResize=null;
- try{lastResizeSeq=session.input('resize',args);interactionState();clearTimeout(resizeDeadline);resizeDeadline=setTimeout(()=>{if(session.resizePending)end('Source resize did not complete');},10000);}
- catch(error){win.webContents.send('notice',error.message);applySourceSize(session.window.logicalSize);}
+ try{lastResizeSeq=session.input('resize',args);log('resize-sent',{seq:lastResizeSeq,...args});interactionState();clearTimeout(resizeDeadline);resizeDeadline=setTimeout(()=>{if(session.resizePending)end('Source resize did not complete');},10000);}
+ catch(error){log('resize-rejected-locally',{reason:error.message,...args});win.webContents.send('notice',error.message);if(win.isMaximized())win.unmaximize();applySourceSize(session.window.logicalSize);}
 }
 const configPath=process.argv.find(a=>a.startsWith('--config='))?.slice(9);
 const proofDir=process.argv.find(a=>a.startsWith('--proof-dir='))?.slice(12);
@@ -38,14 +38,21 @@ app.whenReady().then(async()=>{
  win=new BrowserWindow({width:800,height:550,frame:false,show:false,resizable:true,minimizable:true,skipTaskbar:false,title:'Window Portal — connecting',webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,backgroundThrottling:false}});
  win.setMenu(null);
  win.on('blur',releaseRemoteInput);
- win.on('resize',()=>{
+ function queueResize(){
   if(!session?.window)return;
   const [width,height]=win.getContentSize();
-  if(appliedSize&&width===appliedSize[0]&&height===appliedSize[1])return;
+  if(appliedSize&&width===appliedSize[0]&&height===appliedSize[1]){desiredResize=null;return;}
   if(!session.window.capabilities.includes('resize'))return;
-  desiredResize={logicalSize:{width,height},pixelScale:Math.max(1,Math.min(3,screen.getDisplayMatching(win.getBounds()).scaleFactor))};
+  // Preserve the paired source's selected capture density, including a 1x
+  // low-latency stream, instead of silently promoting every resize to Retina.
+  const sourceScale=Math.min(session.window.pixelSize.width/session.window.logicalSize.width,session.window.pixelSize.height/session.window.logicalSize.height);
+  desiredResize={logicalSize:{width,height},pixelScale:Math.max(1,Math.min(3,sourceScale,screen.getDisplayMatching(win.getBounds()).scaleFactor))};
+  log('resize-queued',{...desiredResize,maximized:win.isMaximized()});
   resizeReadyAt=Date.now()+180;clearTimeout(resizeTimer);resizeTimer=setTimeout(flushResize,180);
- });
+ }
+ win.on('resize',queueResize);
+ win.on('maximize',()=>setImmediate(queueResize));
+ win.on('unmaximize',()=>setImmediate(queueResize));
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());
  win.on('closed',()=>end('Receiver closed; return source'));
  win.webContents.on('render-process-gone',()=>end('Receiver renderer lost'));
