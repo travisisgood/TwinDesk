@@ -42,6 +42,15 @@ class ReceiverProtocol extends EventEmitter {
      check(!m.dragRegions.slice(0,i).some(a=>r.x<a.x+a.width&&r.x+r.width>a.x&&r.y<a.y+a.height&&r.y+r.height>a.y),'Overlapping drag regions');
     }
    }
+   if(m.windowControls!==undefined){
+    check(m.capabilities.includes('receiverWindowControls')&&Array.isArray(m.windowControls)&&m.windowControls.length<=3,'Invalid window controls');
+    const seen=new Set();
+    for(const [i,r] of m.windowControls.entries()){
+     check(own(r)&&['close','minimize','zoom'].includes(r.action)&&!seen.has(r.action),'Invalid control action');seen.add(r.action);
+     check([r.x,r.y,r.width,r.height].every(Number.isFinite)&&r.x>=0&&r.y>=0&&r.width>0&&r.height>0&&r.x+r.width<=m.logicalSize.width&&r.y+r.height<=m.logicalSize.height,'Invalid control bounds');
+     check(![...m.windowControls.slice(0,i),...(m.dragRegions||[])].some(a=>r.x<a.x+a.width&&r.x+r.width>a.x&&r.y<a.y+a.height&&r.y+r.height>a.y),'Overlapping window controls');
+    }
+   }
    if(m.iconPng!==null)png(m.iconPng,true);
    if(this.window)check(m.windowId===this.window.windowId&&m.geometryRevision===this.window.geometryRevision+1&&!this.pending,'Invalid geometry transition');
    else check(m.geometryRevision===1,'Initial geometry must be revision 1');

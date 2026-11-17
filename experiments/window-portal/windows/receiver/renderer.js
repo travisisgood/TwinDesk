@@ -5,11 +5,16 @@ function redraw(){
  const v={width:viewport.clientWidth,height:viewport.clientHeight},c=current.contentRect,b=PortalGeometry.layout(v,c);
  Object.assign(img.style,{width:current.pixelSize.width*b.scale+'px',height:current.pixelSize.height*b.scale+'px',left:b.x-c.x*b.scale+'px',top:b.y-c.y*b.scale+'px'});
  img.style.clipPath=`inset(${100*c.y/current.pixelSize.height}% ${100*(current.pixelSize.width-c.x-c.width)/current.pixelSize.width}% ${100*(current.pixelSize.height-c.y-c.height)/current.pixelSize.height}% ${100*c.x/current.pixelSize.width}%)`;
- const layoutKey=JSON.stringify({v,c,logical:metadata.logicalSize,regions:metadata.dragRegions,blocked,revision:metadata.geometryRevision});
+ const layoutKey=JSON.stringify({v,c,logical:metadata.logicalSize,regions:metadata.dragRegions,controls:metadata.windowControls,blocked,revision:metadata.geometryRevision});
  if(layoutKey===dragLayoutKey)return;dragLayoutKey=layoutKey;drag.replaceChildren();
  if(blocked)return;
  const regions=capabilities.includes('sourceDragRegions')?(metadata.dragRegions||[]):[{x:metadata.logicalSize.width*.35,y:0,width:metadata.logicalSize.width*.3,height:8}];
  for(const r of regions){const b=PortalGeometry.region(r,metadata.logicalSize,v,c),el=document.createElement('div');el.className='drag-region';Object.assign(el.style,{left:b.x+'px',top:b.y+'px',width:b.width+'px',height:b.height+'px'});drag.append(el);}
+ if(capabilities.includes('receiverWindowControls'))for(const r of metadata.windowControls||[]){
+  const b=PortalGeometry.region(r,metadata.logicalSize,v,c),el=document.createElement('button');el.className='window-control';el.title={close:'Return to Mac',minimize:'Minimize to taskbar',zoom:'Maximize or restore'}[r.action];
+  Object.assign(el.style,{position:'absolute',left:b.x+'px',top:b.y+'px',width:b.width+'px',height:b.height+'px',padding:'0',border:'1px solid #0003',borderRadius:'50%',background:{close:'#ff5f57',minimize:'#febc2e',zoom:'#28c840'}[r.action],pointerEvents:'auto',webkitAppRegion:'no-drag'});
+  el.disabled=r.action==='zoom'&&!capabilities.includes('resize');el.onclick=e=>{e.stopPropagation();api.local(r.action);};drag.append(el);
+ }
 }
 api.on('metadata',m=>{metadata=m;capabilities=m.capabilities;current=null;pendingMove=null;heldKeys.clear();dragLayoutKey=null;drag.replaceChildren();});
 api.on('interaction-state',m=>{blocked=m.blocked;if(blocked)pendingMove=null;redraw();});
@@ -31,7 +36,7 @@ viewport.onclick=e=>{
 form.onsubmit=e=>{e.preventDefault();if(!connected||blocked)return;api.input('setSearchText',{text:document.getElementById('query').value});if(capabilities.includes('confirmSearch'))api.input('confirmSearch',{});form.hidden=true;};
 document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.shiftKey&&e.key.toLowerCase()==='m'){e.preventDefault();api.local('minimize')}if(e.ctrlKey&&e.shiftKey&&e.key.toLowerCase()==='q'){e.preventDefault();api.local('close')}});
 
-function remotePoint(e){if(!connected||!current||blocked)return null;const b=viewport.getBoundingClientRect();return PortalGeometry.point(e.clientX-b.left,e.clientY-b.top,b,current.contentRect);}
+function remotePoint(e){if(!connected||!current||blocked||e.target?.closest('.window-control'))return null;const b=viewport.getBoundingClientRect();return PortalGeometry.point(e.clientX-b.left,e.clientY-b.top,b,current.contentRect);}
 let pendingMove,moveScheduled=false;const heldKeys=new Set();
 viewport.tabIndex=0;
 viewport.addEventListener('pointerdown',e=>{if(!capabilities.includes('pointer')||e.target.closest('.drag-region'))return;const p=remotePoint(e);if(!p||e.button>2)return;pendingMove=null;e.preventDefault();viewport.focus();viewport.setPointerCapture(e.pointerId);api.input('pointer',{phase:'down',button:e.button,...p});});

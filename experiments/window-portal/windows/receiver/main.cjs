@@ -57,7 +57,7 @@ app.whenReady().then(async()=>{
  ipcMain.on('frame-displayed',(e,seq)=>{if(e.sender!==win.webContents)return;try{session.displayedFrame(seq);interactionState();if(!session.resizePending)clearTimeout(resizeDeadline);flushResize();frames++;if(frames===1||frames%30===0)log('frame-displayed',{seq,frames});}catch{end('Invalid renderer acknowledgment')}});
  ipcMain.on('decode-failed',()=>end('Receiver could not decode frame'));
  ipcMain.on('input',(e,op,args)=>{if(e.sender!==win.webContents)return;try{motion.input(op,args)}catch(error){if(op==='pointer'||op==='key')releaseRemoteInput();win.webContents.send('notice',error.message)}});
- ipcMain.on('local',(e,action)=>{if(e.sender!==win.webContents)return;if(action==='minimize')win.minimize();else if(action==='close')end('Receiver closed; return source')});
+ ipcMain.on('local',(e,action)=>{if(e.sender!==win.webContents)return;if(action==='minimize')win.minimize();else if(action==='close')end('Receiver closed; return source');else if(action==='zoom'&&session?.window?.capabilities.includes('resize')){if(win.isMaximized())win.unmaximize();else win.maximize();}});
  await win.loadFile('index.html');win.show();
  session=connect(config);
  session.on('welcome',m=>log('authenticated',{sourceCommit:m.sourceCommit,receiverCommit:config.sourceCommit}));
@@ -67,7 +67,7 @@ app.whenReady().then(async()=>{
   if(m.iconPng){const icon=nativeImage.createFromBuffer(Buffer.from(m.iconPng,'base64'));if(icon.isEmpty())return end('Invalid icon');win.setIcon(icon);}
   applySourceSize(m.logicalSize);
   if(!presented){presented=true;win.show();win.focus();}
-  win.webContents.send('metadata',{capabilities:m.capabilities,logicalSize:m.logicalSize,geometryRevision:m.geometryRevision,dragRegions:m.dragRegions});
+  win.webContents.send('metadata',{capabilities:m.capabilities,logicalSize:m.logicalSize,geometryRevision:m.geometryRevision,dragRegions:m.dragRegions,windowControls:m.windowControls});
   log('window',{windowId:m.windowId,geometryRevision:m.geometryRevision,logicalSize:m.logicalSize,pixelSize:m.pixelSize,receiverScale:screen.getDisplayMatching(win.getBounds()).scaleFactor,capabilities:m.capabilities,dragRegions:m.dragRegions});
  });
  session.on('frame',(m,bytes)=>{
