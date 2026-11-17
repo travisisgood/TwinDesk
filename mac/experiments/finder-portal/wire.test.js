@@ -1,10 +1,17 @@
 'use strict';
 const test=require('node:test'), assert=require('node:assert/strict');
-const {SourceState,parse,png,frame}=require('./wire');
+const {SourceState,parse,png,frame,metadata}=require('./wire');
 const meta={windowId:'11111111-1111-4111-8111-111111111111',geometryRevision:1,appId:'com.apple.finder',title:'Fixture',logicalSize:{width:1,height:1},pixelSize:{width:1,height:1},iconPng:null,capabilities:['pressAt']};
 const image='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aP1sAAAAASUVORK5CYII=';
 const payload={pixelSize:{width:1,height:1},contentRect:{x:0,y:0,width:1,height:1},captureMode:'stream',png:image};
 const state=()=>new SourceState('a'.repeat(40),meta);
+test('source drag regions require capability and bounded nonoverlapping geometry',()=>{
+ const m={...meta,logicalSize:{width:800,height:550},capabilities:['sourceDragRegions'],dragRegions:[{x:200,y:0,width:200,height:52}]};metadata(m);
+ assert.throws(()=>metadata({...m,capabilities:[]}));
+ assert.throws(()=>metadata({...m,dragRegions:[...m.dragRegions,{x:250,y:1,width:10,height:10}]}));
+ assert.throws(()=>metadata({...m,dragRegions:[{x:799,y:0,width:2,height:52}]}));
+ assert.throws(()=>metadata({...m,dragRegions:Array(33).fill({x:0,y:0,width:1,height:1})}));
+});
 test('geometry revisions require ACK and bind input to frames of that revision',()=>{
  const s=state();s.nextFrame(payload);assert.throws(()=>s.updateGeometry(meta));
  s.accept(s.envelope('frameAck',{windowId:meta.windowId,seq:1}));

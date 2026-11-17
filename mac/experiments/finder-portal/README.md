@@ -501,3 +501,27 @@ returned Finder to (100,100), 800×550, and the test closed only its own fixture
 `resize-local-results.json` contains measurements. Eleven automated protocol,
 socket and envelope tests pass; signed native builds pass. These are local tests,
 not paired Windows receiver acceptance or proof of arbitrary application resize.
+
+Paired follow-up: Windows reported source `f57954d` / receiver `4ccd147` grow and
+shrink acceptance. Mac independently logged revision 2 as 813×550 points with
+1220×825 pixels, and revision 3 as 800×550 with 1200×825 pixels. Current source
+bounds read back as (-1240,60), 800×550 on the backing display. Windows visually
+observed a Name-header sort change; subsequent unsupported presses are not counted
+as normal input. Sharpness and general interaction remain open.
+
+### Finder toolbar drag regions
+
+The source now advertises the agreed `sourceDragRegions` capability. Regions are
+derived from the selected Finder's actual AXToolbar, subtracting interactive
+controls with two points of padding, rather than guessing a centered strip.
+Rectangles are bounded, nonoverlapping and limited to 32. Changes to these regions
+trigger a new geometry revision between acknowledged frames, including when the
+source window size itself is unchanged. Capture and source placement are retained.
+
+`drag-regions-live-test.py CAPTURE EXISTING_SESSION OUTPUT` reads only the selected
+test Finder's native metadata/AX controls. It verified the title center is inside
+a drag region, nine measured toolbar controls are excluded, and regions do not
+overlap. `drag-local-results.json` records that result. Twelve automated tests
+pass. This does not establish paired native titlebar dragging, automatic edge
+handoff, or matching regions for arbitrary applications. Windows performs the
+next receiver drag test; the Mac source-side edge detector remains Mac-owned work.

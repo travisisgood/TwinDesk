@@ -35,7 +35,9 @@ try:
  for line in sys.stdin:
   message=json.loads(line)
   op=message.get('op')
-  if op=='frame': result=call('@wire-frame')
+  if op=='frame':
+   result=call('@wire-frame')
+   if result.get('geometryChanged'): result={'metadata':call('@wire-metadata')}
   elif op=='pressAt': result=call('@click:'+str(message['args']['x'])+','+str(message['args']['y']))
   elif op=='setSearchText': result=call('@text-json:'+json.dumps({'text':message['args']['text']}))
   elif op=='confirmSearch': result=call('@confirm')

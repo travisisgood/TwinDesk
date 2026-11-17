@@ -1,0 +1,43 @@
+{
+  "readOnlyActualFinder": true,
+  "logicalSize": {
+    "height": 550,
+    "width": 800
+  },
+  "dragRegions": [
+    {
+      "height": 8,
+      "width": 166,
+      "x": 0,
+      "y": 39
+    },
+    {
+      "height": 8,
+      "width": 282,
+      "x": 243,
+      "y": 39
+    },
+    {
+      "height": 26,
+      "width": 13,
+      "x": 0,
+      "y": 13
+    },
+    {
+      "height": 26,
+      "width": 81,
+      "x": 85,
+      "y": 13
+    },
+    {
+      "height": 26,
+      "width": 282,
+      "x": 243,
+      "y": 13
+    }
+  ],
+  "excludedToolbarControls": 9,
+  "titleCenterDraggable": true,
+  "overlap": false,
+  "receiverDragTest": "pending paired validation"
+}

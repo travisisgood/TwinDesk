@@ -94,7 +94,8 @@ async function start(config,{workerFactory=startWorker}={}){
       if(!state.outstanding&&!frameBusy&&!resizing){
        frameBusy=true;
        try{const result=await worker.call({op:'frame'});if(ended)return;check(!result.error,'Native capture failure');
-        if(!result.pending){const {nativeFrames,...payload}=result;send(state.nextFrame(payload));}
+        if(result.metadata){send(state.updateGeometry(result.metadata));log('dragGeometryChanged',{revision:state.window.geometryRevision});}
+        else if(!result.pending){const {nativeFrames,...payload}=result;send(state.nextFrame(payload));}
        }catch{end('Capture failure');}finally{frameBusy=false;}
       }
       if(!ended)setTimeout(pump,100);

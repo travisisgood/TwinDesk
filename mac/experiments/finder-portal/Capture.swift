@@ -65,8 +65,10 @@ import CryptoKit
             let viewer = viewerMode ? PortalViewer(source: window, presentsWindow: !sourceMode) : nil
             try await viewer?.start(showWindow: !sourceMode)
             emit(["ready": true, "wid": window.windowID, "pid": window.owningApplication!.processID])
+            var publishedDragRegions: [[String: Double]] = []
             while let path = await Task.detached(operation: { readLine() }).value {
                 if path == "@wire-metadata" {
+                    publishedDragRegions = rootAX.map { FinderAccess.dragRegions($0) } ?? []
                     let icon = NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
                     let small = NSImage(size: NSSize(width: 128, height: 128))
                     small.lockFocus(); icon.draw(in: NSRect(x: 0, y: 0, width: 128, height: 128)); small.unlockFocus()
@@ -75,7 +77,8 @@ import CryptoKit
                           "logicalSize": ["width": Int(viewer?.logicalSize.width ?? window.frame.width), "height": Int(viewer?.logicalSize.height ?? window.frame.height)],
                           "pixelSize": ["width": viewer?.captureConfig?.width ?? config.width, "height": viewer?.captureConfig?.height ?? config.height],
                           "iconPng": rep.representation(using: .png, properties: [:])!.base64EncodedString(),
-                          "capabilities": ["pressAt", "setSearchText", "confirmSearch"] + (FinderAccess.backingDisplayID != nil ? ["resize"] : [])]); continue
+                          "dragRegions": publishedDragRegions,
+                          "capabilities": ["pressAt", "setSearchText", "confirmSearch"] + (FinderAccess.backingDisplayID != nil ? ["resize", "sourceDragRegions"] : [])]); continue
                 }
                 if path.hasPrefix("@resize-json:"), let viewer {
                     guard let data = String(path.dropFirst(13)).data(using: .utf8),
@@ -90,6 +93,9 @@ import CryptoKit
                     guard let rootAX, FinderAccess.inputAllowed(rootAX),
                           let actual = FinderAccess.frame(rootAX), actual.size == viewer.logicalSize,
                           viewer.lastError == nil else { emit(["error": "Source geometry/capture unavailable"]); continue }
+                    if FinderAccess.dragRegions(rootAX) != publishedDragRegions {
+                        emit(["geometryChanged": true]); continue
+                    }
                     guard let image = viewer.image.image, let tiff = image.tiffRepresentation,
                           let rep = NSBitmapImageRep(data: tiff), let data = rep.representation(using: .png, properties: [:]) else {
                         emit(["pending": true]); continue

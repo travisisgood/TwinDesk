@@ -28,6 +28,14 @@ function metadata(m) {
   check(UUID.test(m.windowId) && integer(m.geometryRevision) && string(m.appId,512) && m.appId.length > 0 && string(m.title,4096), 'Invalid window identity');
   check(size(m.logicalSize) && size(m.pixelSize) && Array.isArray(m.capabilities) && m.capabilities.length <= 16 && m.capabilities.every(c=>string(c,64)), 'Invalid window geometry/capabilities');
   if (m.iconPng !== null) png(m.iconPng,true);
+  if(m.dragRegions!==undefined){
+    check(Array.isArray(m.dragRegions)&&m.dragRegions.length<=32,'Invalid drag regions');
+    if(m.dragRegions.length)check(m.capabilities.includes('sourceDragRegions'),'Drag capability missing');
+    for(let i=0;i<m.dragRegions.length;i++){
+      const r=m.dragRegions[i];check(object(r)&&[r.x,r.y,r.width,r.height].every(Number.isFinite)&&r.x>=0&&r.y>=0&&r.width>0&&r.height>0&&r.x+r.width<=m.logicalSize.width&&r.y+r.height<=m.logicalSize.height,'Drag region out of bounds');
+      for(const p of m.dragRegions.slice(0,i))check(r.x>=p.x+p.width||p.x>=r.x+r.width||r.y>=p.y+p.height||p.y>=r.y+r.height,'Overlapping drag regions');
+    }
+  }
 }
 function frame(m, window) {
   check(m.windowId === window.windowId && m.geometryRevision === window.geometryRevision && integer(m.seq), 'Invalid frame identity');

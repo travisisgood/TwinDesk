@@ -47,6 +47,31 @@ enum FinderAccess {
         if let r = frame(e) { result["frame"] = NSStringFromRect(r) }
         return result
     }
+    static func dragRegions(_ root: AXUIElement) -> [[String: Double]] {
+        guard backingDisplayID != nil, inputAllowed(root), let window = frame(root) else { return [] }
+        let elements = nodes(root)
+        guard let toolbar = elements.first(where: { value($0, kAXRoleAttribute) as? String == kAXToolbarRole }),
+              let bar = frame(toolbar), bar.minY == window.minY, bar.height > 0, bar.height <= 100 else { return [] }
+        var regions = [bar.intersection(window)]
+        let roles: Set<String> = ["AXButton", "AXMenuButton", "AXPopUpButton", "AXTextField", "AXCheckBox", "AXRadioButton", "AXSlider", "AXComboBox", "AXLink", "AXMenuItem"]
+        for element in elements {
+            guard roles.contains(value(element, kAXRoleAttribute) as? String ?? ""), let control = frame(element),
+                  control.width > 0, control.height > 0 else { continue }
+            let excluded = control.insetBy(dx: -2, dy: -2)
+            regions = regions.flatMap { r -> [CGRect] in
+                let cut = r.intersection(excluded)
+                guard !cut.isNull, cut.width > 0, cut.height > 0 else { return [r] }
+                return [CGRect(x: r.minX, y: r.minY, width: r.width, height: cut.minY-r.minY),
+                        CGRect(x: r.minX, y: cut.maxY, width: r.width, height: r.maxY-cut.maxY),
+                        CGRect(x: r.minX, y: cut.minY, width: cut.minX-r.minX, height: cut.height),
+                        CGRect(x: cut.maxX, y: cut.minY, width: r.maxX-cut.maxX, height: cut.height)].filter { $0.width >= 8 && $0.height >= 8 }
+            }
+            if regions.count > 32 { return [] }
+        }
+        return regions.filter { !$0.isNull && $0.width >= 8 && $0.height >= 8 }.map {
+            ["x": $0.minX-window.minX, "y": $0.minY-window.minY, "width": $0.width, "height": $0.height]
+        }
+    }
     static func openItem(_ name: String, window: AXUIElement) -> [String: Any] {
         // Actual Finder AXOpen testing restored the minimized source. Never use
         // that mechanism in the viewer; return a capability error instead.
