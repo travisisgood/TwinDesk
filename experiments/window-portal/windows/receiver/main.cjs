@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path');
 const {connect}=require('./connection.cjs');
 app.setPath('userData',path.join(__dirname,'profile'));
 app.setAppUserModelId('WindowPortal.StandaloneReceiver');
-let win,session,ending=false,frames=0;
+let win,session,ending=false,frames=0,presented=false;
 const configPath=process.argv.find(a=>a.startsWith('--config='))?.slice(9);
 const proofDir=process.argv.find(a=>a.startsWith('--proof-dir='))?.slice(12);
 // A GUI process can outlive the launching shell's stdout/stderr pipes. Logging
@@ -36,6 +36,7 @@ app.whenReady().then(async()=>{
   win.setTitle(m.title+' — Window Portal');
   if(m.iconPng){const icon=nativeImage.createFromBuffer(Buffer.from(m.iconPng,'base64'));if(icon.isEmpty())return end('Invalid icon');win.setIcon(icon);}
   win.setSize(Math.min(1600,Math.max(240,Math.round(m.logicalSize.width))),Math.min(1000,Math.max(160,Math.round(m.logicalSize.height))));
+  if(!presented){presented=true;win.show();win.focus();}
   win.webContents.send('metadata',{capabilities:m.capabilities});log('window',{windowId:m.windowId,geometryRevision:m.geometryRevision});
  });
  session.on('frame',(m,bytes)=>{
@@ -63,3 +64,4 @@ app.whenReady().then(async()=>{
  }
 }).catch(e=>{log('startup-error',{reason:e.message});app.exit(1)});
 app.on('before-quit',()=>session?.end('Receiver exiting; return source'));
+
