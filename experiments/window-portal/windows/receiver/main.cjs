@@ -45,11 +45,11 @@ app.whenReady().then(async()=>{
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());
  win.on('closed',()=>end('Receiver closed; return source'));
  win.webContents.on('render-process-gone',()=>end('Receiver renderer lost'));
- win.webContents.on('context-menu',()=>Menu.buildFromTemplate([
+ win.webContents.on('context-menu',()=>{if(session?.window?.capabilities.includes('pointer'))return;Menu.buildFromTemplate([
   {label:'Minimize',click:()=>win.minimize()},
   {label:'Search in source',enabled:!!session?.window?.capabilities.includes('setSearchText'),click:()=>win.webContents.send('search')},
   {label:'Return window to source',click:()=>end('Receiver closed; return source')}
- ]).popup({window:win}));
+ ]).popup({window:win});});
  ipcMain.on('frame-displayed',(e,seq)=>{if(e.sender!==win.webContents)return;try{session.displayedFrame(seq);interactionState();if(!session.resizePending)clearTimeout(resizeDeadline);flushResize();frames++;if(frames===1||frames%30===0)log('frame-displayed',{seq,frames});}catch{end('Invalid renderer acknowledgment')}});
  ipcMain.on('decode-failed',()=>end('Receiver could not decode frame'));
  ipcMain.on('input',(e,op,args)=>{if(e.sender!==win.webContents)return;try{session.input(op,args)}catch(error){if(op==='pointer'||op==='key')releaseRemoteInput();win.webContents.send('notice',error.message)}});
