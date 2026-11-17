@@ -169,6 +169,29 @@ Doubleclick contract currently has no clickCount field: source derives click cou
 from same-button timing and target point unless both peers agree an extension.
 Wheel/key/text and natural monitor-edge handoff remain unverified/unfinished.
 
+## Active shared priority — Mac windows on Windows
+Travis explicitly narrowed both agents to ONE direction on2026-11-16:
+Mac windows must work on Windows with end-to-end macOS behavior parity.
+Mac owns source capture/native input; Windows owns receiver presentation/input
+delivery/taskbar integration. Defer Windows-to-Mac feature work. Finder is the
+acceptance target; extend to other Mac applications after Finder behaves properly.
+
+Next paired candidate priorities:
+- Responsiveness: remove receiver per-input screenshots (1209 files/303MB in
+  initial live run), bound hover backlog, reduce repeated native focus waits,
+  compare lower capture density with measured input and frame timing.
+- Correct sharp rendering, click coordinates, scrolling, keyboard/shortcuts/text.
+- Working toolbar controls, context menus/popovers, source-positioned traffic
+  lights, actual source resizing; local taskbar minimize/restore retains source.
+- Natural Mac-to-Windows edge transfer, continuous drag, stable backing display,
+  recovery on disconnect. Isolated handoff tests do not establish live acceptance.
+
+Receiverc893ed0 has optional receiverWindowControls metadata support; Mac source
+must send genuine control rectangles before controls appear. Existing red action
+returns source home; this prototype behavior is not yet full native close parity.
+No live speed improvement, scroll or window-control acceptance claimed until
+the fresh source and receiver are paired and observed together.
+
 ## Paired Finder ordinary pointer acceptance — 2026-11-16
 Receiver36e90f9a5de537afca7848cc8fb119d5c9f4e565 with Mac source
 7cf62c44b7e6829d1b96f91a9deca2cbd5aca1dd visibly passed ordinary Alpha.txt
