@@ -124,3 +124,22 @@ title text and explicitly replied: "Yes, it moves". Native title-area local drag
 on Windows is USER-CONFIRMED PASS. Do not discard this evidence after compaction.
 This does not prove toolbar controls, general interaction, or automatic monitor-edge
 transfer. No source-region redesign is justified by the failed automation alone.
+
+## Automatic edge handoff groundwork
+Windows inspected existing KVM/native edge dispatch: `moving` HWND/fromX/fromY
+currently routes only to legacy PeerApps/PcApps. Standalone receivers are not
+registered there, and native AddMoving cancels the source move loop without
+forwarding the original grab anchor. Do not enable legacy transfer for the new
+receiver as a shortcut.
+
+New receiver handoff-state.cjs is an ISOLATED primitive, not installed in KVM and
+not a wire protocol. Placement preserves normalized grab point at a selected
+physical display edge using logical units, allowing natural partial offscreen
+placement. Preparation binds session/window/revision and authorized display;
+commit requires first frame displayed, button still held, unchanged layout and
+geometry, and a5sec maximum offer lifetime. Abort yields prior receiver bounds;
+duplicate commits/offers are rejected within bounded recent history. Five tests
+pass including negative-origin monitors, stale revision, topology change, release,
+deadline rollback and duplicate commit. Integration requires agreed source offer/
+ready/commit plus authenticated non-AI broker and continuous pointer ownership.
+This is NOT automatic edge transfer acceptance and does not fix source input.
