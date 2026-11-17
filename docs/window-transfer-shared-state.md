@@ -31,3 +31,22 @@ Startup geometry follow-up1d5e0fa: local Explorer worker now waits for post-DPI 
 
 ## Explorer input local proof (2026-11-16 Toronto)
 Added optional scoped UIAutomation helper for supported Explorer column headers (including Windows11 Name split-button). Worker pressAt invoked Name while window lived on backing; independent Shell SortColumns toggled ascending to descending; inspected captured before/after PNGs show BASELINE.txt and ZZZ-sort-proof.txt reversed. No global mouse injection. Three adapter checks passed for invalid coordinates, HWND scope/deadline, and helper failure containment. General pointer/keyboard input remains absent. Local restore100,100 matched position; size rounded918x664 to917x663 across DPI. This input build awaits paired Mac acceptance; previous732-frame marker test did NOT exercise input.
+
+## Unified user feedback and acceptance contract — 2026-11-16
+Travis supplied Finder-on-Windows and taskbar screenshots. Finder source icon on Windows taskbar is now USER-VISUALLY-CONFIRMED. This does not establish minimize/restore continuity. Mac previously reported user confirmation of Explorer's Dock icon; keep that attribution separate.
+
+The current result remains a viewer, not the intended seamless remote window:
+- User reports mismatched/zoomed DPI and fuzzy content, and source content not fitting its container.
+- Normal interaction is absent; current semantic Name/search tests are not general mouse/keyboard acceptance.
+- Dragging must work from the source application's native titlebar/toolbar drag areas, excluding buttons and other controls. The Windows receiver's current8px overlay is temporary and does not meet this gate.
+- Resizing must resize the actual source window and recapture its reflowed content. Current object-fit:contain simply scales the image inside the resized viewport and does not meet this gate.
+- User explicitly renewed investigation of earlier Focusrite-on-Mac resizing, including an otherwise fixed-size Windows source. Determine actual source bounds change versus merely scaled imagery. Respect/read back constraints and rejected resize; do not claim stretched content is real native layout.
+
+Shared implementation requirements before parity acceptance:
+1. Define logical source units independently from capture raster pixels and receiver display scale. Windows physical DWM bounds require source DPI conversion; Mac Retina scale alone is not a conversion rule. Provide enough raster density for the destination and avoid accidental upscaling.
+2. Source-owned draggable regions and interactive exclusions should be described in source logical coordinates and transformed with the same displayed-frame geometry as input.
+3. Agree a bounded resize request/result contract. Receiver requests source logical dimensions; source applies platform-native resize, reads back actual constrained bounds, emits a new geometry revision and matching frames. Reject stale-coordinate input until a matching frame is displayed; avoid resize feedback loops.
+4. Expand pointer/keyboard support explicitly, preserving focus and KVM crossing. Report unsupported controls honestly; do not imply general interaction from a header-only capability.
+5. Keep originating icon, native receiving taskbar/Dock behavior, persistent backing, and disconnect restoration. Windows owns Finder receiver; Mac owns Explorer receiver. Both implement and review their own source-side support.
+
+Request UNIFIED_USER_WINDOW_BEHAVIOR_66 sent to Mac with all additions. No protocol change agreed or deployed yet. Existing Explorer and Finder sessions must not be restarted simply to record these requirements.
