@@ -53,10 +53,13 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
     var lastError: String?
     var lastInput: [String: Any]?
     var replaceSearch = false
-    let source: SCWindow
+    var source: SCWindow
+    var logicalSize: CGSize
+    var captureGeneration = 0
     lazy var sourceAX: AXUIElement? = FinderAccess.window(pid: source.owningApplication!.processID, title: source.title ?? "")
     init(source: SCWindow, presentsWindow: Bool = true) {
         self.source = source
+        logicalSize = source.frame.size
         window = PortalWindow(contentRect: NSRect(x: 160, y: 120, width: 800, height: 550), styleMask: FinderAccess.backingDisplayID == nil ? [.titled, .closable, .miniaturizable, .resizable] : [.borderless, .miniaturizable, .resizable], backing: .buffered, defer: false)
         super.init()
         NSApp.setActivationPolicy(presentsWindow ? .regular : .accessory)
@@ -75,14 +78,22 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
         } }
         sink.failure = { [weak self] error in Task { @MainActor in self?.lastError = error } }
     }
-    func start(showWindow: Bool = true) async throws {
+    func start(showWindow: Bool = true, pixelScale: Double = 2) async throws {
+        captureGeneration += 1
+        let generation = captureGeneration
         let cfg = SCStreamConfiguration()
-        cfg.width = Int(source.frame.width * 2); cfg.height = Int(source.frame.height * 2)
+        cfg.width = Int(ceil(logicalSize.width * pixelScale)); cfg.height = Int(ceil(logicalSize.height * pixelScale))
         cfg.minimumFrameInterval = CMTime(value: 1, timescale: 15)
         cfg.queueDepth = 3; cfg.showsCursor = false; cfg.capturesAudio = false
         cfg.ignoreShadowsSingleWindow = true
         cfg.scalesToFit = true
         captureConfig = cfg
+        sink.receive = { [weak self] cg in Task { @MainActor in
+            guard let self, self.captureGeneration == generation,
+                  cg.width == cfg.width, cg.height == cfg.height else { return }
+            self.frames += 1
+            self.image.image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+        } }
         let stream = SCStream(filter: SCContentFilter(desktopIndependentWindow: source), configuration: cfg, delegate: sink)
         try stream.addStreamOutput(sink, type: .screen, sampleHandlerQueue: DispatchQueue(label: "finder.portal.frames"))
         self.stream = stream
@@ -102,6 +113,63 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
                 try? await Task.sleep(nanoseconds: 250_000_000)
             }
         }
+    }
+    func resizeSource(width: Double, height: Double, pixelScale: Double) async -> [String: Any] {
+        guard width.isFinite, height.isFinite, pixelScale.isFinite,
+              width.rounded() == width, height.rounded() == height,
+              width >= 1, height >= 1, width <= 4096, height <= 4096,
+              (1...3).contains(pixelScale), ceil(width * pixelScale) <= 4096,
+              ceil(height * pixelScale) <= 4096,
+              ceil(width * pixelScale) * ceil(height * pixelScale) <= 8_000_000,
+              let id = FinderAccess.backingDisplayID, let root = sourceAX,
+              FinderAccess.inputAllowed(root), let before = FinderAccess.frame(root),
+              CGDisplayBounds(id).contains(CGRect(origin: before.origin, size: CGSize(width: width, height: height))) else {
+            return ["error": "Resize does not fit the selected backing display or capture bounds"]
+        }
+        var settable: DarwinBoolean = false
+        guard AXUIElementIsAttributeSettable(root, kAXSizeAttribute as CFString, &settable) == .success, settable.boolValue else {
+            return ["error": "Source size is not settable"]
+        }
+        var desired = CGSize(width: width, height: height)
+        let result = AXUIElementSetAttributeValue(root, kAXSizeAttribute as CFString, AXValueCreate(.cgSize, &desired)!)
+        guard result == .success else {
+            return ["error": "Source rejected resize", "fatal": FinderAccess.frame(root) != before]
+        }
+        // Read back the OS-applied bounds; Finder may clamp its minimum size.
+        var previous: CGRect?, stable = 0, applied: CGRect?
+        for _ in 0..<15 {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            guard FinderAccess.inputAllowed(root), let current = FinderAccess.frame(root), current.origin == before.origin else {
+                return ["error": "Source left its backing position", "fatal": true]
+            }
+            stable = current == previous ? stable + 1 : 0; previous = current
+            if stable >= 2 { applied = current; break }
+        }
+        guard let applied, applied.width > 0, applied.height > 0,
+              ceil(applied.width * pixelScale) <= 4096, ceil(applied.height * pixelScale) <= 4096,
+              ceil(applied.width * pixelScale) * ceil(applied.height * pixelScale) <= 8_000_000 else {
+            return ["error": "Applied source bounds did not settle within capture limits", "fatal": true]
+        }
+        do {
+            snapshotTask?.cancel(); snapshotTask = nil
+            captureGeneration += 1; sink.receive = nil
+            try await stream?.stopCapture(); stream = nil
+            image.image = nil; lastError = nil
+            let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
+            guard let updated = content.windows.first(where: { $0.windowID == source.windowID }) else {
+                return ["error": "Source disappeared during resize", "fatal": true]
+            }
+            source = updated; logicalSize = applied.size
+            try await start(showWindow: false, pixelScale: pixelScale)
+            for _ in 0..<30 {
+                guard FinderAccess.inputAllowed(root), FinderAccess.frame(root) == applied, lastError == nil else {
+                    return ["error": "Source changed during recapture", "fatal": true]
+                }
+                if image.image != nil { return ["AXError": 0, "appliedFrame": NSStringFromRect(applied), "pixelScale": pixelScale] }
+                try await Task.sleep(nanoseconds: 100_000_000)
+            }
+            return ["error": "Resized capture produced no matching frame", "fatal": true]
+        } catch { return ["error": "Source capture reconfiguration failed", "fatal": true] }
     }
     func typeSearch(_ event: NSEvent) {
         guard let root = sourceAX else { lastInput = ["error": "Source AX window unavailable"]; return }

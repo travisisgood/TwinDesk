@@ -1,4 +1,8 @@
-# Resize and density proposal — awaiting Windows agreement
+# Resize and density contract — Windows accepted
+
+Accepted in `WINDOWS_ACCEPT_RESIZE_CONTRACT_70`. Finder source resize is now
+implemented in the standalone Mac experiment. Source drag regions and general
+input remain separate unfinished capabilities; neither is advertised by Finder.
 
 This proposes an opt-in extension to the standalone experiment only. It does not
 change TwinDesk's existing wire protocol, shared files, or Windows implementation.

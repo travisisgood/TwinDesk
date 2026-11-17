@@ -29,7 +29,7 @@ function connect(config){
  }
  const ws=new WebSocket(pair.url,{agent,perMessageDeflate:false,maxPayload:12*1024*1024,handshakeTimeout:5000,followRedirects:false});
  let session=null,window=null,child=null,buffer='',last=Date.now(),lastFrame=0,pendingFrame=null,inputSeq=0,closed=false,heartbeat=null,nonce=0;
- const inputs=new Set();let frames=0,sourceCommit=null,lastDecodedPNG=null,evidenceError=null;const minimizeStates=[],localDrags=[],decodedHashes=new Set();
+ const inputs=new Set();let frames=0,sourceCommit=null,lastDecodedPNG=null,evidenceError=null,displayedRevision=0;const minimizeStates=[],localDrags=[],decodedHashes=new Set();
  if(config.evidenceDirectory)fs.mkdirSync(config.evidenceDirectory,{recursive:true,mode:0o700});
  const saveEvidence=name=>{if(config.evidenceDirectory&&lastDecodedPNG)try{fs.writeFileSync(path.join(config.evidenceDirectory,name),lastDecodedPNG,{mode:0o600});}catch{evidenceError='Could not save decoded frame artifact';}};
  const log=m=>{if(config.resultFile)fs.writeFileSync(config.resultFile,JSON.stringify(m,null,2));};
@@ -53,6 +53,7 @@ function connect(config){
    if(m.event==='frameAck'){
     check(pendingFrame&&m.seq===pendingFrame.seq&&m.width===window.pixelSize.width&&m.height===window.pixelSize.height,'Native decoded frame mismatch');
     if(decodedHashes.size<1024)decodedHashes.add(pendingFrame.hash);
+    displayedRevision=window.geometryRevision;
     if(config.evidenceDirectory){lastDecodedPNG=pendingFrame.png;if(frames===0)saveEvidence('first.png');}
     send({type:'frameAck',windowId:window.windowId,seq:m.seq});pendingFrame=null;frames++;
     if(config.testMinimize&&frames===2)native({type:'minimize'});
@@ -60,7 +61,7 @@ function connect(config){
     if(config.maxFrames&&frames>=config.maxFrames)close('Bounded receiver test finished');
    }
    if(m.event==='input'){
-    if(!window||!lastFrame||inputs.size>=16||!window.capabilities.includes(m.op))continue;
+    if(!window||!lastFrame||displayedRevision!==window.geometryRevision||inputs.size>=16||!window.capabilities.includes(m.op))continue;
     check(Number.isSafeInteger(m.frameSeq)&&m.frameSeq>0&&m.frameSeq<=lastFrame,'Native input frame invalid');
     const seq=++inputSeq;inputs.add(seq);send({type:'input',windowId:window.windowId,geometryRevision:window.geometryRevision,seq,frameSeq:m.frameSeq,op:m.op,args:m.args});
    }

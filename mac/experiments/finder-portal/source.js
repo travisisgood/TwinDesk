@@ -44,21 +44,21 @@ async function start(config,{workerFactory=startWorker}={}){
  else server=http.createServer((_,res)=>{res.writeHead(404);res.end();});
  const token=crypto.randomBytes(32).toString('hex'),expires=Date.now()+300000;
  let used=false,active=null,closing=false,holder=null;
- let display=config.testDisplay,physicalMap=null;
+ let display=config.testDisplay,physicalMap=null,backingPixels=null;
  if(!display){
   const holderArgs=[String(duration+30)];
   if(config.backingOrigin){check(Number.isInteger(config.backingOrigin.x)&&Number.isInteger(config.backingOrigin.y),'Invalid explicit backing origin');holderArgs.push(String(config.backingOrigin.x),String(config.backingOrigin.y));}
   const child=spawn(path.join(path.dirname(config.capture),'FinderPortalBacking'),holderArgs,{stdio:['pipe','pipe','inherit']});
   holder=new Pipe(child);
   try { const ready=await holder.read();check(ready.ready,'Backing display unavailable');
-   display=ready.topology.find(d=>d.id===ready.displayID);physicalMap=ready.physicalMap??null;check(display,'Missing backing geometry');
+   display=ready.topology.find(d=>d.id===ready.displayID);physicalMap=ready.physicalMap??null;backingPixels={width:ready.pixelWidth,height:ready.pixelHeight};check(display,'Missing backing geometry');
   } catch(e) { await stopChild(child);throw e; }
   child.once('exit',()=>{if(active)active.end('Backing display lost');});
  }
  const wss=new WebSocketServer({server,path:'/portal',maxPayload:16384,perMessageDeflate:false});
  wss.on('connection',(ws,req)=>{
   if(closing||(!tls&&req.socket.remoteAddress!=='127.0.0.1')){ws.close(1008);return;}
-  let state=null,worker=null,ended=false,ready=false,last=Date.now(),timer=null,frameBusy=false,inputs=0,nonce=0;
+  let state=null,worker=null,ended=false,ready=false,last=Date.now(),timer=null,frameBusy=false,inputs=0,nonce=0,resizing=false,inputTail=Promise.resolve();
   let cleanupPromise=null;
   const send=m=>{if(ws.readyState===1)ws.send(JSON.stringify(m));};
   const end=reason=>{
@@ -91,7 +91,7 @@ async function start(config,{workerFactory=startWorker}={}){
      send(state.envelope('window',state.window));ready=true;log('metadataReady',{appId:state.window.appId});
      const pump=async()=>{
       if(ended)return;
-      if(!state.outstanding&&!frameBusy){
+      if(!state.outstanding&&!frameBusy&&!resizing){
        frameBusy=true;
        try{const result=await worker.call({op:'frame'});if(ended)return;check(!result.error,'Native capture failure');
         if(!result.pending){const {nativeFrames,...payload}=result;send(state.nextFrame(payload));}
@@ -109,7 +109,29 @@ async function start(config,{workerFactory=startWorker}={}){
      if(action.kind==='result'){answer(action.status,action.detail);return;}
      if(!ready||inputs>=16){answer('rejected','Input queue unavailable');return;}
      inputs++;
-     try{const result=await worker.call({op:m.op,args:m.args});if(!ended)answer(result.error?'unsupported':result.AXError===0?'dispatched':'failed',result.error?'Source control unsupported':result.AXError===0?'Accessibility action dispatched':'Source action failed');}
+     const work=inputTail.then(async()=>{
+      if(ended)return;
+      if(m.geometryRevision!==state.window.geometryRevision||m.frameSeq<state.revisionFirstFrame){answer('rejected','Geometry changed while queued');return;}
+      if(m.op==='resize'){
+       resizing=true;
+       try{
+        const deadline=Date.now()+6000;
+        while(!ended&&(frameBusy||state.outstanding)&&Date.now()<deadline)await new Promise(r=>setTimeout(r,10));
+        if(ended)return;
+        check(!frameBusy&&!state.outstanding,'Resize frame drain timed out');
+        const result=await worker.call({op:m.op,args:m.args});if(ended)return;
+        check(!result.fatal,'Unsafe source resize');
+        if(result.error){answer('unsupported','Source resize unavailable');return;}
+        check(result.AXError===0&&result.metadata,'Missing applied geometry');
+        send(state.updateGeometry(result.metadata));
+        log('geometryApplied',{revision:state.window.geometryRevision,logicalSize:state.window.logicalSize,pixelSize:state.window.pixelSize});
+        answer('dispatched','Applied source geometry read back; awaiting displayed frame');
+       }finally{resizing=false;}
+      }else{
+       const result=await worker.call({op:m.op,args:m.args});if(!ended)answer(result.error?'unsupported':result.AXError===0?'dispatched':'failed',result.error?'Source control unsupported':result.AXError===0?'Accessibility action dispatched':'Source action failed');
+      }
+     });inputTail=work.catch(()=>{});
+     try{await work;}
      finally{inputs--;}
     }
    }catch{end('Protocol or source failure');}
@@ -120,7 +142,7 @@ async function start(config,{workerFactory=startWorker}={}){
  const address=server.address();
  const pairing={url:`${tls?'wss':'ws'}://${host}:${address.port}/portal`,token,certificateSha256:pin,expiresAt:new Date(expires).toISOString(),sourceCommit:config.sourceCommit};
  fs.writeFileSync(config.pairingFile,JSON.stringify(pairing),{mode:0o600});fs.chmodSync(config.pairingFile,0o600);
- fs.writeFileSync(path.join(config.output,'session.json'),JSON.stringify({port:address.port,host,tls,pin,display,physicalMap,sourceCommit:config.sourceCommit,expiresAt:new Date(Date.now()+duration*1000).toISOString()}));
+ fs.writeFileSync(path.join(config.output,'session.json'),JSON.stringify({port:address.port,host,tls,pin,display,physicalMap,backingPixels,sourceCommit:config.sourceCommit,expiresAt:new Date(Date.now()+duration*1000).toISOString()}));
  let stopping=null;
  const stop=()=>{
   if(stopping)return stopping;closing=true;

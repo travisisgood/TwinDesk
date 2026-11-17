@@ -43,7 +43,13 @@ class SourceState {
   constructor(commit, window) {
     check(SHA.test(commit),'Invalid build commit'); metadata(window);
     this.id = randomUUID(); this.window = window; this.commit = commit;
-    this.frameSeq=0; this.inputSeq=0; this.outstanding=null;
+    this.frameSeq=0; this.inputSeq=0; this.outstanding=null; this.revisionFirstFrame=1;
+  }
+  updateGeometry(meta) {
+    check(!this.outstanding,'Geometry change requires frame ACK');
+    const next={...meta,windowId:this.window.windowId,geometryRevision:this.window.geometryRevision+1};
+    metadata(next);this.window=next;this.revisionFirstFrame=this.frameSeq+1;
+    return this.envelope('window',next);
   }
   envelope(type, fields={}) { return {v:1,type,sessionId:this.id,...fields}; }
   welcome() { return this.envelope('welcome',{sourceCommit:this.commit,heartbeatMs:2000,disconnectMs:6000}); }
@@ -67,9 +73,12 @@ class SourceState {
     if(m.op==='pressAt') check([m.args.x,m.args.y].every(n=>Number.isFinite(n)&&n>=0&&n<=1),'Invalid click');
     if(m.op==='setSearchText') check(string(m.args.text,4096),'Invalid search text');
     if(m.op==='confirmSearch') check(Object.keys(m.args).length===0,'Invalid confirmation');
+    if(m.op==='resize') check(size(m.args.logicalSize)&&Number.isFinite(m.args.pixelScale)&&m.args.pixelScale>=1&&m.args.pixelScale<=3,'Invalid resize');
     this.inputSeq=m.seq;
     if(m.geometryRevision!==this.window.geometryRevision) return {kind:'result',status:'rejected',detail:'Stale geometry'};
+    if(m.frameSeq<this.revisionFirstFrame) return {kind:'result',status:'rejected',detail:'Frame belongs to previous geometry'};
     if(!this.window.capabilities.includes(m.op)) return {kind:'result',status:'unsupported',detail:'Capability not advertised'};
+    if(m.op==='resize'&&!size({width:Math.ceil(m.args.logicalSize.width*m.args.pixelScale),height:Math.ceil(m.args.logicalSize.height*m.args.pixelScale)}))return {kind:'result',status:'rejected',detail:'Requested capture exceeds bounds'};
     return {kind:'input'};
   }
 }

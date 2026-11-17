@@ -1,0 +1,59 @@
+{
+  "realFinder": true,
+  "evidence": [
+    {
+      "revision": 2,
+      "logicalSize": {
+        "height": 600,
+        "width": 900
+      },
+      "pixelSize": {
+        "height": 1200,
+        "width": 1800
+      },
+      "bounds": "-1240, 60, -340, 660"
+    },
+    {
+      "revision": 3,
+      "logicalSize": {
+        "height": 480,
+        "width": 640
+      },
+      "pixelSize": {
+        "height": 480,
+        "width": 640
+      },
+      "bounds": "-1240, 60, -600, 540"
+    },
+    {
+      "revision": 4,
+      "logicalSize": {
+        "height": 550,
+        "width": 800
+      },
+      "pixelSize": {
+        "height": 1650,
+        "width": 2400
+      },
+      "bounds": "-1240, 60, -440, 610"
+    },
+    {
+      "revision": 5,
+      "logicalSize": {
+        "height": 550,
+        "width": 800
+      },
+      "pixelSize": {
+        "height": 825,
+        "width": 1200
+      },
+      "bounds": "-1240, 60, -440, 610"
+    }
+  ],
+  "staleFrameRejected": true,
+  "oversizedBackingRefused": true,
+  "recovery": {
+    "restored": true,
+    "state": "100, 100, 900, 650, false"
+  }
+}

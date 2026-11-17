@@ -72,14 +72,23 @@ import CryptoKit
                     small.lockFocus(); icon.draw(in: NSRect(x: 0, y: 0, width: 128, height: 128)); small.unlockFocus()
                     let rep = NSBitmapImageRep(data: small.tiffRepresentation!)!
                     emit(["appId": "com.apple.finder", "title": title,
-                          "logicalSize": ["width": Int(window.frame.width), "height": Int(window.frame.height)],
-                          "pixelSize": ["width": config.width, "height": config.height],
+                          "logicalSize": ["width": Int(viewer?.logicalSize.width ?? window.frame.width), "height": Int(viewer?.logicalSize.height ?? window.frame.height)],
+                          "pixelSize": ["width": viewer?.captureConfig?.width ?? config.width, "height": viewer?.captureConfig?.height ?? config.height],
                           "iconPng": rep.representation(using: .png, properties: [:])!.base64EncodedString(),
-                          "capabilities": ["pressAt", "setSearchText", "confirmSearch"]]); continue
+                          "capabilities": ["pressAt", "setSearchText", "confirmSearch"] + (FinderAccess.backingDisplayID != nil ? ["resize"] : [])]); continue
+                }
+                if path.hasPrefix("@resize-json:"), let viewer {
+                    guard let data = String(path.dropFirst(13)).data(using: .utf8),
+                          let args = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                          let size = args["logicalSize"] as? [String: Double],
+                          let width = size["width"], let height = size["height"], let scale = args["pixelScale"] as? Double else {
+                        emit(["error": "Invalid resize arguments"]); continue
+                    }
+                    emit(await viewer.resizeSource(width: width, height: height, pixelScale: scale)); continue
                 }
                 if path == "@wire-frame", let viewer {
                     guard let rootAX, FinderAccess.inputAllowed(rootAX),
-                          let actual = FinderAccess.frame(rootAX), actual.size == window.frame.size,
+                          let actual = FinderAccess.frame(rootAX), actual.size == viewer.logicalSize,
                           viewer.lastError == nil else { emit(["error": "Source geometry/capture unavailable"]); continue }
                     guard let image = viewer.image.image, let tiff = image.tiffRepresentation,
                           let rep = NSBitmapImageRep(data: tiff), let data = rep.representation(using: .png, properties: [:]) else {

@@ -5,6 +5,22 @@ const meta={windowId:'11111111-1111-4111-8111-111111111111',geometryRevision:1,a
 const image='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aP1sAAAAASUVORK5CYII=';
 const payload={pixelSize:{width:1,height:1},contentRect:{x:0,y:0,width:1,height:1},captureMode:'stream',png:image};
 const state=()=>new SourceState('a'.repeat(40),meta);
+test('geometry revisions require ACK and bind input to frames of that revision',()=>{
+ const s=state();s.nextFrame(payload);assert.throws(()=>s.updateGeometry(meta));
+ s.accept(s.envelope('frameAck',{windowId:meta.windowId,seq:1}));
+ assert.equal(s.updateGeometry(meta).geometryRevision,2);
+ const input=s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:1,geometryRevision:2,op:'pressAt',args:{x:.5,y:.5}});
+ assert.equal(s.accept(input).status,'rejected');
+ assert.equal(s.nextFrame(payload).seq,2);
+ assert.equal(s.accept({...input,seq:2,frameSeq:2}).kind,'input');
+});
+test('resize is capability gated and validates capture limits before dispatch',()=>{
+ const s=new SourceState('a'.repeat(40),{...meta,capabilities:['resize']});s.nextFrame(payload);
+ const input=s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:1,geometryRevision:1,op:'resize',args:{logicalSize:{width:900,height:600},pixelScale:2}});
+ assert.equal(s.accept(input).kind,'input');
+ assert.equal(s.accept({...input,seq:2,args:{logicalSize:{width:2000,height:2000},pixelScale:3}}).status,'rejected');
+ assert.throws(()=>s.accept({...input,seq:3,args:{logicalSize:{width:900,height:600},pixelScale:NaN}}));
+});
 test('one outstanding frame; no old/future ACK; monotonic frame sequence',()=>{let s=state();assert.equal(s.nextFrame(payload).seq,1);assert.equal(s.nextFrame(payload),null);assert.throws(()=>s.accept(s.envelope('frameAck',{windowId:meta.windowId,seq:2})));s.accept(s.envelope('frameAck',{windowId:meta.windowId,seq:1}));assert.equal(s.nextFrame(payload).seq,2)});
 test('input rejects replay, wrong session and unsent frame',()=>{let s=state();s.nextFrame(payload);const m=s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:1,geometryRevision:1,op:'pressAt',args:{x:.5,y:.5}});assert.equal(s.accept(m).kind,'input');assert.throws(()=>s.accept(m));assert.throws(()=>s.accept({...m,seq:2,sessionId:'wrong'}));assert.throws(()=>s.accept({...m,seq:2,frameSeq:9}));});
 test('stale geometry and unsupported capabilities do not dispatch',()=>{let s=state();s.nextFrame(payload);const m=s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:1,geometryRevision:2,op:'pressAt',args:{x:0,y:1}});assert.equal(s.accept(m).status,'rejected');assert.equal(s.accept({...m,seq:2,geometryRevision:1,op:'drag'}).status,'unsupported');});

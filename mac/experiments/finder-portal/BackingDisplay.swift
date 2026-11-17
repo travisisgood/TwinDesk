@@ -33,7 +33,7 @@ import VirtualDisplayBridge
             let descriptor = CGVirtualDisplayDescriptor()
             descriptor.name = "TwinDesk Window Finder Portal (Experiment)"
             descriptor.vendorID = 0x4d53; descriptor.productID = 0x4d54; descriptor.serialNum = 0x4650
-            descriptor.maxPixelsWide = 1280; descriptor.maxPixelsHigh = 900
+            descriptor.maxPixelsWide = 2560; descriptor.maxPixelsHigh = 1800
             descriptor.sizeInMillimeters = CGSize(width: 340, height: 239)
             descriptor.setDispatchQueue(.main)
             descriptor.terminationHandler = { _, _ in
@@ -43,7 +43,9 @@ import VirtualDisplayBridge
             let created = CGVirtualDisplay(descriptor: descriptor)
             display = created
             let settings = CGVirtualDisplaySettings()
-            settings.hiDPI = 0
+            settings.hiDPI = 1
+            // With hiDPI enabled the mode dimensions are logical, while the
+            // descriptor's maximum dimensions are physical pixels.
             settings.modes = [CGVirtualDisplayMode(width: 1280, height: 900, refreshRate: 60)]
             guard created.apply(settings) else { emit(["error": "Display mode rejected"]); app.terminate(nil); return }
             try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -54,11 +56,16 @@ import VirtualDisplayBridge
                 !intended.intersects(CGRect(x: prior["x"] as! CGFloat, y: prior["y"] as! CGFloat, width: prior["width"] as! CGFloat, height: prior["height"] as! CGFloat))
             }) else { emit(["error": "Backing rectangle overlaps an existing display"]); app.terminate(nil); return }
             var config: CGDisplayConfigRef?
+            let modes = CGDisplayCopyAllDisplayModes(created.displayID, [kCGDisplayShowDuplicateLowResolutionModes: true] as CFDictionary) as? [CGDisplayMode] ?? []
+            guard let mode = modes.first(where: { $0.width == 1280 && $0.height == 900 && $0.pixelWidth == 2560 && $0.pixelHeight == 1800 }) else {
+                emit(["error": "Required 2x backing mode unavailable", "modes": modes.map { ["width": $0.width, "height": $0.height, "pixelWidth": $0.pixelWidth, "pixelHeight": $0.pixelHeight] }]); app.terminate(nil); return
+            }
             guard CGBeginDisplayConfiguration(&config) == .success, let config else {
                 emit(["error": "Cannot configure backing display"]); app.terminate(nil); return
             }
             let placement = CGConfigureDisplayOrigin(config, created.displayID, Int32(origin.x), Int32(origin.y))
-            guard placement == .success else {
+            let modeResult = CGConfigureDisplayWithDisplayMode(config, created.displayID, mode, nil)
+            guard placement == .success, modeResult == .success else {
                 CGCancelDisplayConfiguration(config); emit(["error": "Cannot place backing display"]); app.terminate(nil); return
             }
             guard CGCompleteDisplayConfiguration(config, .forSession) == .success else {
@@ -67,10 +74,13 @@ import VirtualDisplayBridge
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             let after = topology()
             guard CGDisplayIsOnline(created.displayID) != 0, CGDisplayIsInMirrorSet(created.displayID) == 0,
+                  CGDisplayBounds(created.displayID) == intended,
+                  CGDisplayCopyDisplayMode(created.displayID)?.pixelWidth == 2560,
+                  CGDisplayCopyDisplayMode(created.displayID)?.pixelHeight == 1800,
                   before.allSatisfy({ prior in after.contains { NSDictionary(dictionary: $0).isEqual(to: prior) } }) else {
                 emit(["error": "Independent display or preserved topology verification failed", "before": before, "after": after]); app.terminate(nil); return
             }
-            emit(["ready": true, "displayID": created.displayID, "before": before, "topology": after, "physicalMap": Screens.displays().map { NSStringFromRect($0) }])
+            emit(["ready": true, "displayID": created.displayID, "pixelWidth": mode.pixelWidth, "pixelHeight": mode.pixelHeight, "before": before, "topology": after, "physicalMap": Screens.displays().map { NSStringFromRect($0) }])
             // Bounded experiment, not a service; EOF/timeout releases only our display.
             Task { try? await Task.sleep(nanoseconds: UInt64(seconds) * 1_000_000_000); app.terminate(nil) }
             while let line = await Task.detached(operation: { readLine() }).value {

@@ -474,3 +474,30 @@ initial sizing now only shrinks to fit. This does not establish correct Windows
 DPI-to-Mac-point mapping or improve the source image resolution. That mapping and
 broader Explorer input remain coordinated work with Windows. The active session
 was left intact while preparing this correction.
+
+### Actual Finder source resize
+
+Windows accepted `resize` with `{logicalSize:{width,height},pixelScale}` in
+coordination message 70. Finder now advertises it on the backing display. The
+source drains outstanding frame ACKs, serializes input, reads back AXSize and
+unchanged backing position, restarts capture, and increments geometryRevision
+only after a matching capture arrives. Density-only changes also increment it.
+Old-frame input cannot claim a new revision; queued stale input is rejected.
+The Mac receiver suppresses input between new metadata and the first decoded
+frame of that revision. Receiver-originated Mac resize UI is still pending.
+
+The backing display now requires an actual 1280×900-point / 2560×1800-pixel mode.
+The first attempt incorrectly supplied physical dimensions as the HiDPI mode and
+failed closed. The corrected mode uses logical dimensions, matching
+[Chromium's native implementation](https://chromium.googlesource.com/chromium/src/+/c301827d24af4b3f60178b09db6c8c1f61ad5829/ui/display/mac/test/virtual_display_mac_util.mm).
+No physical monitor geometry or KVM map is changed. Output scales above native
+2× are resampled; more encoded pixels do not prove additional rendered detail.
+
+Real local `resize-live-test.js` passed 900×600 at 2×, 640×480 at 1×, 800×550 at
+3×, then a density-only 800×550 at 1.5× (revisions 2 through 5). Source bounds
+remained on the same backing display. Old-frame input was rejected; 1400×700
+exceeded the backing and was refused without changing revision. Disconnect
+returned Finder to (100,100), 800×550, and the test closed only its own fixture.
+`resize-local-results.json` contains measurements. Eleven automated protocol,
+socket and envelope tests pass; signed native builds pass. These are local tests,
+not paired Windows receiver acceptance or proof of arbitrary application resize.

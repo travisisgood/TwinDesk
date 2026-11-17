@@ -39,6 +39,9 @@ try:
   elif op=='pressAt': result=call('@click:'+str(message['args']['x'])+','+str(message['args']['y']))
   elif op=='setSearchText': result=call('@text-json:'+json.dumps({'text':message['args']['text']}))
   elif op=='confirmSearch': result=call('@confirm')
+  elif op=='resize':
+   result=call('@resize-json:'+json.dumps(message['args']))
+   if result.get('AXError')==0 and not result.get('error'): result['metadata']=call('@wire-metadata')
   elif op=='close': break
   else: result={'error':'Unsupported operation'}
   emit(result)
