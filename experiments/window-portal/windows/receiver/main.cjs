@@ -4,14 +4,18 @@ const {connect}=require('./connection.cjs');
 app.setPath('userData',path.join(__dirname,'profile'));
 app.setAppUserModelId('WindowPortal.StandaloneReceiver');
 let win,session,ending=false,frames=0,presented=false;
-let desiredResize,resizeTimer,resizeDeadline,appliedSize,resizeReadyAt=0,lastResizeSeq;
+let desiredResize,resizeTimer,resizeDeadline,appliedSize,resizeReadyAt=0,lastResizeSeq,releasedForResize;
 function interactionState(){win?.webContents.send('interaction-state',{blocked:!!session?.resizePending});}
+function releaseRemoteInput(){
+ if(session&&!session.closed&&session.window?.capabilities.includes('releaseAll')&&!session.releaseSeq){try{session.input('releaseAll',{});}catch{}}
+}
 function applySourceSize(size){
  appliedSize=[Math.round(size.width),Math.round(size.height)];
  win.setContentSize(...appliedSize);
 }
 function flushResize(){
  if(Date.now()<resizeReadyAt||!desiredResize||!session?.displayed||session.resizePending||session.inputs.size||session.pending||!session.window.capabilities.includes('resize'))return;
+ if(session.window.capabilities.includes('releaseAll')&&releasedForResize!==desiredResize){releasedForResize=desiredResize;releaseRemoteInput();return;}
  const args=desiredResize;desiredResize=null;
  try{lastResizeSeq=session.input('resize',args);interactionState();clearTimeout(resizeDeadline);resizeDeadline=setTimeout(()=>{if(session.resizePending)end('Source resize did not complete');},10000);}
  catch(error){win.webContents.send('notice',error.message);applySourceSize(session.window.logicalSize);}
@@ -23,12 +27,13 @@ const proofDir=process.argv.find(a=>a.startsWith('--proof-dir='))?.slice(12);
 function log(event,extra={}){try{fs.appendFileSync(path.join(__dirname,'receiver-events.jsonl'),JSON.stringify({at:new Date().toISOString(),event,...extra})+'\n');}catch{}}
 process.stdout.on('error',e=>{if(e.code!=='EPIPE')log('stdout-error',{code:e.code})});
 process.stderr.on('error',e=>{if(e.code!=='EPIPE')log('stderr-error',{code:e.code})});
-function end(reason){if(ending)return;ending=true;clearTimeout(resizeTimer);clearTimeout(resizeDeadline);session?.end(reason);log('closed',{reason,frames});app.quit();}
+function end(reason){if(ending)return;ending=true;clearTimeout(resizeTimer);clearTimeout(resizeDeadline);releaseRemoteInput();session?.end(reason);log('closed',{reason,frames});app.quit();}
 app.whenReady().then(async()=>{
  if(!configPath)throw Error('Pass --config=<private pairing JSON path>');
  const config=JSON.parse(fs.readFileSync(configPath,'utf8'));
  win=new BrowserWindow({width:800,height:550,frame:false,show:false,resizable:true,minimizable:true,skipTaskbar:false,title:'Window Portal — connecting',webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,backgroundThrottling:false}});
  win.setMenu(null);
+ win.on('blur',releaseRemoteInput);
  win.on('resize',()=>{
   if(!session?.window)return;
   const [width,height]=win.getContentSize();
@@ -47,7 +52,7 @@ app.whenReady().then(async()=>{
  ]).popup({window:win}));
  ipcMain.on('frame-displayed',(e,seq)=>{if(e.sender!==win.webContents)return;try{session.displayedFrame(seq);interactionState();if(!session.resizePending)clearTimeout(resizeDeadline);flushResize();frames++;if(frames===1||frames%30===0)log('frame-displayed',{seq,frames});}catch{end('Invalid renderer acknowledgment')}});
  ipcMain.on('decode-failed',()=>end('Receiver could not decode frame'));
- ipcMain.on('input',(e,op,args)=>{if(e.sender!==win.webContents)return;try{session.input(op,args)}catch(error){win.webContents.send('notice',error.message)}});
+ ipcMain.on('input',(e,op,args)=>{if(e.sender!==win.webContents)return;try{session.input(op,args)}catch(error){if(op==='pointer'||op==='key')releaseRemoteInput();win.webContents.send('notice',error.message)}});
  ipcMain.on('local',(e,action)=>{if(e.sender!==win.webContents)return;if(action==='minimize')win.minimize();else if(action==='close')end('Receiver closed; return source')});
  await win.loadFile('index.html');win.show();
  session=connect(config);

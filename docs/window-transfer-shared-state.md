@@ -96,3 +96,21 @@ Boundary/corner drag automation initially hit source content and returned unsupp
 Windows Size menu was used to exercise real native receiver resizing. These results
 are not proof of source-native titlebar dragging, general input, automatic edge
 transfer, or human approval of sharpness. Mac does not yet advertise sourceDragRegions.
+
+## Gated normal-input receiver checkpoint
+Windows accepts separate optional pointer/wheel/key/text capabilities. Pointer uses
+normalized coordinates and DOM button0left/1middle/2right. Wheel is logical units
+(positive down/right), deltas bounded4096. Key uses keyboard-page HID usage4..231.
+Text is committed UTF8 bounded4096bytes; printable characters are not duplicated
+as HID events. Renderer routes pointer capture, coalesced movement, wheel, basic
+keyboard/committed-text events only for advertised capabilities. IME/native text
+entry and full keyboard-layout behavior are not yet validated.
+
+Stateful pointer/key requires releaseAll capability. releaseAll args{} uses existing
+input sequence/window/session but bypasses geometry/display/resize and ordinary
+queue saturation; only one outstanding release. Receiver sends on blur/close and
+before resize, source independently must release owned state on failure/timeout
+and geometry change. Invalid or overloaded pointer/key dispatch requests release.
+21 receiver/transport/TLS/geometry tests pass. Native Mac target input remains
+UNPROVEN; no new capabilities are advertised by Windows on Mac's behalf. No
+paired normal-input or edge-handoff acceptance is claimed.
