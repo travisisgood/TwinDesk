@@ -108,13 +108,20 @@ import CryptoKit
                 if path == "@viewer-close", let viewer {
                     emit(["viewerClosing": true]); viewer.window.close(); continue
                 }
-                if ["@raw-sort", "@raw-focus-sort", "@raw-appkit-sort", "@raw-tagged-sort", "@raw-location-sort", "@raw-sky-sort", "@raw-bottom-sort", "@raw-active-sort"].contains(path) {
+                if ["@raw-select-alpha", "@raw-select-beta", "@raw-open-child"].contains(path) {
                     guard let rootAX else { emit(["error": "Finder AX window unavailable"]); continue }
-                    let location = ["@raw-location-sort", "@raw-sky-sort", "@raw-bottom-sort", "@raw-active-sort"].contains(path)
+                    let target = path == "@raw-select-alpha" ? "Alpha.txt" : path == "@raw-select-beta" ? "Beta.txt" : "PortalChild"
+                    emit(await RawInputProbe.sort(window: rootAX, wid: window.windowID, pid: window.owningApplication!.processID,
+                        focus: true, appKit: true, tagged: true, windowLocation: true, activate: true,
+                        target: target, clicks: path == "@raw-open-child" ? 2 : 1)); continue
+                }
+                if ["@raw-sort", "@raw-focus-sort", "@raw-appkit-sort", "@raw-tagged-sort", "@raw-location-sort", "@raw-sky-sort", "@raw-bottom-sort", "@raw-active-sort", "@raw-command-sort", "@raw-active-top-sort"].contains(path) {
+                    guard let rootAX else { emit(["error": "Finder AX window unavailable"]); continue }
+                    let location = ["@raw-location-sort", "@raw-sky-sort", "@raw-bottom-sort", "@raw-active-sort", "@raw-command-sort", "@raw-active-top-sort"].contains(path)
                     let tagged = path == "@raw-tagged-sort" || location
                     emit(await RawInputProbe.sort(window: rootAX, wid: window.windowID, pid: window.owningApplication!.processID,
-                        focus: path == "@raw-focus-sort" || path == "@raw-active-sort", appKit: path == "@raw-appkit-sort" || tagged,
-                        tagged: tagged, windowLocation: location, skyRoute: path == "@raw-sky-sort", bottomLocal: path == "@raw-bottom-sort" || path == "@raw-active-sort", activate: path == "@raw-active-sort")); continue
+                        focus: path == "@raw-focus-sort" || path == "@raw-active-sort" || path == "@raw-active-top-sort", appKit: path == "@raw-appkit-sort" || tagged,
+                        tagged: tagged, windowLocation: location, skyRoute: path == "@raw-sky-sort", bottomLocal: path == "@raw-bottom-sort" || path == "@raw-active-sort", activate: path == "@raw-active-sort" || path == "@raw-active-top-sort", backgroundCommand: path == "@raw-command-sort")); continue
                 }
                 if path.hasPrefix("@viewer-resize:"), let viewer {
                     let sizes = path.dropFirst(15).split(separator: ",").compactMap { Double($0) }

@@ -1,4 +1,8 @@
-# Proposed standalone edge handoff (awaiting peer agreement)
+# Agreed standalone edge handoff (not implemented)
+
+Windows accepted this schema in WINDOWS_HANDOFF_REVIEW_ACCEPT_86. Its updated
+primitive reportedly has seven tests passing; the broker, live KVM adapter and
+paired crossing are still outstanding.
 
 Review target: Windows coordination-relay f7dc899 receiver/handoff-state.cjs.
 Placement preserves normalized grab position, including negative monitor origins.

@@ -6,6 +6,7 @@ from run import receive, script
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--commands', help='Comma-separated diagnostic commands; never network input')
     parser.add_argument('capture', type=pathlib.Path)
     parser.add_argument('output', type=pathlib.Path)
     args = parser.parse_args()
@@ -16,6 +17,8 @@ def main():
     folder.mkdir()
     for name in ['Alpha.txt', 'Beta.txt', 'Gamma.txt']:
         (folder / name).write_text('Disposable native pointer fixture.\n')
+    (folder / 'PortalChild').mkdir()
+    (folder / 'PortalChild' / 'Inside.txt').write_text('Navigation proof.\n')
     holder = capture = guardian = None
     wid = None
     result = {'realFinder': True, 'probes': []}
@@ -33,11 +36,16 @@ def main():
         script(f'tell application "Finder" to set bounds of Finder window id {wid} to {{{x},{y},{x+800},{y+550}}}')
         capture = subprocess.Popen([str(binary), '--source', '--backing', str(ready['displayID']), folder.name], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
         if not receive(capture).get('ready'): raise RuntimeError('Capture not ready')
-        for command in ['@raw-sort', '@raw-focus-sort', '@raw-appkit-sort', '@raw-tagged-sort', '@raw-location-sort', '@raw-sky-sort', '@raw-bottom-sort', '@raw-active-sort']:
+        commands = ['@raw-sort', '@raw-focus-sort', '@raw-appkit-sort', '@raw-tagged-sort', '@raw-location-sort', '@raw-sky-sort', '@raw-bottom-sort', '@raw-active-sort', '@raw-command-sort', '@raw-active-top-sort', '@raw-select-alpha', '@raw-select-beta', '@raw-open-child']
+        selected = args.commands.split(',') if args.commands else commands
+        if not selected or any(c not in commands for c in selected): raise ValueError('Unknown diagnostic command')
+        for command in selected:
             before = script(f'tell application "Finder" to get bounds of Finder window id {wid}')
             if before != f'{x}, {y}, {x+800}, {y+550}': raise RuntimeError('Fixture left backing display')
             capture.stdin.write(command+'\n');capture.stdin.flush()
             probe=receive(capture)
+            probe['selectionAfter']=script('tell application "Finder"\nset names to {}\nrepeat with chosen in (get selection)\nset end of names to name of chosen\nend repeat\nreturn names\nend tell')
+            probe['targetAfter']=script(f'tell application "Finder" to get POSIX path of (target of Finder window id {wid} as alias)')
             probe.update(command=command, sourceBoundsBefore=before, sourceBoundsAfter=script(f'tell application "Finder" to get bounds of Finder window id {wid}'))
             result['probes'].append(probe)
             print(json.dumps(probe),flush=True)

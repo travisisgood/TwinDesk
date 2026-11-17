@@ -568,3 +568,31 @@ separate event delivery from AppKit focus/hit-testing, followed by actual Finder
 selection/navigation; more successful semantic header clicks are not sufficient.
 See `handoff-coordination.md` for the Windows primitive review and pending broker
 contract. No shared, Windows or main TwinDesk wire files were changed.
+
+
+### Follow-up: native ordinary clicks and navigation now proven locally
+
+`native-pointer-delivery-results.json` shows event-posting permission granted and
+both marked down/up events arriving through a listen-only per-Finder-PID tap.
+Only marked diagnostic events are retained; this is not a keyboard listener.
+AppKit window number is zero for the original raw CGEvents, and correct for
+window-addressed AppKit events. AX focused/main window readbacks match the target.
+A Command-modified background click first changed the sort direction, but this
+cannot substitute for ordinary selection because Command changes semantics.
+
+`native-pointer-ordinary-results.json` then established an ordinary unmodified
+click: activate Finder, focus its backing window, stamp both global position and
+**top-left window-local position**, post window-addressed down/up to Finder PID,
+then restore previous application focus. Earlier active-app tests incorrectly
+used bottom-left local coordinates. The source never moves physical for input.
+The implementation currently depends on dynamically resolved private window-
+location SPI; it is not a claim of compatibility across macOS versions.
+
+`native-pointer-navigation-results.json` records actual Alpha.txt selection,
+replacement with Beta.txt (not multi-selection), and double-click navigation into
+PortalChild. Every action kept source bounds (-1240,60,-440,610) and cursor (0,885)
+unchanged. Normal recovery and fixture closure passed. These are **local native
+source tests**, not paired receiver tests. Source focus leasing, held-input
+release, wire dispatch and receiver mouse events must be implemented/tested before
+advertising pointer support. Wheel, keys, text, owned menus/dialogs and natural
+edge handoff remain outstanding. No general input capability is advertised yet.

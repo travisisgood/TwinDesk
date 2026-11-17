@@ -1,0 +1,194 @@
+{
+  "realFinder": true,
+  "probes": [
+    {
+      "activationRequested": true,
+      "after": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXDescendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "appActiveDuring": true,
+      "appKitWindowEvent": true,
+      "backgroundCommand": false,
+      "backingAfter": true,
+      "before": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "bottomLocal": false,
+      "cursorAfter": "{0, 885}",
+      "cursorBefore": "{0, 885}",
+      "experimentalWindowTag": true,
+      "explicitWindowLocation": true,
+      "focusAXError": 0,
+      "focusedWindowMatches": true,
+      "focusRequested": true,
+      "method": "CGEvent.postToPid plus explicit window fields",
+      "minimizedAfter": false,
+      "observedEvents": [
+        {
+          "appKitWindowNumber": 4648,
+          "location": "{-960, 126}",
+          "privateWindow": 4648,
+          "targetPid": 1795,
+          "type": 1,
+          "window": 4648
+        },
+        {
+          "appKitWindowNumber": 4648,
+          "location": "{-960, 126}",
+          "privateWindow": 4648,
+          "targetPid": 1795,
+          "type": 2,
+          "window": 4648
+        }
+      ],
+      "pidTapCreated": true,
+      "postEventAccess": true,
+      "skyRoute": false,
+      "windowMain": true,
+      "command": "@raw-active-top-sort",
+      "sourceBoundsBefore": "-1240, 60, -440, 610",
+      "sourceBoundsAfter": "-1240, 60, -440, 610"
+    },
+    {
+      "activationRequested": false,
+      "after": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXAscendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "appActiveDuring": false,
+      "appKitWindowEvent": true,
+      "backgroundCommand": true,
+      "backingAfter": true,
+      "before": {
+        "actions": [
+          "AXPress"
+        ],
+        "AXDescription": "Name",
+        "AXMinimized": false,
+        "AXRole": "AXButton",
+        "AXValue": "AXDescendingSortDirection",
+        "frame": "{{-1071, 112}, {222, 28}}"
+      },
+      "bottomLocal": false,
+      "cursorAfter": "{0, 885}",
+      "cursorBefore": "{0, 885}",
+      "experimentalWindowTag": true,
+      "explicitWindowLocation": true,
+      "focusAXError": 0,
+      "focusedWindowMatches": true,
+      "focusRequested": false,
+      "method": "CGEvent.postToPid plus explicit window fields",
+      "minimizedAfter": false,
+      "observedEvents": [
+        {
+          "appKitWindowNumber": 4648,
+          "location": "{-960, 126}",
+          "privateWindow": 4648,
+          "targetPid": 1795,
+          "type": 1,
+          "window": 4648
+        },
+        {
+          "appKitWindowNumber": 4648,
+          "location": "{-960, 126}",
+          "privateWindow": 4648,
+          "targetPid": 1795,
+          "type": 2,
+          "window": 4648
+        }
+      ],
+      "pidTapCreated": true,
+      "postEventAccess": true,
+      "skyRoute": false,
+      "windowMain": true,
+      "command": "@raw-command-sort",
+      "sourceBoundsBefore": "-1240, 60, -440, 610",
+      "sourceBoundsAfter": "-1240, 60, -440, 610"
+    }
+  ],
+  "display": {
+    "before": [
+      {
+        "height": 900,
+        "id": 1,
+        "width": 1440,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "displayID": 49,
+    "physicalMap": [
+      "{{0, 0}, {1440, 900}}"
+    ],
+    "pixelHeight": 1800,
+    "pixelWidth": 2560,
+    "ready": true,
+    "topology": [
+      {
+        "height": 900,
+        "id": 1,
+        "width": 1440,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 900,
+        "id": 49,
+        "width": 1280,
+        "x": -1280,
+        "y": 0
+      }
+    ]
+  },
+  "semanticPositiveControl": {
+    "AXError": 0,
+    "element": {
+      "actions": [
+        "AXPress"
+      ],
+      "AXDescription": "Name",
+      "AXMinimized": false,
+      "AXRole": "AXButton",
+      "AXValue": "AXDescendingSortDirection",
+      "frame": "{{-1071, 112}, {222, 28}}"
+    },
+    "minimizedAfter": false
+  },
+  "headersAfterPositiveControl": [
+    {
+      "actions": [
+        "AXPress"
+      ],
+      "AXDescription": "Name",
+      "AXMinimized": false,
+      "AXRole": "AXButton",
+      "AXValue": "AXDescendingSortDirection",
+      "frame": "{{-1071, 112}, {222, 28}}"
+    }
+  ],
+  "recovery": {
+    "restored": true,
+    "state": "100, 100, 900, 650, false"
+  },
+  "fixtureClosed": true
+}
