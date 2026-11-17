@@ -143,3 +143,15 @@ pass including negative-origin monitors, stale revision, topology change, releas
 deadline rollback and duplicate commit. Integration requires agreed source offer/
 ready/commit plus authenticated non-AI broker and continuous pointer ownership.
 This is NOT automatic edge transfer acceptance and does not fix source input.
+
+## Handoff review amendment
+Mac review70 accepted: offers need both layout revisions, session-monotonic sequence,
+local monotonic ttlMs<=5000 (not peer wall time), explicit drag ID/held state and
+pointer ownership epoch. Isolated Windows primitive now checks local TTL, both
+layout revisions, session sequence beyond bounded ID history, and ownership guards.
+Seven tests pass. It remains NOT wired to broker/KVM. Ready's decoded frameSeq,
+idempotent committed ACK with epoch advancement, drag identity and source-owned
+recovery remain broker integration requirements, not implemented by this primitive.
+Lost commit ACK must fail closed/release/recover, never infer two owners. Reverse
+crossing starts a fresh offer/drag for the same source window. Normal Finder input
+still unproven; Mac probes have not changed state and no general caps are enabled.
