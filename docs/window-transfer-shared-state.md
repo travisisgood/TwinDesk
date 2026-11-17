@@ -225,3 +225,22 @@ Live receiver bf5bfadbfc6d3f4fcabdf1ee23102158e6bf7d46 with source
   not loaded into this live receiver, needs next paired validation.
 - Keyboard/text remain disabled. No natural edge handoff acceptance.
 Source deadline02:42:45Z Nov17. Receiver left open; CUA capture helper released.
+
+## Keyboard focus paired retest — 2026-11-16
+Receiver6db6bb6ec9067cfe353ddf0465fbcf47b345f49d paired with unchanged Mac
+sourceaaf69d62364be7592c454368d238b672db92cdf8, adopted same ApplicationsFinder.
+DPI resize echo fix passes: geometry stayedrevision1/800x550 atWindows125%scale,
+without unsolicited551/552height requests. Searchfield bluefocus visible.
+CUA type_text and physical-key helper invocation produced no receiver key/text
+input logs. Keyboard acceptance remains unresolved; asked Travis to try actual
+physicaltyping to distinguish test-input method from receiver focus/routing.
+No sourcekeyboard failure inferred from absent receiver messages. Capture helper
+released and currentwindow leftopen for manualtest. Previousaafcandidate visually
+showedActionmenu andoutsideclickdismissal; menu clipsoutsideparentcanvas.
+Changingcaret frames~13fps, not full-motion acceptance. Greenresize stillpending.
+
+Bootstrap groundworkb1ce03d/6db6bb6: session-bootstrap gate and fixedlocal encrypted
+launcher, hiddenreceiver decoded-frame IPC and5secabortdeadline. Fivegate andtwo
+crypto/configuration tests pass. No liveauthenticated messengerpump/nativehelddrag
+ownership bridge yet; no reveal/commitIPC implemented. Never enableedgebroker on
+unit-test evidence alone. Nativehand-off remains deferred untilpairedinputtests.
