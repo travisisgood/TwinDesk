@@ -10,8 +10,8 @@ function redraw(){
  const regions=capabilities.includes('sourceDragRegions')?(metadata.dragRegions||[]):[{x:metadata.logicalSize.width*.35,y:0,width:metadata.logicalSize.width*.3,height:8}];
  for(const r of regions){const b=PortalGeometry.region(r,metadata.logicalSize,v,c),el=document.createElement('div');el.className='drag-region';Object.assign(el.style,{left:b.x+'px',top:b.y+'px',width:b.width+'px',height:b.height+'px'});drag.append(el);}
 }
-api.on('metadata',m=>{metadata=m;capabilities=m.capabilities;current=null;drag.replaceChildren();});
-api.on('interaction-state',m=>{blocked=m.blocked;redraw();});
+api.on('metadata',m=>{metadata=m;capabilities=m.capabilities;current=null;pendingMove=null;heldKeys.clear();drag.replaceChildren();});
+api.on('interaction-state',m=>{blocked=m.blocked;if(blocked)pendingMove=null;redraw();});
 api.on('frame',async m=>{
  if(loading){api.failed();return;}loading=true;
  try{const next=new Image();next.src=m.image;await next.decode();if(!connected)return;img.src=m.image;current=m;notice.hidden=true;redraw();api.displayed(m.seq)}catch{api.failed()}finally{loading=false}
