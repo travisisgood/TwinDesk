@@ -168,3 +168,21 @@ and outside release/cancel sends releaseAll.16 focused protocol/renderer tests p
 Doubleclick contract currently has no clickCount field: source derives click count
 from same-button timing and target point unless both peers agree an extension.
 Wheel/key/text and natural monitor-edge handoff remain unverified/unfinished.
+
+## Paired Finder ordinary pointer acceptance — 2026-11-16
+Receiver36e90f9a5de537afca7848cc8fb119d5c9f4e565 with Mac source
+7cf62c44b7e6829d1b96f91a9deca2cbd5aca1dd visibly passed ordinary Alpha.txt
+selection, replacement selection of Beta.txt, and double-click PortalChild opening
+the actual folder with Inside.txt. No command modifier or semantic selection was
+substituted. Receiver left visibly running for Travis. Toolbar Back reported
+dispatched but did not visibly navigate in the delayed observation; not accepted.
+Wheel/key/text remain unavailable. Source session expiry02:07Z Nov17 was reported
+to Mac with request to preserve test availability. This supersedes earlier
+statements that normal Finder input is unproven, but is NOT edge crossing proof.
+
+Windows added an isolated PORTAL_HANDOFF1 adapter around handoff-state: requires
+registered session/window and decoded frame sequence, echoes drag identity in
+ready/commit, advances ownership once and acknowledges retries without duplicate
+placement. Local deadline/disconnect releases pending ownership. It is not yet
+connected to messenger or native KVM; native placement/ownership callback and
+Mac adoption remain required before any automatic edge acceptance.
