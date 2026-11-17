@@ -54,3 +54,10 @@ test('wheel bounds and coordinate validation precede dispatch',()=>{
  const m=s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:1,geometryRevision:1,op:'wheel',args:{x:.5,y:.5,deltaX:0,deltaY:100}});
  assert.equal(s.accept(m).kind,'input');assert.throws(()=>s.accept({...m,seq:2,args:{...m.args,deltaY:Infinity}}));assert.throws(()=>s.accept({...m,seq:2,args:{...m.args,deltaY:4097}}));
 });
+test('key and committed text are capability gated and bounded',()=>{
+ const s=new SourceState('a'.repeat(40),{...meta,capabilities:['key','text','releaseAll']});s.nextFrame(payload);
+ const m=s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:1,geometryRevision:1,op:'key',args:{phase:'down',usage:227}});
+ assert.equal(s.accept(m).kind,'input');assert.throws(()=>s.accept({...m,seq:2,args:{phase:'down',usage:232}}));
+ assert.equal(s.accept({...m,seq:2,op:'text',args:{text:'Finder ✓'}}).kind,'input');assert.throws(()=>s.accept({...m,seq:3,op:'text',args:{text:'x'.repeat(4097)}}));
+ assert.equal(s.accept({...m,seq:3,op:'releaseAll',geometryRevision:0,frameSeq:0,args:{}}).kind,'input');
+});

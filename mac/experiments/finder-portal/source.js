@@ -21,7 +21,7 @@ class Pipe {
 }
 function startWorker(config,display){
  const x=display.x+40,y=display.y+60;
- const child=spawn('/usr/bin/python3',[path.join(__dirname,'source_worker.py'),config.capture,config.output,String(display.id),String(x),String(y),JSON.stringify(config.sourceWindow??null)],{stdio:['pipe','pipe','inherit'],env:{...process.env,FINDER_CAPTURE_SCALE:String(config.captureScale??2)}});
+ const child=spawn('/usr/bin/python3',[path.join(__dirname,'source_worker.py'),config.capture,config.output,String(display.id),String(x),String(y),JSON.stringify(config.sourceWindow??null)],{stdio:['pipe','pipe','inherit'],env:{...process.env,FINDER_CAPTURE_SCALE:String(config.captureScale??2),FINDER_CHILD_CAPTURE:config.includeOwnedPopups?'1':'0'}});
  return new Pipe(child);
 }
 async function stopChild(child){
@@ -31,6 +31,7 @@ async function stopChild(child){
 }
 async function start(config,{workerFactory=startWorker}={}){
  check(SHA.test(config.sourceCommit),'Exact source commit required');
+ check(config.includeOwnedPopups===undefined||typeof config.includeOwnedPopups==='boolean','Invalid popup capture option');
  check(config.captureScale===undefined||[1,1.5,2].includes(config.captureScale),'Invalid capture scale');
  const host=config.host||'127.0.0.1',port=config.port??49731;
  check(Number.isInteger(port)&&port>=0&&port<=65535,'Invalid port');
@@ -99,7 +100,7 @@ async function start(config,{workerFactory=startWorker}={}){
         else if(!result.pending){const {nativeFrames,...payload}=result;send(state.nextFrame(payload));}
        }catch{end('Capture failure');}finally{frameBusy=false;}
       }
-      if(!ended)setTimeout(pump,100);
+      if(!ended)setTimeout(pump,10);
      };pump();return;
     }
     check(!ended,'Session closed');const action=state.accept(m);last=Date.now();

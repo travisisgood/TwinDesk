@@ -1,0 +1,19 @@
+{
+  "arrowSelection": "BASELINE.txt",
+  "commandFSearch": true,
+  "committedText": "PortalNeedle42",
+  "heldModifierRelease": {
+    "bounds": "{{-1240, 60}, {800, 550}}",
+    "cursor": "{0, 414.0157470703125}",
+    "held": 0,
+    "heldKeys": 0,
+    "leased": false
+  },
+  "initial": {
+    "bounds": "{{-1240, 60}, {800, 550}}",
+    "cursor": "{0, 414.0157470703125}",
+    "held": 0,
+    "heldKeys": 0,
+    "leased": true
+  }
+}

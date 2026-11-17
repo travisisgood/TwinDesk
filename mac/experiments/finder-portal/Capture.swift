@@ -1,6 +1,7 @@
 import Cocoa
 import ScreenCaptureKit
 import CryptoKit
+import ImageIO
 
 // A separate-process Finder window is selected once and retained even when hidden.
 // stdin: one output PNG path per line; stdout: one JSON result per request.
@@ -75,11 +76,21 @@ import CryptoKit
             emit(["ready": true, "wid": window.windowID, "pid": window.owningApplication!.processID])
             let nativePointer = rootAX.flatMap { NativePointer(window: $0, wid: window.windowID, pid: window.owningApplication!.processID) }
             defer { nativePointer?.releaseAll() }
+            var lastPublishedNativeFrame = -1
             var publishedDragRegions: [[String: Double]] = []
             while let path = await Task.detached(operation: { readLine() }).value {
+                if path.hasPrefix("@key-json:") || path.hasPrefix("@text-native-json:") {
+                    let isKey=path.hasPrefix("@key-json:")
+                    guard let nativePointer,let data=String(path.dropFirst(isKey ? 10 : 18)).data(using:.utf8),let args=try? JSONSerialization.jsonObject(with:data) as? [String:Any] else { emit(["error":"Key/text unavailable"]);continue }
+                    emit(isKey ? await nativePointer.key(args) : await nativePointer.text(args));continue
+                }
                 if path.hasPrefix("@wheel-json:") {
                     guard let nativePointer, let data=String(path.dropFirst(12)).data(using:.utf8), let args=try? JSONSerialization.jsonObject(with:data) as? [String:Any] else { emit(["error":"Wheel unavailable"]); continue }
                     emit(await nativePointer.wheel(args)); continue
+                }
+                if path == "@owned-windows" {
+                    let rows=CGWindowListCopyWindowInfo([.optionOnScreenOnly,.excludeDesktopElements],0) as? [[String:Any]] ?? []
+                    emit(["windows":rows.filter { $0[kCGWindowOwnerPID as String] as? Int == Int(window.owningApplication!.processID) }]);continue
                 }
                 if path == "@pointer-state" { emit(nativePointer?.snapshot ?? ["error":"Unavailable"]); continue }
                 if path == "@release-all" { nativePointer?.releaseAll(); emit(["AXError": 0]); continue }
@@ -100,7 +111,7 @@ import CryptoKit
                           "iconPng": rep.representation(using: .png, properties: [:])!.base64EncodedString(),
                           "dragRegions": publishedDragRegions,
                           "windowControls": rootAX.map { FinderAccess.windowControls($0) } ?? [],
-                          "capabilities": ["pressAt", "setSearchText", "confirmSearch"] + (FinderAccess.backingDisplayID != nil ? ["resize", "sourceDragRegions", "receiverWindowControls"] : []) + (nativePointer != nil ? ["pointer", "releaseAll", "wheel"] : [])]); continue
+                          "capabilities": ["pressAt", "setSearchText", "confirmSearch"] + (FinderAccess.backingDisplayID != nil ? ["resize", "sourceDragRegions", "receiverWindowControls"] : []) + (nativePointer != nil ? ["pointer", "releaseAll", "wheel", "key", "text"] : [])]); continue
                 }
                 if path.hasPrefix("@resize-json:"), let viewer {
                     guard let data = String(path.dropFirst(13)).data(using: .utf8),
@@ -117,17 +128,21 @@ import CryptoKit
                           let actual = FinderAccess.frame(rootAX), actual.size == viewer.logicalSize,
                           viewer.lastError == nil else { emit(["error": "Source geometry/capture unavailable"]); continue }
                     nativePointer?.heartbeat()
+                    try await viewer.refreshOwnedWindows()
+                    guard viewer.frames != lastPublishedNativeFrame else { emit(["pending":true]);continue }
                     if FinderAccess.dragRegions(rootAX) != publishedDragRegions {
                         nativePointer?.releaseAll()
                         emit(["geometryChanged": true]); continue
                     }
-                    guard let image = viewer.image.image, let tiff = image.tiffRepresentation,
-                          let rep = NSBitmapImageRep(data: tiff), let data = rep.representation(using: .png, properties: [:]) else {
-                        emit(["pending": true]); continue
-                    }
-                    emit(["png": data.base64EncodedString(), "captureMode": "stream",
-                          "pixelSize": ["width": rep.pixelsWide, "height": rep.pixelsHigh],
-                          "contentRect": ["x": 0, "y": 0, "width": rep.pixelsWide, "height": rep.pixelsHigh],
+                    guard let image=viewer.latestFrame else { emit(["pending":true]);continue }
+                    let bytes=NSMutableData()
+                    guard let destination=CGImageDestinationCreateWithData(bytes,"public.png" as CFString,1,nil) else { emit(["error":"PNG encoder unavailable"]);continue }
+                    CGImageDestinationAddImage(destination,image,nil)
+                    guard CGImageDestinationFinalize(destination) else { emit(["error":"PNG encoding failed"]);continue }
+                    lastPublishedNativeFrame=viewer.frames
+                    emit(["png":(bytes as Data).base64EncodedString(),"captureMode":"stream",
+                          "pixelSize":["width":image.width,"height":image.height],
+                          "contentRect":["x":0,"y":0,"width":image.width,"height":image.height],
                           "nativeFrames": viewer.frames]); continue
                 }
                 if path == "@viewer-close", let viewer {

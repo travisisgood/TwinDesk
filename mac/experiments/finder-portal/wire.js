@@ -96,6 +96,8 @@ class SourceState {
     }
     check(integer(m.frameSeq)&&m.frameSeq<=this.frameSeq,'Unknown frame');
     check(integer(m.geometryRevision)&&typeof m.op==='string'&&object(m.args),'Malformed input');
+    if(m.op==='key') check(['down','up'].includes(m.args.phase)&&Number.isInteger(m.args.usage)&&m.args.usage>=4&&m.args.usage<=231,'Invalid key');
+    if(m.op==='text') check(string(m.args.text,4096),'Invalid committed text');
     if(m.op==='wheel') check([m.args.x,m.args.y,m.args.deltaX,m.args.deltaY].every(Number.isFinite)&&m.args.x>=0&&m.args.x<=1&&m.args.y>=0&&m.args.y<=1&&Math.abs(m.args.deltaX)<=4096&&Math.abs(m.args.deltaY)<=4096,'Invalid wheel');
     if(m.op==='pointer') check(['down','up','move'].includes(m.args.phase)&&Number.isInteger(m.args.button)&&m.args.button>=0&&m.args.button<=2&&(m.args.phase!=='move'||m.args.button===0)&&[m.args.x,m.args.y].every(n=>Number.isFinite(n)&&n>=0&&n<=1),'Invalid pointer');
     if(m.op==='pressAt') check([m.args.x,m.args.y].every(n=>Number.isFinite(n)&&n>=0&&n<=1),'Invalid click');

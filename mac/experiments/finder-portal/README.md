@@ -662,3 +662,40 @@ mouse events. It is not connected to KVM or the broker, and automatic crossing i
 not yet validated. PORTAL_SESSION1 bootstrap and PORTAL_HANDOFF1 integration are
 being coordinated with Windows. The current paired candidate uses explicit
 pairing while that work continues.
+
+
+### Keyboard, owned menus and capture speed candidate
+
+The native backing-window test now verifies ArrowDown changes Finder selection,
+Command-F opens search, committed Unicode text reaches the search field, and
+releaseAll clears a held Shift and focus lease without moving the source or
+physical cursor. The signed final candidate repeated that test; evidence is in
+`keyboard-local-results.json`. Source advertises optional `key`/`text` operations
+using the agreed physical USB-HID mapping (Windows key maps to Command; no implicit
+Ctrl/Command swap). Normal release, watchdog and helper-loss recovery include
+owned keys. Helper-loss key-up API dispatch is not independent proof that AppKit
+consumed it. Seventeen protocol/queue tests passed; signed standalone build passed.
+
+With `includeOwnedPopups:true`, capture uses an explicit window allowlist on the
+backing display: source plus intersecting elevated windows belonging to its PID.
+A live Finder Action menu was visibly captured only after adding its explicit
+window ID; includeChildWindows alone did not suffice. Pointer targeting resolves
+these popup windows and retains the down target for up. Capture is clipped to the
+source canvas; outside-canvas popups, unrelated child windows and sheets remain
+unproven. No desktop video or audio capture is enabled. Paired popup interaction
+and keyboard acceptance remain required.
+
+The frame path avoids TIFF conversion, traverses only Finder toolbar controls for
+drag geometry, skips unchanged native frames and replaces the 100ms pump delay
+with 10ms bounded checks. It requests up to 30fps; actual moving-content throughput
+must be measured on both endpoints before claiming a speed improvement.
+
+Windows reports actual paired Applications navigation, wheel scrolling and local
+yellow-control taskbar minimize/restore on Mac0463c09/Windowsbf5bfad. Green only
+stretched that old receiver and menus were missing. Reviewed Windowsc0edef9: it
+explicitly queues maximize/unmaximize resize, preserves source capture density
+and logs rejection. A remaining limit is the 1280x900 backing display with source
+parked at40,60, allowing at most1240x840; receiver maximize may exceed it. That
+requires coordinated backing-size negotiation or an explicit fit policy, not a
+claim of successful source resizing. Natural cross-edge bootstrap remains work
+in progress. Main TwinDesk/shared files and Windows source are unchanged.

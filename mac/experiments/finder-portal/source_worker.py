@@ -29,7 +29,7 @@ restore=f'tell application "Finder"\nif exists Finder window id {wid} then\nset 
 guardian=subprocess.Popen(['/usr/bin/python3','-c',
  'import os,time,subprocess,sys,json\nfor i in range(3600):\n time.sleep(1)\n try: os.kill(int(sys.argv[1]),0)\n except ProcessLookupError: break\nsubprocess.run(["/usr/bin/osascript","-e",sys.argv[2]],timeout=15)\n',str(os.getpid()),restore],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 capture=None
-held=set(); last_point={'x':0.5,'y':0.5}; native_identity=None
+held=set(); held_keys=set(); last_point={'x':0.5,'y':0.5}; native_identity=None
 
 def emit(data):
  print(json.dumps(data),flush=True)
@@ -57,6 +57,12 @@ try:
    result=call('@wire-frame')
    if result.get('geometryChanged'): result={'metadata':call('@wire-metadata')}
   elif op=='probeState': result=call('@pointer-state') # Private harness only, never advertised.
+  elif op=='key':
+   args=message['args']
+   if args['phase']=='down': held_keys.add(args['usage'])
+   result=call('@key-json:'+json.dumps(args))
+   if args['phase']=='up': held_keys.discard(args['usage'])
+  elif op=='text': result=call('@text-native-json:'+json.dumps(message['args']))
   elif op=='wheel': result=call('@wheel-json:'+json.dumps(message['args']))
   elif op=='pointer':
    args=message['args']; last_point={'x':args['x'],'y':args['y']}
@@ -64,7 +70,7 @@ try:
    result=call('@pointer-json:'+json.dumps(args))
    if args['phase']=='up': held.discard(args['button'])
   elif op=='releaseAll':
-   result=call('@release-all'); held.clear()
+   result=call('@release-all'); held.clear(); held_keys.clear()
   elif op=='pressAt': result=call('@click:'+str(message['args']['x'])+','+str(message['args']['y']))
   elif op=='setSearchText': result=call('@text-json:'+json.dumps({'text':message['args']['text']}))
   elif op=='confirmSearch': result=call('@confirm')
@@ -77,10 +83,10 @@ try:
 finally:
  try:
   if capture and capture.poll() is None:
-   try: call('@release-all'); held.clear()
+   try: call('@release-all'); held.clear(); held_keys.clear()
    except Exception: pass # Emergency release below before physical recovery.
-  if held and native_identity:
-   emergency={**native_identity,**last_point,'buttons':sorted(held)}
+  if (held or held_keys) and native_identity:
+   emergency={**native_identity,**last_point,'buttons':sorted(held),'keys':sorted(held_keys)}
    try:
     released=json.loads(subprocess.check_output([binary,'--release-pointer',json.dumps(emergency)],text=True,timeout=5))
     (out/'emergency-release.json').write_text(json.dumps(released))

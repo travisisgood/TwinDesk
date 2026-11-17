@@ -46,6 +46,8 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
     let sink = FrameSink()
     var stream: SCStream?
     var captureBusy = false
+    private var ownedWindowIDs: [CGWindowID] = []
+    var latestFrame: CGImage?
     var captureConfig: SCStreamConfiguration?
     var frames = 0
     var snapshotFrames = 0
@@ -73,17 +75,39 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
         image.key = { [weak self] e in self?.typeSearch(e) }
         sink.receive = { [weak self] cg in Task { @MainActor in
             guard let self else { return }
+            self.latestFrame = cg
             self.frames += 1
             self.image.image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
         } }
         sink.failure = { [weak self] error in Task { @MainActor in self?.lastError = error } }
     }
+    private func popupIDs() -> [CGWindowID] {
+        guard let pid=source.owningApplication?.processID else { return [] }
+        let rows=CGWindowListCopyWindowInfo([.optionOnScreenOnly,.excludeDesktopElements],0) as? [[String:Any]] ?? []
+        return rows.compactMap { row in
+            guard row[kCGWindowOwnerPID as String] as? Int == Int(pid),
+                  let layer=row[kCGWindowLayer as String] as? Int,layer>0,layer<=101,
+                  let raw=row[kCGWindowBounds as String] as? [String:Any],let rect=CGRect(dictionaryRepresentation:raw as CFDictionary),
+                  rect.intersects(source.frame),let wid=row[kCGWindowNumber as String] as? UInt32 else { return nil }
+            return wid
+        }.sorted()
+    }
+    func refreshOwnedWindows() async throws {
+        guard ProcessInfo.processInfo.environment["FINDER_CHILD_CAPTURE"] == "1",let displayID=FinderAccess.backingDisplayID else { return }
+        let ids=popupIDs();guard ids != ownedWindowIDs else { return }
+        let content=try await SCShareableContent.excludingDesktopWindows(true,onScreenWindowsOnly:false)
+        guard let display=content.displays.first(where:{$0.displayID==displayID}) else { throw NSError(domain:"Backing display missing",code:1) }
+        let windows=[source]+content.windows.filter { ids.contains($0.windowID) && $0.owningApplication?.processID==source.owningApplication?.processID }
+        try await stream?.updateContentFilter(SCContentFilter(display:display,including:windows))
+        ownedWindowIDs=ids
+    }
     func start(showWindow: Bool = true, pixelScale: Double = 2) async throws {
         captureGeneration += 1
+        latestFrame = nil
         let generation = captureGeneration
         let cfg = SCStreamConfiguration()
         cfg.width = Int(ceil(logicalSize.width * pixelScale)); cfg.height = Int(ceil(logicalSize.height * pixelScale))
-        cfg.minimumFrameInterval = CMTime(value: 1, timescale: 15)
+        cfg.minimumFrameInterval = CMTime(value: 1, timescale: 30)
         cfg.queueDepth = 3; cfg.showsCursor = false; cfg.capturesAudio = false
         cfg.ignoreShadowsSingleWindow = true
         cfg.scalesToFit = true
@@ -91,10 +115,23 @@ final class FrameSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Se
         sink.receive = { [weak self] cg in Task { @MainActor in
             guard let self, self.captureGeneration == generation,
                   cg.width == cfg.width, cg.height == cfg.height else { return }
+            self.latestFrame = cg
             self.frames += 1
             self.image.image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
         } }
-        let stream = SCStream(filter: SCContentFilter(desktopIndependentWindow: source), configuration: cfg, delegate: sink)
+        let filter: SCContentFilter
+        if ProcessInfo.processInfo.environment["FINDER_CHILD_CAPTURE"] == "1", let displayID=FinderAccess.backingDisplayID {
+            let content=try await SCShareableContent.excludingDesktopWindows(true,onScreenWindowsOnly:false)
+            guard let display=content.displays.first(where:{$0.displayID==displayID}) else { throw NSError(domain:"Backing display missing",code:1) }
+            // Window allowlist only. No full-desktop stream: pixels outside this
+            // source window are excluded and the capture rectangle is its bounds.
+            ownedWindowIDs=popupIDs()
+            filter=SCContentFilter(display:display,including:[source]+content.windows.filter { ownedWindowIDs.contains($0.windowID) && $0.owningApplication?.processID==source.owningApplication?.processID })
+            let origin=CGDisplayBounds(displayID).origin
+            cfg.sourceRect=CGRect(x:source.frame.minX-origin.x,y:source.frame.minY-origin.y,width:logicalSize.width,height:logicalSize.height)
+            cfg.includeChildWindows=true
+        } else { filter=SCContentFilter(desktopIndependentWindow:source) }
+        let stream = SCStream(filter: filter, configuration: cfg, delegate: sink)
         try stream.addStreamOutput(sink, type: .screen, sampleHandlerQueue: DispatchQueue(label: "finder.portal.frames"))
         self.stream = stream
         try await stream.startCapture()

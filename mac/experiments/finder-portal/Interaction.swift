@@ -62,9 +62,25 @@ enum FinderAccess {
     }
     static func dragRegions(_ root: AXUIElement) -> [[String: Double]] {
         guard backingDisplayID != nil, inputAllowed(root), let window = frame(root) else { return [] }
-        let elements = nodes(root)
-        guard let toolbar = elements.first(where: { value($0, kAXRoleAttribute) as? String == kAXToolbarRole }),
-              let bar = frame(toolbar), bar.minY == window.minY, bar.height > 0, bar.height <= 100 else { return [] }
+        // Do not walk every Finder file row on every video frame. The toolbar
+        // is window chrome; skip document/scroll/menu subtrees during discovery.
+        var pending=[(root,0)], toolbar: AXUIElement?
+        while let (element,depth)=pending.popLast(), toolbar == nil {
+            let role=value(element,kAXRoleAttribute) as? String ?? ""
+            if role == kAXToolbarRole { toolbar=element;break }
+            if depth<4 && !["AXScrollArea","AXOutline","AXTable","AXList","AXMenu"].contains(role) {
+                pending += (value(element,kAXChildrenAttribute) as? [AXUIElement] ?? []).map { ($0,depth+1) }
+            }
+        }
+        guard let toolbar, let bar = frame(toolbar), bar.minY == window.minY, bar.height > 0, bar.height <= 100 else { return [] }
+        var elements=[AXUIElement](), controls=[toolbar]
+        while let e=controls.popLast() {
+            elements.append(e)
+            if value(e,kAXRoleAttribute) as? String != "AXMenu" { controls += value(e,kAXChildrenAttribute) as? [AXUIElement] ?? [] }
+        }
+        for attribute in [kAXCloseButtonAttribute,kAXMinimizeButtonAttribute,kAXZoomButtonAttribute] {
+            if let raw=value(root,attribute),CFGetTypeID(raw)==AXUIElementGetTypeID() { elements.append(raw as! AXUIElement) }
+        }
         var regions = [bar.intersection(window)]
         let roles: Set<String> = ["AXButton", "AXMenuButton", "AXPopUpButton", "AXTextField", "AXCheckBox", "AXRadioButton", "AXSlider", "AXComboBox", "AXLink", "AXMenuItem"]
         for element in elements {
