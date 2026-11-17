@@ -76,8 +76,14 @@ class SourceState {
       check(this.outstanding && m.seq===this.outstanding.seq,'Unexpected frame ACK'); this.outstanding=null; return {kind:'ack'};
     }
     check(m.type==='input'&&integer(m.seq)&&m.seq>this.inputSeq,'Invalid input sequence/type');
+    if(m.op==='releaseAll') {
+      check(object(m.args)&&Object.keys(m.args).length===0,'Invalid release');
+      this.inputSeq=m.seq;
+      return this.window.capabilities.includes('releaseAll') ? {kind:'input'} : {kind:'result',status:'unsupported',detail:'Capability not advertised'};
+    }
     check(integer(m.frameSeq)&&m.frameSeq<=this.frameSeq,'Unknown frame');
     check(integer(m.geometryRevision)&&typeof m.op==='string'&&object(m.args),'Malformed input');
+    if(m.op==='pointer') check(['down','up','move'].includes(m.args.phase)&&Number.isInteger(m.args.button)&&m.args.button>=0&&m.args.button<=2&&(m.args.phase!=='move'||m.args.button===0)&&[m.args.x,m.args.y].every(n=>Number.isFinite(n)&&n>=0&&n<=1),'Invalid pointer');
     if(m.op==='pressAt') check([m.args.x,m.args.y].every(n=>Number.isFinite(n)&&n>=0&&n<=1),'Invalid click');
     if(m.op==='setSearchText') check(string(m.args.text,4096),'Invalid search text');
     if(m.op==='confirmSearch') check(Object.keys(m.args).length===0,'Invalid confirmation');

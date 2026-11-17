@@ -596,3 +596,28 @@ source tests**, not paired receiver tests. Source focus leasing, held-input
 release, wire dispatch and receiver mouse events must be implemented/tested before
 advertising pointer support. Wheel, keys, text, owned menus/dialogs and natural
 edge handoff remain outstanding. No general input capability is advertised yet.
+
+
+### Integrated pointer candidate
+
+The standalone source now advertises `pointer` and `releaseAll` only when the
+native backing-window input route and post-event permission are available.
+It infers double-click count from button, monotonic time and point distance,
+leases Finder focus across held buttons, and restores prior focus after up.
+It never applies a forced Command modifier. A native watchdog releases owned
+buttons after eight seconds without source heartbeat; stdin EOF releases before
+helper shutdown. Source disconnect and resize release before physical recovery.
+If the capture helper exits during a held down, the pipe owner launches a recovery-
+only helper that can send ups to that exact source PID/window before restoration.
+
+`pointer-live-test.py` passed actual source-worker Alpha selection, replacement
+with Beta, folder double-click, explicit release, and deliberate capture SIGKILL.
+The emergency up API returned success and physical restoration was read back;
+this does not independently observe AppKit consumption of the emergency up.
+The test closes only its own restored fixture. Fourteen automated tests pass,
+including stale-frame/geometry release, identity/replay checks, saturated input
+queue release, and cancellation of queued pre-release downs. Signed build passed.
+
+Wire additions are the previously agreed optional standalone operations only;
+main TwinDesk/shared wire is untouched. Paired Windows input and natural edge
+handoff remain required. Wheel/key/text and owned popup handling are not claimed.

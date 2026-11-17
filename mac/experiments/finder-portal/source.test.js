@@ -49,3 +49,17 @@ test('missing frame ACK tears down even while valid heartbeats continue',{timeou
   assert.match(fs.readFileSync(path.join(output,'events.jsonl'),'utf8'),/Liveness timeout/);
  }finally{c?.ws.terminate();await service.stop();fs.rmSync(output,{recursive:true,force:true});}
 });
+test('release bypasses saturated input queue and cancels previously queued downs',{timeout:12000},async()=>{
+ const output=fs.mkdtempSync(path.join(os.tmpdir(),'portal-release-')),calls=[];
+ const factory=()=>{const p=new Pipe(spawn(process.execPath,['-e',`console.log(JSON.stringify(${JSON.stringify({...meta,capabilities:['pointer','releaseAll']})}));require('readline').createInterface({input:process.stdin}).on('line',l=>{const m=JSON.parse(l);setTimeout(()=>console.log(JSON.stringify(m.op==='frame'?{pixelSize:{width:1,height:1},contentRect:{x:0,y:0,width:1,height:1},png:'${image}',captureMode:'stream'}:{AXError:0})),m.op==='pointer'?100:0);});`],{stdio:['pipe','pipe','inherit']}));const original=p.call.bind(p);p.call=m=>{calls.push(m.op);return original(m)};return p;};
+ const config={sourceCommit:'a'.repeat(40),port:0,output,pairingFile:path.join(output,'pair.json'),testDisplay:{id:1,x:0,y:0},durationSeconds:15};
+ const service=await start(config,{workerFactory:factory});let c;
+ try{
+  const pair=JSON.parse(fs.readFileSync(config.pairingFile));c=client(pair.url);await once(c.ws,'open');c.ws.send(JSON.stringify({v:1,type:'hello',role:'receiver',token:pair.token,sourceCommit:'b'.repeat(40)}));await c.read();await c.read();const f=await c.read();
+  for(let seq=1;seq<=16;seq++)c.ws.send(JSON.stringify({v:1,type:'input',sessionId:f.sessionId,windowId:f.windowId,geometryRevision:1,seq,frameSeq:f.seq,op:'pointer',args:{phase:'down',button:0,x:.5,y:.5}}));
+  c.ws.send(JSON.stringify({v:1,type:'input',sessionId:f.sessionId,windowId:f.windowId,geometryRevision:999,seq:17,frameSeq:0,op:'releaseAll',args:{}}));
+  const replies=[];for(let i=0;i<17;i++)replies.push(await c.read());
+  assert.equal(replies.find(m=>m.seq===17).status,'dispatched');assert(calls.includes('releaseAll'));
+  assert.equal(calls.filter(x=>x==='pointer').length<=1,true);
+ }finally{c?.ws.terminate();await service.stop();fs.rmSync(output,{recursive:true,force:true});}
+});

@@ -7,12 +7,15 @@ binary, output, display_id, x, y = sys.argv[1:]
 out=pathlib.Path(output).resolve(); out.mkdir(parents=True,exist_ok=True)
 folder=out/('FinderNetwork-'+uuid.uuid4().hex[:8]); folder.mkdir()
 (folder/'BASELINE.txt').write_text('Authenticated Finder source fixture.\n')
+for name in ['Alpha.txt','Beta.txt']: (folder/name).write_text('Pointer test fixture.\n')
+(folder/'PortalChild').mkdir(); (folder/'PortalChild'/'Inside.txt').write_text('Navigation proof.\n')
 wid=script('tell application "Finder"\nset w to make new Finder window to POSIX file '+json.dumps(str(folder))+'\nset current view of w to list view\nset bounds of w to {100,100,900,650}\nreturn id of w\nend tell')
 if not wid.isdigit(): raise RuntimeError('Invalid Finder fixture id')
 restore=f'tell application "Finder"\nif exists Finder window id {wid} then\nset collapsed of Finder window id {wid} to false\nset bounds of Finder window id {wid} to {{100,100,900,650}}\nend if\nend tell'
 guardian=subprocess.Popen(['/usr/bin/python3','-c',
  'import os,time,subprocess,sys,json\nfor i in range(3600):\n time.sleep(1)\n try: os.kill(int(sys.argv[1]),0)\n except ProcessLookupError: break\nsubprocess.run(["/usr/bin/osascript","-e",sys.argv[2]],timeout=15)\n',str(os.getpid()),restore],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 capture=None
+held=set(); last_point={'x':0.5,'y':0.5}; native_identity=None
 
 def emit(data):
  print(json.dumps(data),flush=True)
@@ -28,6 +31,7 @@ try:
  if script(f'tell application "Finder" to get bounds of Finder window id {wid}') != f'{x}, {y}, {x+800}, {y+550}': raise RuntimeError('Backing placement failed')
  capture=subprocess.Popen([binary,'--source','--backing',display_id,folder.name],stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True,bufsize=1)
  ready=receive(capture)
+ native_identity={'wid':ready.get('wid'),'pid':ready.get('pid')}
  if not ready.get('ready'): raise RuntimeError(ready)
  fixture={'finderWindowID':wid,'workerPID':os.getpid(),'capturePID':capture.pid,'folder':str(folder)}
  (out/'fixture.json').write_text(json.dumps(fixture))
@@ -38,6 +42,13 @@ try:
   if op=='frame':
    result=call('@wire-frame')
    if result.get('geometryChanged'): result={'metadata':call('@wire-metadata')}
+  elif op=='pointer':
+   args=message['args']; last_point={'x':args['x'],'y':args['y']}
+   if args['phase']=='down': held.add(args['button']) # Record before posting, including a helper crash before its reply.
+   result=call('@pointer-json:'+json.dumps(args))
+   if args['phase']=='up': held.discard(args['button'])
+  elif op=='releaseAll':
+   result=call('@release-all'); held.clear()
   elif op=='pressAt': result=call('@click:'+str(message['args']['x'])+','+str(message['args']['y']))
   elif op=='setSearchText': result=call('@text-json:'+json.dumps({'text':message['args']['text']}))
   elif op=='confirmSearch': result=call('@confirm')
@@ -49,6 +60,15 @@ try:
   emit(result)
 finally:
  try:
+  if capture and capture.poll() is None:
+   try: call('@release-all'); held.clear()
+   except Exception: pass # Emergency release below before physical recovery.
+  if held and native_identity:
+   emergency={**native_identity,**last_point,'buttons':sorted(held)}
+   try:
+    released=json.loads(subprocess.check_output([binary,'--release-pointer',json.dumps(emergency)],text=True,timeout=5))
+    (out/'emergency-release.json').write_text(json.dumps(released))
+   except Exception as error: (out/'emergency-release.json').write_text(json.dumps({'released':False,'error':str(error)}))
   script(restore)
   actual=script(f'tell application "Finder" to get {{bounds, collapsed}} of Finder window id {wid}')
   restored=actual=='100, 100, 900, 650, false'

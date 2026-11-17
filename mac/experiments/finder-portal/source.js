@@ -58,7 +58,7 @@ async function start(config,{workerFactory=startWorker}={}){
  const wss=new WebSocketServer({server,path:'/portal',maxPayload:16384,perMessageDeflate:false});
  wss.on('connection',(ws,req)=>{
   if(closing||(!tls&&req.socket.remoteAddress!=='127.0.0.1')){ws.close(1008);return;}
-  let state=null,worker=null,ended=false,ready=false,last=Date.now(),timer=null,frameBusy=false,inputs=0,nonce=0,resizing=false,inputTail=Promise.resolve();
+  let state=null,worker=null,ended=false,ready=false,last=Date.now(),timer=null,frameBusy=false,inputs=0,nonce=0,resizing=false,inputTail=Promise.resolve(),releaseHighWater=0;
   let cleanupPromise=null;
   const send=m=>{if(ws.readyState===1)ws.send(JSON.stringify(m));};
   const end=reason=>{
@@ -108,10 +108,17 @@ async function start(config,{workerFactory=startWorker}={}){
     if(action.kind==='input'||action.kind==='result'){
      const answer=(status,detail)=>{log('inputResult',{seq:m.seq,op:m.op,status});send(state.envelope('inputResult',{windowId:state.window.windowId,seq:m.seq,status,detail}));};
      if(action.kind==='result'){answer(action.status,action.detail);return;}
+     if(m.op==='releaseAll'&&ready){
+      releaseHighWater=m.seq;
+      const result=await worker.call({op:'releaseAll',args:{}});
+      if(!ended)answer(result.error?'failed':'dispatched','Owned input released');
+      return;
+     }
      if(!ready||inputs>=16){answer('rejected','Input queue unavailable');return;}
      inputs++;
      const work=inputTail.then(async()=>{
       if(ended)return;
+      if(m.seq<releaseHighWater){answer('rejected','Input superseded by release');return;}
       if(m.geometryRevision!==state.window.geometryRevision||m.frameSeq<state.revisionFirstFrame){answer('rejected','Geometry changed while queued');return;}
       if(m.op==='resize'){
        resizing=true;
@@ -129,7 +136,7 @@ async function start(config,{workerFactory=startWorker}={}){
         answer('dispatched','Applied source geometry read back; awaiting displayed frame');
        }finally{resizing=false;}
       }else{
-       const result=await worker.call({op:m.op,args:m.args});if(!ended)answer(result.error?'unsupported':result.AXError===0?'dispatched':'failed',result.error?'Source control unsupported':result.AXError===0?'Accessibility action dispatched':'Source action failed');
+       const result=await worker.call({op:m.op,args:m.args});check(!result.fatal,'Unsafe native input');if(!ended)answer(result.error?'unsupported':result.AXError===0?'dispatched':'failed',result.error?'Source control unsupported':result.AXError===0?'Accessibility action dispatched':'Source action failed');
       }
      });inputTail=work.catch(()=>{});
      try{await work;}

@@ -23,6 +23,10 @@ import CryptoKit
                 emit(["screenRecording": CGRequestScreenCaptureAccess()])
                 return
             }
+            if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--release-pointer" {
+                guard let data = CommandLine.arguments[2].data(using: .utf8), let args = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { emit(["released": false]); return }
+                emit(["released": NativePointer.emergencyRelease(args)]); return
+            }
             let sourceMode = CommandLine.arguments.contains("--source")
             let viewerMode = CommandLine.arguments.contains("--viewer") || sourceMode
             let backingIndex = CommandLine.arguments.firstIndex(of: "--backing")
@@ -65,8 +69,16 @@ import CryptoKit
             let viewer = viewerMode ? PortalViewer(source: window, presentsWindow: !sourceMode) : nil
             try await viewer?.start(showWindow: !sourceMode)
             emit(["ready": true, "wid": window.windowID, "pid": window.owningApplication!.processID])
+            let nativePointer = rootAX.flatMap { NativePointer(window: $0, wid: window.windowID, pid: window.owningApplication!.processID) }
+            defer { nativePointer?.releaseAll() }
             var publishedDragRegions: [[String: Double]] = []
             while let path = await Task.detached(operation: { readLine() }).value {
+                if path == "@release-all" { nativePointer?.releaseAll(); emit(["AXError": 0]); continue }
+                if path.hasPrefix("@pointer-json:") {
+                    guard let nativePointer, let data = String(path.dropFirst(14)).data(using: .utf8),
+                          let args = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { emit(["error": "Native pointer unavailable"]); continue }
+                    emit(await nativePointer.handle(args)); continue
+                }
                 if path == "@wire-metadata" {
                     publishedDragRegions = rootAX.map { FinderAccess.dragRegions($0) } ?? []
                     let icon = NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
@@ -78,7 +90,7 @@ import CryptoKit
                           "pixelSize": ["width": viewer?.captureConfig?.width ?? config.width, "height": viewer?.captureConfig?.height ?? config.height],
                           "iconPng": rep.representation(using: .png, properties: [:])!.base64EncodedString(),
                           "dragRegions": publishedDragRegions,
-                          "capabilities": ["pressAt", "setSearchText", "confirmSearch"] + (FinderAccess.backingDisplayID != nil ? ["resize", "sourceDragRegions"] : [])]); continue
+                          "capabilities": ["pressAt", "setSearchText", "confirmSearch"] + (FinderAccess.backingDisplayID != nil ? ["resize", "sourceDragRegions"] : []) + (nativePointer != nil ? ["pointer", "releaseAll"] : [])]); continue
                 }
                 if path.hasPrefix("@resize-json:"), let viewer {
                     guard let data = String(path.dropFirst(13)).data(using: .utf8),
@@ -87,13 +99,16 @@ import CryptoKit
                           let width = size["width"], let height = size["height"], let scale = args["pixelScale"] as? Double else {
                         emit(["error": "Invalid resize arguments"]); continue
                     }
+                    nativePointer?.releaseAll()
                     emit(await viewer.resizeSource(width: width, height: height, pixelScale: scale)); continue
                 }
                 if path == "@wire-frame", let viewer {
                     guard let rootAX, FinderAccess.inputAllowed(rootAX),
                           let actual = FinderAccess.frame(rootAX), actual.size == viewer.logicalSize,
                           viewer.lastError == nil else { emit(["error": "Source geometry/capture unavailable"]); continue }
+                    nativePointer?.heartbeat()
                     if FinderAccess.dragRegions(rootAX) != publishedDragRegions {
+                        nativePointer?.releaseAll()
                         emit(["geometryChanged": true]); continue
                     }
                     guard let image = viewer.image.image, let tiff = image.tiffRepresentation,

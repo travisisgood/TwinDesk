@@ -33,3 +33,13 @@ test('input rejects replay, wrong session and unsent frame',()=>{let s=state();s
 test('stale geometry and unsupported capabilities do not dispatch',()=>{let s=state();s.nextFrame(payload);const m=s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:1,geometryRevision:2,op:'pressAt',args:{x:0,y:1}});assert.equal(s.accept(m).status,'rejected');assert.equal(s.accept({...m,seq:2,geometryRevision:1,op:'drag'}).status,'unsupported');});
 test('oversized/binary/control/nonfinite coordinates fail closed',()=>{assert.throws(()=>parse('{}',true));assert.throws(()=>parse(JSON.stringify({v:1,type:'ping',padding:'x'.repeat(16384)})));let s=state();s.nextFrame(payload);assert.throws(()=>s.accept(s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:1,geometryRevision:1,op:'pressAt',args:{x:NaN,y:0}})));});
 test('PNG bounds and content rect validated before decode',()=>{assert.equal(png(image).width,1);assert.throws(()=>png(image+'!'));let altered=Buffer.from(image,'base64');altered.writeUInt32BE(9000,16);assert.throws(()=>png(altered.toString('base64')));assert.throws(()=>frame({...payload,windowId:meta.windowId,geometryRevision:1,seq:1,contentRect:{x:1,y:0,width:1,height:1}},meta));});
+test('releaseAll bypasses frame and revision gates but preserves identity and replay checks',()=>{
+ const s=new SourceState('a'.repeat(40),{...meta,capabilities:['pointer','releaseAll']});
+ const release=s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:0,geometryRevision:999,op:'releaseAll',args:{}});
+ assert.equal(s.accept(release).kind,'input');assert.throws(()=>s.accept(release));
+ assert.throws(()=>s.accept({...release,seq:2,windowId:'wrong'}));
+ assert.throws(()=>s.accept({...release,seq:2,args:{button:0}}));
+ s.nextFrame(payload);
+ assert.throws(()=>s.accept({...release,seq:2,op:'pointer',frameSeq:1,geometryRevision:1,args:{phase:'move',button:2,x:0,y:0}}));
+ assert.equal(s.accept({...release,seq:2,op:'pointer',frameSeq:1,geometryRevision:1,args:{phase:'down',button:0,x:0,y:0}}).kind,'input');
+});
