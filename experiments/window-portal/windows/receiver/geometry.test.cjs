@@ -1,0 +1,3 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),g=require('./geometry.js');
+test('padded capture uses content coordinates and excludes letterbox',()=>{const v={width:800,height:600},c={x:20,y:10,width:1600,height:1000};assert.deepEqual(g.layout(v,c),{scale:.5,x:0,y:50,width:800,height:500});assert.deepEqual(g.point(400,300,v,c),{x:.5,y:.5});assert.equal(g.point(400,20,v,c),null);});
+test('source logical drag rectangles track letterboxing independently of raster DPI',()=>{assert.deepEqual(g.region({x:100,y:0,width:200,height:30},{width:800,height:500},{width:800,height:600},{x:0,y:0,width:1600,height:1000}),{x:100,y:50,width:200,height:30});});

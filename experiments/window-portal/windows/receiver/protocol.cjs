@@ -34,6 +34,13 @@ class ReceiverProtocol extends EventEmitter {
    check(UUID.test(m.windowId||'')&&integer(m.geometryRevision)&&str(m.title,4096)&&str(m.appId,512),'Invalid window');
    check(own(m.logicalSize)&&Number.isFinite(m.logicalSize.width)&&Number.isFinite(m.logicalSize.height)&&m.logicalSize.width>0&&m.logicalSize.height>0&&m.logicalSize.width<=100000&&m.logicalSize.height<=100000,'Invalid logical size');size(m.pixelSize);
    check(Array.isArray(m.capabilities)&&m.capabilities.length<=32&&m.capabilities.every(c=>str(c,128)),'Invalid capabilities');
+   if(m.dragRegions!==undefined){
+    check(m.capabilities.includes('sourceDragRegions')&&Array.isArray(m.dragRegions)&&m.dragRegions.length<=32,'Invalid drag regions');
+    for(const [i,r] of m.dragRegions.entries()){
+     check(own(r)&&[r.x,r.y,r.width,r.height].every(Number.isFinite)&&r.x>=0&&r.y>=0&&r.width>0&&r.height>0&&r.x+r.width<=m.logicalSize.width&&r.y+r.height<=m.logicalSize.height,'Invalid drag region bounds');
+     check(!m.dragRegions.slice(0,i).some(a=>r.x<a.x+a.width&&r.x+r.width>a.x&&r.y<a.y+a.height&&r.y+r.height>a.y),'Overlapping drag regions');
+    }
+   }
    if(m.iconPng!==null)png(m.iconPng,true);
    if(this.window)check(m.windowId===this.window.windowId&&m.geometryRevision===this.window.geometryRevision+1&&!this.pending,'Invalid geometry transition');
    else check(m.geometryRevision===1,'Initial geometry must be revision 1');
@@ -51,7 +58,12 @@ class ReceiverProtocol extends EventEmitter {
   }
   if(m.type==='inputResult'){
    check(this.inputs.has(m.seq)&&['dispatched','verified','unsupported','rejected','failed'].includes(m.status)&&str(m.detail,1024),'Unexpected input result');
-   this.inputs.delete(m.seq);this.emit('inputResult',m);return;
+   this.inputs.delete(m.seq);
+   if(this.resizePending?.seq===m.seq){
+    if(['unsupported','rejected','failed'].includes(m.status))this.resizePending=null;
+    else {this.resizePending.result=true;if(this.resizePending.displayed)this.resizePending=null;}
+   }
+   this.emit('inputResult',m);return;
   }
   throw Error('Unknown message type');
  }
@@ -59,14 +71,18 @@ class ReceiverProtocol extends EventEmitter {
   check(this.pending&&this.pending.seq===seq,'Unexpected display acknowledgment');
   this.displayed=seq;this.contentRect=this.pending.contentRect;this.pending=null;
   this.send(this.envelope('frameAck',{windowId:this.window.windowId,seq}));
+  if(this.resizePending&&this.window.geometryRevision>this.resizePending.revision){this.resizePending.displayed=true;if(this.resizePending.result)this.resizePending=null;}
  }
  input(op,args){
   check(!this.closed&&this.window&&this.displayed&&this.window.capabilities.includes(op),'Input unavailable');
+  check(!this.resizePending,'Resize transition in progress');
   check(this.inputs.size<16,'Input queue full');
   if(op==='pressAt')check(own(args)&&[args.x,args.y].every(n=>Number.isFinite(n)&&n>=0&&n<=1),'Invalid coordinates');
+  else if(op==='resize')check(own(args)&&own(args.logicalSize)&&integer(args.logicalSize.width,1,4096)&&integer(args.logicalSize.height,1,4096)&&Number.isFinite(args.pixelScale)&&args.pixelScale>=1&&args.pixelScale<=3&&Math.ceil(args.logicalSize.width*args.pixelScale)<=4096&&Math.ceil(args.logicalSize.height*args.pixelScale)<=4096&&Math.ceil(args.logicalSize.width*args.pixelScale)*Math.ceil(args.logicalSize.height*args.pixelScale)<=8000000,'Invalid resize');
   else if(op==='setSearchText')check(own(args)&&str(args.text,4096),'Invalid search text');
   else check(op==='confirmSearch'&&own(args)&&Object.keys(args).length===0,'Unsupported operation');
   const seq=++this.inputSeq;this.inputs.add(seq);
+  if(op==='resize')this.resizePending={seq,revision:this.window.geometryRevision,result:false,displayed:false};
   this.send(this.envelope('input',{windowId:this.window.windowId,geometryRevision:this.window.geometryRevision,seq,frameSeq:this.displayed,op,args}));return seq;
  }
 }

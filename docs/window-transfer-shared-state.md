@@ -50,3 +50,31 @@ Shared implementation requirements before parity acceptance:
 5. Keep originating icon, native receiving taskbar/Dock behavior, persistent backing, and disconnect restoration. Windows owns Finder receiver; Mac owns Explorer receiver. Both implement and review their own source-side support.
 
 Request UNIFIED_USER_WINDOW_BEHAVIOR_66 sent to Mac with all additions. No protocol change agreed or deployed yet. Existing Explorer and Finder sessions must not be restarted simply to record these requirements.
+
+## Receiver parity implementation checkpoint
+Windows receiver now accepts the mutually agreed capability-gated resize operation:
+`resize` with `{logicalSize:{width,height},pixelScale}` (Mac points/Windows96DIP,
+scale1..3 subject existing raster limits). It coalesces requested sizes, allows one
+resize in flight, blocks remote interaction until both successful result and new
+revision display, and reconciles to actual source logical dimensions. Rejections
+preserve the old geometry. Uses content size rather than outer-frame size.
+
+Optional `sourceDragRegions` capability and `dragRegions` logical rectangles are
+validated for bounds/overlap. Supplied regions map using the same contentRect
+transform as clicks; source controls must be excluded by the source. Older peers
+retain the temporary grip. The receiver crops capture padding and handles
+letterboxing consistently.18 receiver/protocol/geometry/transport/TLS tests pass.
+These changes are not yet paired-validated with Mac's new source; full pointer/
+keyboard and automatic boundary crossing remain missing and mandatory.
+
+Historical resize investigation: mac/pcapps.js sends PAPP_SIZE after receiver
+resize; windows/pcapps.js dispatches winSize; windows-helper/src/AppWindows.cs
+Resize uses SetWindowPos with NOMOVE/NOZORDER/NOACTIVATE and restores invisible
+frame-border allowance. This is an actual source resize request, not bitmap-only
+scaling. It does not read back success/actual dimensions. We require source readback,
+containment and recapture in the new path, including fixed-size rejection/clamping.
+
+Travis reiterated monitor-edge drag currently stops in place. Final acceptance
+requires continuous drag across the edge and natural local placement, in both
+directions, with source-appropriate dragging/input/size, taskbar/Dock identity,
+and uninterrupted KVM. Manual pairing remains diagnostic only.

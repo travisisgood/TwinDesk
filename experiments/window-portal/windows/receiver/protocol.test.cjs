@@ -11,3 +11,21 @@ test('PNG header resource bounds are checked before decoding',()=>{const b=frame
 test('metadata revision invalidates input until new frame is displayed',()=>{const {p}=setup();p.receive(JSON.stringify(frame()));p.displayedFrame(1);p.receive(JSON.stringify({...meta,geometryRevision:2}));assert.throws(()=>p.input('pressAt',{x:.1,y:.2}));});
 test('capability and local input bounds prevent injection',()=>{const {p}=setup();p.receive(JSON.stringify(frame()));p.displayedFrame(1);assert.throws(()=>p.input('rawKey',{}));assert.throws(()=>p.input('pressAt',{x:NaN,y:0}));assert.throws(()=>p.input('pressAt',{x:2,y:0}));});
 test('unknown input result fails instead of matching another action',()=>{const {p}=setup();assert.throws(()=>p.receive(JSON.stringify({v:1,type:'inputResult',sessionId,windowId,seq:1,status:'verified',detail:''})));});
+
+test('resize blocks old-frame input until result and new revision display',()=>{
+ const {p}=setup();p.window.capabilities.push('resize');p.receive(JSON.stringify(frame()));p.displayedFrame(1);
+ const seq=p.input('resize',{logicalSize:{width:700,height:450},pixelScale:1.5});
+ assert.throws(()=>p.input('pressAt',{x:.5,y:.5}),/transition/);
+ p.receive(JSON.stringify({...meta,geometryRevision:2,capabilities:['pressAt','resize']}));
+ p.receive(JSON.stringify({v:1,type:'inputResult',sessionId,windowId,seq,status:'dispatched',detail:'Applied'}));
+ assert.throws(()=>p.input('pressAt',{x:.5,y:.5}));
+ p.receive(JSON.stringify({...frame(),seq:2,geometryRevision:2}));p.displayedFrame(2);
+ assert.doesNotThrow(()=>p.input('pressAt',{x:.5,y:.5}));
+});
+test('rejected resize leaves existing geometry interactive',()=>{
+ const {p}=setup();p.window.capabilities.push('resize');p.receive(JSON.stringify(frame()));p.displayedFrame(1);
+ const seq=p.input('resize',{logicalSize:{width:700,height:450},pixelScale:1});
+ p.receive(JSON.stringify({v:1,type:'inputResult',sessionId,windowId,seq,status:'rejected',detail:'Fixed size'}));assert.doesNotThrow(()=>p.input('pressAt',{x:.1,y:.2}));
+});
+test('resize density and resource limits are enforced',()=>{const {p}=setup();p.window.capabilities.push('resize');p.receive(JSON.stringify(frame()));p.displayedFrame(1);for(const args of [{logicalSize:{width:700,height:450},pixelScale:0},{logicalSize:{width:4096,height:4096},pixelScale:2},{logicalSize:{width:NaN,height:450},pixelScale:1}])assert.throws(()=>p.input('resize',args),/Invalid resize/);});
+test('drag regions require capability, bounds and no overlap',()=>{for(const patch of [{dragRegions:[{x:0,y:0,width:100,height:30}]},{capabilities:['sourceDragRegions'],dragRegions:[{x:600,y:0,width:100,height:30}]},{capabilities:['sourceDragRegions'],dragRegions:[{x:0,y:0,width:100,height:30},{x:50,y:0,width:100,height:30}]}]){const {p}=setup();assert.throws(()=>p.receive(JSON.stringify({...meta,geometryRevision:2,...patch})),/drag region/);}});
