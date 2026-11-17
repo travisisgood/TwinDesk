@@ -209,3 +209,19 @@ ready/commit, advances ownership once and acknowledges retries without duplicate
 placement. Local deadline/disconnect releases pending ownership. It is not yet
 connected to messenger or native KVM; native placement/ownership callback and
 Mac adoption remain required before any automatic edge acceptance.
+
+## Paired speed/wheel candidate — 2026-11-16
+Live receiver bf5bfadbfc6d3f4fcabdf1ee23102158e6bf7d46 with source
+0463c0930a02466de6135148b7f606c79a7ceae9, FinderNetwork-701cb1e7:
+- Actual Applications navigation and scrolling visually verified. Wheel ACK14ms.
+- Yellow control minimized receiver; restoring retained Applications scroll state
+  and source stream. Trafficlights visibly rendered from source AX rectangles.
+- Pointer ACK first119/101ms, later41/23ms. These are dispatch round trips, not
+  end-to-end visual latency. Stream remains about5fps at800x550/1x.
+- Ellipsis click dispatched but no popup visible. Mac investigating.
+- Green maximized receiver but source stayed800x550/rev2: stretched image,
+  NOT resize acceptance. Restored normal size. c0edef9 adds explicit maximize
+  scheduling, selected capture-density preservation and resize diagnostics;
+  not loaded into this live receiver, needs next paired validation.
+- Keyboard/text remain disabled. No natural edge handoff acceptance.
+Source deadline02:42:45Z Nov17. Receiver left open; CUA capture helper released.
