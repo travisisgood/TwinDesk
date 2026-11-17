@@ -244,3 +244,13 @@ launcher, hiddenreceiver decoded-frame IPC and5secabortdeadline. Fivegate andtwo
 crypto/configuration tests pass. No liveauthenticated messengerpump/nativehelddrag
 ownership bridge yet; no reveal/commitIPC implemented. Never enableedgebroker on
 unit-test evidence alone. Nativehand-off remains deferred untilpairedinputtests.
+
+## Text-event correlation correction
+Mac reported textseq6 dispatched in the current paired session. Windows confirms
+textseq6 dispatched at02:51:05.629Z, roundTrip34ms; Mac timestamp02:51:07.346Z
+shows wall-clock offset, not extra network latency. The earlier zero-input
+statement was based on a premature log tail and is superseded. Text transport and
+source dispatch are proven. Attribution to automated versus physical typing and
+visible field contents are not established; no typed content was inspected or
+shared. Await Travis's physical-keyboard result before claiming full keyboard
+acceptance. Edge broker remains disabled; native ownership bridge outstanding.
