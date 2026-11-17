@@ -16,11 +16,16 @@ enum FinderAccess {
         var v: CFTypeRef?
         return AXUIElementCopyAttributeValue(e, name as CFString, &v) == .success ? v : nil
     }
-    static func window(pid: pid_t, title: String) -> AXUIElement? {
+    static func window(pid: pid_t, title: String, matching: CGRect? = nil) -> AXUIElement? {
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, 1)
         let windows = value(app, kAXWindowsAttribute) as? [AXUIElement] ?? []
-        return windows.first { value($0, kAXTitleAttribute) as? String == title }
+        return windows.first {
+            guard value($0, kAXTitleAttribute) as? String == title else { return false }
+            guard let matching else { return true }
+            guard let actual = frame($0) else { return false }
+            return abs(actual.minX-matching.minX)<3 && abs(actual.minY-matching.minY)<3 && abs(actual.width-matching.width)<3 && abs(actual.height-matching.height)<3
+        }
     }
     static func nodes(_ root: AXUIElement) -> [AXUIElement] {
         var pending = [(root, 0)], found: [AXUIElement] = []
@@ -46,6 +51,14 @@ enum FinderAccess {
         if AXUIElementCopyActionNames(e, &actions) == .success { result["actions"] = actions }
         if let r = frame(e) { result["frame"] = NSStringFromRect(r) }
         return result
+    }
+    static func windowControls(_ root: AXUIElement) -> [[String: Any]] {
+        guard let window=frame(root) else { return [] }
+        return [("close",kAXCloseButtonAttribute),("minimize",kAXMinimizeButtonAttribute),("zoom",kAXZoomButtonAttribute)].compactMap { action,attribute in
+            guard let raw=value(root,attribute),CFGetTypeID(raw)==AXUIElementGetTypeID(),
+                  let r=frame(raw as! AXUIElement),r.width>0,r.height>0,window.contains(r) else { return nil }
+            return ["action":action,"x":r.minX-window.minX,"y":r.minY-window.minY,"width":r.width,"height":r.height]
+        }
     }
     static func dragRegions(_ root: AXUIElement) -> [[String: Double]] {
         guard backingDisplayID != nil, inputAllowed(root), let window = frame(root) else { return [] }

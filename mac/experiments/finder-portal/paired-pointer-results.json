@@ -1,0 +1,16 @@
+{
+  "sourceCommit": "7cf62c44b7e6829d1b96f91a9deca2cbd5aca1dd",
+  "receiverCommit": "36e90f9",
+  "windowsVisualReport": "WINDOWS_POINTER_PAIRED_PASS_93",
+  "selection": [
+    "Alpha.txt",
+    "Beta.txt"
+  ],
+  "folderOpened": "PortalChild/Inside.txt",
+  "userReport": "WINDOWS_USER_FEEDBACK_96: interactive Finder and launching Claude worked, but very slow",
+  "sourceBoundsWhilePaired": "-1240,60,-440,610,false",
+  "normalExpiryRecovery": {
+    "restored": true,
+    "state": "100, 100, 900, 650, false"
+  }
+}

@@ -15,6 +15,7 @@ import Cocoa
     private var lastDown = (button: -1, time: 0.0, point: CGPoint.zero, count: 0)
     private var counts: [Int: Int] = [:]
     var heldCount: Int { held.count }
+    var snapshot: [String: Any] { ["held":held.count,"leased":leased,"cursor":NSStringFromPoint(CGEvent(source:nil)?.location ?? .zero),"bounds":NSStringFromRect(FinderAccess.frame(window) ?? .zero)] }
 
     init?(window: AXUIElement, wid: CGWindowID, pid: pid_t) {
         guard FinderAccess.backingDisplayID != nil, CGPreflightPostEventAccess(),
@@ -63,6 +64,10 @@ import Cocoa
             priorWindow = FinderAccess.value(AXUIElementCreateApplication(pid), kAXFocusedWindowAttribute)
             leased = true
         }
+        if leased, NSRunningApplication(processIdentifier: pid)?.isActive == true,
+           let focused = FinderAccess.value(AXUIElementCreateApplication(pid), kAXFocusedWindowAttribute), CFEqual(focused,window) {
+            return FinderAccess.inputAllowed(window)
+        }
         NSRunningApplication(processIdentifier: pid)?.activate(options: [])
         let error = AXUIElementSetAttributeValue(AXUIElementCreateApplication(pid), kAXFocusedWindowAttribute as CFString, window)
         // Allow the first AppKit activation to settle before its initial down.
@@ -101,6 +106,24 @@ import Cocoa
         }
         leased = false; priorApp = nil; priorWindow = nil
     }
+    func wheel(_ args: [String: Any]) async -> [String: Any] {
+        guard let x=args["x"] as? Double, let y=args["y"] as? Double,
+              let dx=args["deltaX"] as? Double, let dy=args["deltaY"] as? Double,
+              [x,y,dx,dy].allSatisfy({$0.isFinite}), (0...1).contains(x), (0...1).contains(y),
+              abs(dx)<=4096, abs(dy)<=4096, FinderAccess.inputAllowed(window), let frame=FinderAccess.frame(window) else { releaseAll(); return ["error":"Invalid wheel/source"] }
+        bounds=frame;point=CGPoint(x:frame.minX+x*(frame.width-1),y:frame.minY+y*(frame.height-1))
+        guard await focus() else { releaseAll(); return ["error":"Wheel focus unavailable"] }
+        _ = post(phase:"move",button:0,at:point,count:0)
+        guard let event=CGEvent(scrollWheelEvent2Source:CGEventSource(stateID:.privateState),units:.pixel,wheelCount:2,wheel1:Int32(-dy.rounded()),wheel2:Int32(-dx.rounded()),wheel3:0) else { return ["error":"Wheel construction failed"] }
+        event.flags=[];event.location=point
+        event.setIntegerValueField(.mouseEventWindowUnderMousePointer,value:Int64(wid))
+        event.setIntegerValueField(.mouseEventWindowUnderMousePointerThatCanHandleThisEvent,value:Int64(wid))
+        event.setIntegerValueField(CGEventField(rawValue:51)!,value:Int64(wid))
+        event.setIntegerValueField(.eventTargetUnixProcessID,value:Int64(pid))
+        setLocation(event,CGPoint(x:point.x-bounds.minX,y:point.y-bounds.minY))
+        event.postToPid(pid);heartbeat()
+        return ["AXError":0]
+    }
     func handle(_ args: [String: Any]) async -> [String: Any] {
         guard let phase = args["phase"] as? String, ["down","up","move"].contains(phase),
               let button = args["button"] as? Int, (0...2).contains(button),
@@ -128,11 +151,9 @@ import Cocoa
             releaseAll(); return ["error": "Native pointer construction failed"]
         }
         if phase == "up" { held.remove(button); counts.removeValue(forKey: button) }
-        if held.isEmpty && phase == "up" {
-            // Let AppKit consume the up before restoring the focus lease.
-            try? await Task.sleep(nanoseconds: 60_000_000)
-            releaseAll()
-        } else { heartbeat() }
+        // Keep the remote focus lease until receiver blur/releaseAll, rather
+        // than paying activation/restoration delays for every click/move.
+        heartbeat()
         guard FinderAccess.inputAllowed(window) else { releaseAll(); return ["error": "Source left backing", "fatal": true] }
         return ["AXError": 0, "held": held.count]
     }

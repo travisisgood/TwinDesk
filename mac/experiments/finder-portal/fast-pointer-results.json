@@ -1,0 +1,30 @@
+{
+  "actions": [
+    {
+      "action": "Alpha.txt",
+      "selection": "Alpha.txt",
+      "childOpened": false,
+      "bounds": "-1240, 60, -440, 610"
+    },
+    {
+      "action": "Beta.txt",
+      "selection": "Beta.txt",
+      "childOpened": false,
+      "bounds": "-1240, 60, -440, 610"
+    },
+    {
+      "action": "PortalChild",
+      "selection": "",
+      "childOpened": true,
+      "bounds": "-1240, 60, -440, 610"
+    }
+  ],
+  "explicitRelease": true,
+  "helperCrashRecovery": {
+    "restored": true,
+    "state": "100, 100, 900, 650, false"
+  },
+  "emergencyUpConstructed": {
+    "released": true
+  }
+}

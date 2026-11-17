@@ -21,7 +21,7 @@ class Pipe {
 }
 function startWorker(config,display){
  const x=display.x+40,y=display.y+60;
- const child=spawn('/usr/bin/python3',[path.join(__dirname,'source_worker.py'),config.capture,config.output,String(display.id),String(x),String(y)],{stdio:['pipe','pipe','inherit']});
+ const child=spawn('/usr/bin/python3',[path.join(__dirname,'source_worker.py'),config.capture,config.output,String(display.id),String(x),String(y),JSON.stringify(config.sourceWindow??null)],{stdio:['pipe','pipe','inherit'],env:{...process.env,FINDER_CAPTURE_SCALE:String(config.captureScale??2)}});
  return new Pipe(child);
 }
 async function stopChild(child){
@@ -31,12 +31,13 @@ async function stopChild(child){
 }
 async function start(config,{workerFactory=startWorker}={}){
  check(SHA.test(config.sourceCommit),'Exact source commit required');
+ check(config.captureScale===undefined||[1,1.5,2].includes(config.captureScale),'Invalid capture scale');
  const host=config.host||'127.0.0.1',port=config.port??49731;
  check(Number.isInteger(port)&&port>=0&&port<=65535,'Invalid port');
  const tls=!!config.certFile;
  check(host==='127.0.0.1'||(tls&&config.keyFile),'LAN requires explicit TLS certificate/key');
  const duration=config.durationSeconds??120;
- check(Number.isInteger(duration)&&duration>=15&&duration<=900,'Session lifetime must be 15..900 seconds');
+ check(Number.isInteger(duration)&&duration>=15&&duration<=3540,'Session lifetime must be 15..3540 seconds');
  fs.mkdirSync(config.output,{recursive:true,mode:0o700});
  const log=(event,fields={})=>fs.appendFileSync(path.join(config.output,'events.jsonl'),JSON.stringify({at:new Date().toISOString(),event,...fields})+'\n',{mode:0o600});
  let server,pin=null;
@@ -93,7 +94,7 @@ async function start(config,{workerFactory=startWorker}={}){
       if(ended)return;
       if(!state.outstanding&&!frameBusy&&!resizing){
        frameBusy=true;
-       try{const result=await worker.call({op:'frame'});if(ended)return;check(!result.error,'Native capture failure');
+       try{const frameStart=Date.now();const result=await worker.call({op:'frame'});if(state.frameSeq%100===0)log('frameTiming',{nativeMs:Date.now()-frameStart});if(ended)return;check(!result.error,'Native capture failure');
         if(result.metadata){send(state.updateGeometry(result.metadata));log('dragGeometryChanged',{revision:state.window.geometryRevision,dragRegions:state.window.dragRegions??[]});}
         else if(!result.pending){const {nativeFrames,...payload}=result;send(state.nextFrame(payload));}
        }catch{end('Capture failure');}finally{frameBusy=false;}
@@ -106,7 +107,8 @@ async function start(config,{workerFactory=startWorker}={}){
     if(action.kind==='ping'){send(state.envelope('pong',{nonce:m.nonce}));return;}
     if(action.kind==='close'){end('Receiver closed');return;}
     if(action.kind==='input'||action.kind==='result'){
-     const answer=(status,detail)=>{log('inputResult',{seq:m.seq,op:m.op,status});send(state.envelope('inputResult',{windowId:state.window.windowId,seq:m.seq,status,detail}));};
+     const acceptedAt=Date.now();let startedAt=null;
+     const answer=(status,detail)=>{log('inputResult',{seq:m.seq,op:m.op,status,totalMs:Date.now()-acceptedAt,queueMs:startedAt===null?null:startedAt-acceptedAt});send(state.envelope('inputResult',{windowId:state.window.windowId,seq:m.seq,status,detail}));};
      if(action.kind==='result'){answer(action.status,action.detail);return;}
      if(m.op==='releaseAll'&&ready){
       releaseHighWater=m.seq;
@@ -117,7 +119,7 @@ async function start(config,{workerFactory=startWorker}={}){
      if(!ready||inputs>=16){answer('rejected','Input queue unavailable');return;}
      inputs++;
      const work=inputTail.then(async()=>{
-      if(ended)return;
+      if(ended)return;startedAt=Date.now();
       if(m.seq<releaseHighWater){answer('rejected','Input superseded by release');return;}
       if(m.geometryRevision!==state.window.geometryRevision||m.frameSeq<state.revisionFirstFrame){answer('rejected','Geometry changed while queued');return;}
       if(m.op==='resize'){

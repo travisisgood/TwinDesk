@@ -1,0 +1,51 @@
+{
+  "before": [
+    0,
+    0
+  ],
+  "after": [
+    0.4897959183673469,
+    0
+  ],
+  "stateBefore": {
+    "bounds": "{{-1240, 60}, {800, 550}}",
+    "cursor": "{0, 831.5665283203125}",
+    "held": 0,
+    "leased": false
+  },
+  "stateAfter": {
+    "bounds": "{{-1240, 60}, {800, 550}}",
+    "cursor": "{0, 831.5665283203125}",
+    "held": 0,
+    "leased": true
+  },
+  "released": {
+    "bounds": "{{-1240, 60}, {800, 550}}",
+    "cursor": "{0, 831.5665283203125}",
+    "held": 0,
+    "leased": false
+  },
+  "windowControls": [
+    {
+      "action": "close",
+      "height": 16,
+      "width": 16,
+      "x": 18,
+      "y": 18
+    },
+    {
+      "action": "minimize",
+      "height": 16,
+      "width": 16,
+      "x": 41,
+      "y": 18
+    },
+    {
+      "action": "zoom",
+      "height": 16,
+      "width": 16,
+      "x": 64,
+      "y": 18
+    }
+  ]
+}

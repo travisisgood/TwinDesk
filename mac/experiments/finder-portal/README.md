@@ -621,3 +621,44 @@ queue release, and cancellation of queued pre-release downs. Signed build passed
 Wire additions are the previously agreed optional standalone operations only;
 main TwinDesk/shared wire is untouched. Paired Windows input and natural edge
 handoff remain required. Wheel/key/text and owned popup handling are not claimed.
+
+
+### Actual paired input and next speed/wheel candidate
+
+Windows report93 visually confirmed Alpha selection, Beta replacement and
+PortalChild opening on receiver36e90f9/source7cf62c44. Report96 relayed Travis's
+successful use of Finder to launch Claude, with severe latency. Mac read back
+unchanged backing bounds during the session and normal physical recovery on its
+15-minute cutoff. This is paired interaction evidence, not natural edge crossing.
+
+Windows identified per-input proof screenshots as a major receiver cost and
+removed them. Mac now retains the source focus lease until releaseAll/blur,
+removing repeated 80ms activation waits and 60ms per-up delays. Source logs include
+native frame duration and input queue/total time. Config `captureScale:1` offers a
+lower-pixel-count comparison; 2 remains default. Do not claim latency fixed until
+the new paired build is measured. Sessions may now be explicitly bounded to up
+to 3540 seconds; the next candidate uses 1800 seconds.
+
+The wheel handler passed a real Finder test: vertical AX scrollbar changed from
+0 to 0.4898 after positive-down input, source bounds and physical cursor unchanged,
+and releaseAll cleared the focus lease. Pointer selection, navigation and forced
+helper-exit recovery passed again after the focus optimization. Sixteen automated
+tests passed. `wheel` is advertised; keyboard/text remain off.
+
+Agreed Windows contract100 adds `receiverWindowControls` and genuine AX-derived
+`windowControls` rectangles. Close means return home, minimize means local Windows
+taskbar, zoom means receiver maximize/restore with the existing resize route.
+The Mac sends close (18,18,16,16), minimize (41,18,16,16), zoom (64,18,16,16) for the
+measured Finder window; these are measured per window, not hard-coded metadata.
+Validation rejects out-of-bounds, duplicate-action and drag-region overlaps.
+Paired behavior of these controls remains to be tested.
+
+Existing-window adoption is implemented for explicit Finder IDs and tested with
+an already-existing 640x480 window: original bounds (130,150,770,630) restored,
+folder contents unchanged, no generated files in the adopted folder. The new
+read-only `--observe-edge SIDE SECONDS` observer is an isolated draft that emits
+Finder title-drag anchor/physical-edge information, distinguishing TwinDesk-injected
+mouse events. It is not connected to KVM or the broker, and automatic crossing is
+not yet validated. PORTAL_SESSION1 bootstrap and PORTAL_HANDOFF1 integration are
+being coordinated with Windows. The current paired candidate uses explicit
+pairing while that work continues.

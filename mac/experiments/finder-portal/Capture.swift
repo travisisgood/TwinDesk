@@ -27,6 +27,9 @@ import CryptoKit
                 guard let data = CommandLine.arguments[2].data(using: .utf8), let args = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { emit(["released": false]); return }
                 emit(["released": NativePointer.emergencyRelease(args)]); return
             }
+            if CommandLine.arguments.count == 4, CommandLine.arguments[1] == "--observe-edge", let seconds = Int(CommandLine.arguments[3]) {
+                await EdgeObserver.run(side: CommandLine.arguments[2], seconds: seconds); return
+            }
             let sourceMode = CommandLine.arguments.contains("--source")
             let viewerMode = CommandLine.arguments.contains("--viewer") || sourceMode
             let backingIndex = CommandLine.arguments.firstIndex(of: "--backing")
@@ -53,7 +56,8 @@ import CryptoKit
                 return
             }
             let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
-            let matches = content.windows.filter { $0.owningApplication?.bundleIdentifier == "com.apple.finder" && $0.title == title }
+            let selectedID = title.hasPrefix("window:") ? UInt32(title.dropFirst(7)) : nil
+            let matches = content.windows.filter { $0.owningApplication?.bundleIdentifier == "com.apple.finder" && (selectedID != nil ? $0.windowID == selectedID : $0.title == title) }
             guard matches.count == 1, let window = matches.first else {
                 throw NSError(domain: "Expected one dedicated Finder window; found \(matches.count)", code: 2)
             }
@@ -65,14 +69,19 @@ import CryptoKit
             config.ignoreShadowsSingleWindow = true
             config.scalesToFit = true
             config.capturesAudio = false
-            let rootAX = FinderAccess.window(pid: window.owningApplication!.processID, title: title)
+            let rootAX = FinderAccess.window(pid: window.owningApplication!.processID, title: window.title ?? title, matching: window.frame)
             let viewer = viewerMode ? PortalViewer(source: window, presentsWindow: !sourceMode) : nil
-            try await viewer?.start(showWindow: !sourceMode)
+            try await viewer?.start(showWindow: !sourceMode, pixelScale: ProcessInfo.processInfo.environment["FINDER_CAPTURE_SCALE"].flatMap(Double.init) ?? 2)
             emit(["ready": true, "wid": window.windowID, "pid": window.owningApplication!.processID])
             let nativePointer = rootAX.flatMap { NativePointer(window: $0, wid: window.windowID, pid: window.owningApplication!.processID) }
             defer { nativePointer?.releaseAll() }
             var publishedDragRegions: [[String: Double]] = []
             while let path = await Task.detached(operation: { readLine() }).value {
+                if path.hasPrefix("@wheel-json:") {
+                    guard let nativePointer, let data=String(path.dropFirst(12)).data(using:.utf8), let args=try? JSONSerialization.jsonObject(with:data) as? [String:Any] else { emit(["error":"Wheel unavailable"]); continue }
+                    emit(await nativePointer.wheel(args)); continue
+                }
+                if path == "@pointer-state" { emit(nativePointer?.snapshot ?? ["error":"Unavailable"]); continue }
                 if path == "@release-all" { nativePointer?.releaseAll(); emit(["AXError": 0]); continue }
                 if path.hasPrefix("@pointer-json:") {
                     guard let nativePointer, let data = String(path.dropFirst(14)).data(using: .utf8),
@@ -85,12 +94,13 @@ import CryptoKit
                     let small = NSImage(size: NSSize(width: 128, height: 128))
                     small.lockFocus(); icon.draw(in: NSRect(x: 0, y: 0, width: 128, height: 128)); small.unlockFocus()
                     let rep = NSBitmapImageRep(data: small.tiffRepresentation!)!
-                    emit(["appId": "com.apple.finder", "title": title,
+                    emit(["appId": "com.apple.finder", "title": window.title ?? title,
                           "logicalSize": ["width": Int(viewer?.logicalSize.width ?? window.frame.width), "height": Int(viewer?.logicalSize.height ?? window.frame.height)],
                           "pixelSize": ["width": viewer?.captureConfig?.width ?? config.width, "height": viewer?.captureConfig?.height ?? config.height],
                           "iconPng": rep.representation(using: .png, properties: [:])!.base64EncodedString(),
                           "dragRegions": publishedDragRegions,
-                          "capabilities": ["pressAt", "setSearchText", "confirmSearch"] + (FinderAccess.backingDisplayID != nil ? ["resize", "sourceDragRegions"] : []) + (nativePointer != nil ? ["pointer", "releaseAll"] : [])]); continue
+                          "windowControls": rootAX.map { FinderAccess.windowControls($0) } ?? [],
+                          "capabilities": ["pressAt", "setSearchText", "confirmSearch"] + (FinderAccess.backingDisplayID != nil ? ["resize", "sourceDragRegions", "receiverWindowControls"] : []) + (nativePointer != nil ? ["pointer", "releaseAll", "wheel"] : [])]); continue
                 }
                 if path.hasPrefix("@resize-json:"), let viewer {
                     guard let data = String(path.dropFirst(13)).data(using: .utf8),

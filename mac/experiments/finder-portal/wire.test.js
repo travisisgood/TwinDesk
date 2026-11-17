@@ -43,3 +43,14 @@ test('releaseAll bypasses frame and revision gates but preserves identity and re
  assert.throws(()=>s.accept({...release,seq:2,op:'pointer',frameSeq:1,geometryRevision:1,args:{phase:'move',button:2,x:0,y:0}}));
  assert.equal(s.accept({...release,seq:2,op:'pointer',frameSeq:1,geometryRevision:1,args:{phase:'down',button:0,x:0,y:0}}).kind,'input');
 });
+test('receiver controls require unique source-bounded actions without drag overlap',()=>{
+ const m={...meta,logicalSize:{width:800,height:550},capabilities:['receiverWindowControls','sourceDragRegions'],windowControls:[{action:'minimize',x:20,y:10,width:12,height:12}],dragRegions:[{x:100,y:10,width:100,height:30}]};metadata(m);
+ assert.throws(()=>metadata({...m,windowControls:[...m.windowControls,...m.windowControls]}));
+ assert.throws(()=>metadata({...m,windowControls:[{action:'close',x:110,y:12,width:10,height:10}]}));
+ assert.throws(()=>metadata({...m,windowControls:[{action:'launch',x:20,y:10,width:12,height:12}]}));
+});
+test('wheel bounds and coordinate validation precede dispatch',()=>{
+ const s=new SourceState('a'.repeat(40),{...meta,capabilities:['wheel']});s.nextFrame(payload);
+ const m=s.envelope('input',{windowId:meta.windowId,seq:1,frameSeq:1,geometryRevision:1,op:'wheel',args:{x:.5,y:.5,deltaX:0,deltaY:100}});
+ assert.equal(s.accept(m).kind,'input');assert.throws(()=>s.accept({...m,seq:2,args:{...m.args,deltaY:Infinity}}));assert.throws(()=>s.accept({...m,seq:2,args:{...m.args,deltaY:4097}}));
+});

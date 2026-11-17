@@ -36,6 +36,19 @@ function metadata(m) {
       for(const p of m.dragRegions.slice(0,i))check(r.x>=p.x+p.width||p.x>=r.x+r.width||r.y>=p.y+p.height||p.y>=r.y+r.height,'Overlapping drag regions');
     }
   }
+  if(m.windowControls!==undefined){
+    check(Array.isArray(m.windowControls)&&m.windowControls.length<=3,'Invalid window controls');
+    if(m.windowControls.length)check(m.capabilities.includes('receiverWindowControls'),'Window controls capability missing');
+    const actions=new Set();
+    for(const r of m.windowControls){
+      check(object(r)&&['close','minimize','zoom'].includes(r.action)&&!actions.has(r.action),'Invalid control action');actions.add(r.action);
+      check([r.x,r.y,r.width,r.height].every(Number.isFinite)&&r.x>=0&&r.y>=0&&r.width>0&&r.height>0&&r.x+r.width<=m.logicalSize.width&&r.y+r.height<=m.logicalSize.height,'Control outside window');
+    }
+    const rectangles=[...m.windowControls,...(m.dragRegions??[])];
+    for(let i=0;i<m.windowControls.length;i++)for(let j=i+1;j<rectangles.length;j++){
+      const r=rectangles[i],p=rectangles[j];check(r.x>=p.x+p.width||p.x>=r.x+r.width||r.y>=p.y+p.height||p.y>=r.y+r.height,'Overlapping window control');
+    }
+  }
 }
 function frame(m, window) {
   check(m.windowId === window.windowId && m.geometryRevision === window.geometryRevision && integer(m.seq), 'Invalid frame identity');
@@ -83,6 +96,7 @@ class SourceState {
     }
     check(integer(m.frameSeq)&&m.frameSeq<=this.frameSeq,'Unknown frame');
     check(integer(m.geometryRevision)&&typeof m.op==='string'&&object(m.args),'Malformed input');
+    if(m.op==='wheel') check([m.args.x,m.args.y,m.args.deltaX,m.args.deltaY].every(Number.isFinite)&&m.args.x>=0&&m.args.x<=1&&m.args.y>=0&&m.args.y<=1&&Math.abs(m.args.deltaX)<=4096&&Math.abs(m.args.deltaY)<=4096,'Invalid wheel');
     if(m.op==='pointer') check(['down','up','move'].includes(m.args.phase)&&Number.isInteger(m.args.button)&&m.args.button>=0&&m.args.button<=2&&(m.args.phase!=='move'||m.args.button===0)&&[m.args.x,m.args.y].every(n=>Number.isFinite(n)&&n>=0&&n<=1),'Invalid pointer');
     if(m.op==='pressAt') check([m.args.x,m.args.y].every(n=>Number.isFinite(n)&&n>=0&&n<=1),'Invalid click');
     if(m.op==='setSearchText') check(string(m.args.text,4096),'Invalid search text');
