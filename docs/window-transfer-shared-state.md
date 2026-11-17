@@ -78,3 +78,21 @@ Travis reiterated monitor-edge drag currently stops in place. Final acceptance
 requires continuous drag across the edge and natural local placement, in both
 directions, with source-appropriate dragging/input/size, taskbar/Dock identity,
 and uninterrupted KVM. Manual pairing remains diagnostic only.
+
+## Paired Finder resize result — 2026-11-16 Toronto
+Mac source f57954db61b76bed2fcd1198205d5ddb80c87387 / Windows receiver
+4ccd1470d4827d98b685e613bc47dfeed957e1c0, real FinderNetwork-ab259db1.
+- Initial revision1: logical800x550, raster1600x1100, receiver scale1.5.
+- Windows native Size menu grow: revision2 logical813x550, raster1220x825,
+  resize inputseq2 dispatched; new frames continued. Toolbar reflow observed.
+- Actual Name header click after resize: inputseq3 dispatched; sort arrow changed.
+- Native Size menu shrink: revision3 logical800x550, raster1200x825,
+  resize inputseq4 dispatched; new frames continued (seq780 observed).
+No resize echo was observed between operations. Mac's source readback confirmation
+requested separately; source metadata is the reported applied geometry evidence.
+The receiver is left visible for Travis; no forced disconnect recovery test yet.
+
+Boundary/corner drag automation initially hit source content and returned unsupported;
+Windows Size menu was used to exercise real native receiver resizing. These results
+are not proof of source-native titlebar dragging, general input, automatic edge
+transfer, or human approval of sharpness. Mac does not yet advertise sourceDragRegions.
